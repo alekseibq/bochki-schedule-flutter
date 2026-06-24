@@ -56,7 +56,7 @@ jobs:
       - name: Install Linux desktop dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev xvfb
 
       - name: Enable Linux desktop
         run: flutter config --enable-linux-desktop
@@ -77,7 +77,7 @@ jobs:
 
       - name: Run Linux desktop integration test
         working-directory: packages/bochki_schedule_app
-        run: flutter test integration_test/app_shell_test.dart -r expanded
+        run: xvfb-run -a flutter test integration_test/app_shell_test.dart -r expanded
 
   windows-desktop:
     runs-on: windows-2022
