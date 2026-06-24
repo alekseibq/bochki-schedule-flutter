@@ -81,6 +81,8 @@ jobs:
 
   windows-desktop:
     runs-on: windows-latest
+    env:
+      CMAKE_GENERATOR: Ninja
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
