@@ -9,6 +9,10 @@ command:
     usePubspecOverrides: true
 
 scripts:
+  clean:
+    description: Clean generated files across the workspace.
+    run: melos exec -- "flutter clean"
+
   analyze:
     description: Run static analysis for every package in the workspace.
     run: dart run melos exec -- "dart analyze ."
@@ -22,3 +26,7 @@ scripts:
   format-check:
     description: Validate formatting for every package in the workspace.
     run: dart run melos exec -- "dart format --output=none --set-exit-if-changed ."
+
+  app-test-integration-linux:
+    description: Run the desktop shell integration test on Linux.
+    run: dart run melos exec --scope="bochki_schedule_app" -- "flutter test integration_test/app_shell_test.dart -r expanded"
