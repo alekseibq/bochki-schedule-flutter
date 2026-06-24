@@ -64,6 +64,8 @@ melos run test
 melos run format-check
 ```
 
+Отдельные manual smoke шаги для desktop baseline описаны в [`docs/testing.md`](docs/testing.md).
+
 Смысл команд:
 
 - `bootstrap` - подтянуть зависимости по всем пакетам.
