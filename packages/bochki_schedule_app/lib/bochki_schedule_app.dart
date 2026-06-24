@@ -1,3 +1,6 @@
 library bochki_schedule_app;
 
-const String bochkiScheduleAppLibraryName = 'bochki_schedule_app';
+export 'src/app.dart';
+export 'src/app_bootstrap.dart';
+export 'src/app_services.dart';
+export 'src/presentation/shell/bochki_shell.dart';
