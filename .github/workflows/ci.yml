@@ -80,9 +80,7 @@ jobs:
         run: flutter test integration_test/app_shell_test.dart -r expanded
 
   windows-desktop:
-    runs-on: windows-latest
-    env:
-      CMAKE_GENERATOR: Ninja
+    runs-on: windows-2022
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
