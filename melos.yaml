@@ -1,0 +1,24 @@
+name: bochki_schedule_workspace
+repository: https://github.com/alekseibq/bochki-schedule-flutter
+
+packages:
+  - packages/**
+
+command:
+  bootstrap:
+    usePubspecOverrides: true
+
+scripts:
+  analyze:
+    description: Run static analysis for every package in the workspace.
+    run: melos exec -- "dart analyze ."
+
+  test:
+    description: Run tests for every package in the workspace.
+    steps:
+      - melos exec --scope="bochki_schedule_app" -- "flutter test"
+      - melos exec --scope="bochki_schedule_domain" --scope="bochki_schedule_infra" -- "dart test"
+
+  format-check:
+    description: Validate formatting for every package in the workspace.
+    run: melos exec -- "dart format --output=none --set-exit-if-changed ."
