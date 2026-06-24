@@ -80,15 +80,34 @@ melos run format-check
 - Для коммитов используем Conventional Commits.
 - Весь код пишет Codex, архитектурные и спорные решения обсуждаются отдельно и фиксируются в документации.
 
+## CI
+
+Основной pipeline запускается в GitHub Actions и состоит из таких проверок:
+
+- `pr-title` - проверка названия PR по Conventional Commits.
+- `linux-checks` - `bootstrap`, `format-check`, `analyze`, unit/widget tests и Linux desktop integration test.
+- `windows-desktop` - Windows release build и desktop integration test.
+- `macos-release` - macOS release build и публикация артефакта приложения.
+
+Для merge в `main` должны быть зелеными все обязательные checks.
+macOS артефакт на текущем этапе неподписан и не notarized.
+
 ## Следующие шаги
 
-Текущий baseline покрывает только структуру монорепо и workspace tooling.
-Следующие инкременты добавят:
+Текущий baseline уже включает:
 
+- монорепо и workspace tooling,
 - архитектурный фундамент и ADR,
 - desktop shell,
-- тесты UI,
+- базовые UI-проверки,
 - GitHub Actions pipeline.
+
+Следующие инкременты добавят предметный функционал:
+
+- document workflow (`New/Open/Save`),
+- реальные справочники `Тренеры` и `Участники`,
+- модель расписания и операции редактирования,
+- печать и экспорт.
 
 ## Текущие архитектурные оговорки
 
