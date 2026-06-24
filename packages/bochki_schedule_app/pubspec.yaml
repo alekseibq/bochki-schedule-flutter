@@ -7,10 +7,18 @@ environment:
   sdk: ^3.5.0
 
 dependencies:
+  bochki_schedule_domain:
+    path: ../bochki_schedule_domain
+  bochki_schedule_infra:
+    path: ../bochki_schedule_infra
   flutter:
     sdk: flutter
+  path: ^1.9.0
+  window_manager: ^0.4.3
 
 dev_dependencies:
+  integration_test:
+    sdk: flutter
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0

@@ -11,14 +11,14 @@ command:
 scripts:
   analyze:
     description: Run static analysis for every package in the workspace.
-    run: melos exec -- "dart analyze ."
+    run: dart run melos exec -- "dart analyze ."
 
   test:
     description: Run tests for every package in the workspace.
     steps:
-      - melos exec --scope="bochki_schedule_app" -- "flutter test"
-      - melos exec --scope="bochki_schedule_domain" --scope="bochki_schedule_infra" -- "dart test"
+      - dart run melos exec --scope="bochki_schedule_app" -- "flutter test"
+      - dart run melos exec --scope="bochki_schedule_domain" --scope="bochki_schedule_infra" -- "dart test"
 
   format-check:
     description: Validate formatting for every package in the workspace.
-    run: melos exec -- "dart format --output=none --set-exit-if-changed ."
+    run: dart run melos exec -- "dart format --output=none --set-exit-if-changed ."
