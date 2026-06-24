@@ -36,6 +36,7 @@
 - `FVM`
 - Flutter SDK версии из `.fvmrc`
 - `melos`
+- для Linux desktop integration: `clang`, `cmake`, `ninja-build`, `pkg-config`, `libgtk-3-dev`
 
 ## Подготовка окружения
 
@@ -54,6 +55,7 @@ dart pub global activate melos
 ```
 
 Если `melos` установлен глобально, убедитесь, что он доступен в `PATH`.
+Альтернатива без глобальной установки: `dart run melos <command>`.
 
 ## Команды workspace
 
@@ -62,6 +64,7 @@ melos bootstrap
 melos run analyze
 melos run test
 melos run format-check
+melos run app-test-integration-linux
 ```
 
 Отдельные manual smoke шаги для desktop baseline описаны в [`docs/testing.md`](docs/testing.md).
@@ -72,6 +75,7 @@ melos run format-check
 - `analyze` - прогнать статический анализ по всем пакетам.
 - `test` - прогнать тесты по всем пакетам.
 - `format-check` - проверить форматирование без автоматической правки.
+- `app-test-integration-linux` - прогнать integration test shell на Linux desktop runner.
 
 ## Процесс разработки
 
@@ -91,6 +95,12 @@ melos run format-check
 
 Для merge в `main` должны быть зелеными все обязательные checks.
 macOS артефакт на текущем этапе неподписан и не notarized.
+
+## Troubleshooting
+
+- Если `melos bootstrap` падает, сначала выполните `dart pub get` в корне репозитория.
+- Если Linux desktop integration test не стартует локально, проверьте наличие `clang`, `cmake`, `ninja-build`, `pkg-config`, `libgtk-3-dev`.
+- Если `window_manager` требует desktop target, убедитесь, что нужная платформа включена через `flutter config`.
 
 ## Следующие шаги
 
