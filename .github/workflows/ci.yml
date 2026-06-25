@@ -110,6 +110,23 @@ jobs:
         working-directory: packages/bochki_schedule_app
         run: flutter build windows --release
 
+      - name: Archive Windows app release
+        shell: pwsh
+        working-directory: packages/bochki_schedule_app/build/windows/x64/runner/Release
+        run: |
+          $archivePath = Join-Path (Get-Location) 'bochki_schedule_app-windows-release.zip'
+          if (Test-Path $archivePath) {
+            Remove-Item $archivePath -Force
+          }
+          Compress-Archive -Path * -DestinationPath $archivePath -Force
+
+      - name: Upload Windows release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bochki-schedule-windows-release
+          path: packages/bochki_schedule_app/build/windows/x64/runner/Release/bochki_schedule_app-windows-release.zip
+          if-no-files-found: error
+
       - name: Run Windows desktop integration test
         working-directory: packages/bochki_schedule_app
         run: flutter test integration_test/app_shell_test.dart -d windows -r expanded
