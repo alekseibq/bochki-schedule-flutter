@@ -65,6 +65,7 @@ melos run analyze
 melos run test
 melos run format-check
 melos run app-test-integration-linux
+make windows-release
 ```
 
 Отдельные manual smoke шаги для desktop baseline описаны в [`docs/testing.md`](docs/testing.md).
@@ -76,6 +77,7 @@ melos run app-test-integration-linux
 - `test` - прогнать тесты по всем пакетам.
 - `format-check` - проверить форматирование без автоматической правки.
 - `app-test-integration-linux` - прогнать integration test shell на Linux desktop runner.
+- `make windows-release` - собрать Windows release и упаковать его в ZIP на Windows-машине.
 
 ## Процесс разработки
 
@@ -90,7 +92,7 @@ melos run app-test-integration-linux
 
 - `pr-title` - проверка названия PR по Conventional Commits.
 - `linux-checks` - `bootstrap`, `format-check`, `analyze`, unit/widget tests и Linux desktop integration test.
-- `windows-desktop` - Windows release build и desktop integration test.
+- `windows-desktop` - Windows release build, desktop integration test и публикация ZIP artifact.
 - `macos-release` - macOS release build и публикация артефакта приложения.
 
 Для merge в `main` должны быть зелеными все обязательные checks.

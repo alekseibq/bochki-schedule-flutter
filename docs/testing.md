@@ -5,6 +5,19 @@
 - `melos run test` покрывает unit и widget tests по всему workspace.
 - `melos run app-test-integration-linux` прогоняет integration test для desktop shell на Linux.
 - В GitHub Actions desktop integration дополнительно гоняется на Windows.
+- В Windows job CI после сборки публикуется ZIP artifact с release-папкой.
+
+## Windows Release Build
+
+На Windows-машине для локальной сборки release-артефакта используйте:
+
+```bash
+make windows-release
+```
+
+Команда включает Windows desktop target, собирает `flutter build windows --release` и кладет ZIP рядом с release-папкой:
+
+- `packages/bochki_schedule_app/build/windows/x64/runner/Release/bochki_schedule_app-windows-release.zip`
 
 ## Windows Smoke Checklist
 
