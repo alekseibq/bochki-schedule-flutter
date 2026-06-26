@@ -5,29 +5,26 @@ import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 
 import 'safe_file_writer.dart';
 
-abstract interface class ProjectDocumentStore {
-  Future<ProjectDocument?> read(File file);
-
-  Future<void> write(File file, ProjectDocument document);
-}
-
-final class JsonProjectDocumentStore implements ProjectDocumentStore {
-  JsonProjectDocumentStore({
+final class JsonProjectDocumentRepository implements ProjectDocumentRepository {
+  JsonProjectDocumentRepository({
+    required File projectFile,
     required SafeFileWriter safeFileWriter,
     JsonEncoder? encoder,
-  })  : _safeFileWriter = safeFileWriter,
+  })  : _projectFile = projectFile,
+        _safeFileWriter = safeFileWriter,
         _encoder = encoder ?? const JsonEncoder.withIndent('  ');
 
+  final File _projectFile;
   final SafeFileWriter _safeFileWriter;
   final JsonEncoder _encoder;
 
   @override
-  Future<ProjectDocument?> read(File file) async {
-    if (!await file.exists()) {
-      return null;
+  Future<ProjectDocument> load() async {
+    if (!await _projectFile.exists()) {
+      return ProjectDocument.initial();
     }
 
-    final raw = await file.readAsString();
+    final raw = await _projectFile.readAsString();
     final decoded = jsonDecode(raw);
     if (decoded is! Map<String, dynamic>) {
       throw const FormatException('Project document must be a JSON object.');
@@ -37,8 +34,8 @@ final class JsonProjectDocumentStore implements ProjectDocumentStore {
   }
 
   @override
-  Future<void> write(File file, ProjectDocument document) {
+  Future<void> save(ProjectDocument document) {
     final serialized = _encoder.convert(document.toJson());
-    return _safeFileWriter.writeString(file, serialized);
+    return _safeFileWriter.writeString(_projectFile, serialized);
   }
 }

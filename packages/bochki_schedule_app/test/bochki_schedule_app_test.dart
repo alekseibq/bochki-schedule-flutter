@@ -12,13 +12,9 @@ void main() {
   });
 
   testWidgets('shell shows top menu and default placeholder', (tester) async {
-    final services = AppServices(
-      appDataDirectory: Directory('/tmp/bochki_schedule_test'),
-      logger: const _NoopLogger(),
-      projectDocumentStore: const _NoopProjectDocumentStore(),
-    );
+    final context = _buildTestContext();
 
-    await tester.pumpWidget(BochkiScheduleApp(services: services));
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
     await tester.pumpAndSettle();
 
     expect(find.text('ПО Расписание Бочки'), findsOneWidget);
@@ -27,13 +23,9 @@ void main() {
   });
 
   testWidgets('shell opens participants dialog from menu', (tester) async {
-    final services = AppServices(
-      appDataDirectory: Directory('/tmp/bochki_schedule_test'),
-      logger: const _NoopLogger(),
-      projectDocumentStore: const _NoopProjectDocumentStore(),
-    );
+    final context = _buildTestContext();
 
-    await tester.pumpWidget(BochkiScheduleApp(services: services));
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('directories_menu_button')));
@@ -42,21 +34,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-        find.byKey(const Key('participants_directory_dialog')), findsOneWidget);
+      find.byKey(const Key('participants_directory_dialog')),
+      findsOneWidget,
+    );
     expect(find.byKey(const Key('participant_name_field')), findsOneWidget);
   });
 
   testWidgets('participants dialog adds edits and soft-deletes entries', (
     tester,
   ) async {
-    final store = _MemoryProjectDocumentStore();
-    final services = AppServices(
-      appDataDirectory: Directory('/tmp/bochki_schedule_test'),
-      logger: const _NoopLogger(),
-      projectDocumentStore: store,
-    );
+    final context = _buildTestContext();
 
-    await tester.pumpWidget(BochkiScheduleApp(services: services));
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('directories_menu_button')));
@@ -76,9 +65,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Иван Иванов'), findsOneWidget);
-    expect(store.document, isNotNull);
-    expect(store.document!.participants.single['name'], 'Иван Иванов');
-    expect(store.document!.participants.single['deleted'], isFalse);
+    expect(
+        context.repository.document.participants.single['name'], 'Иван Иванов');
+    expect(
+      context.repository.document.participants.single['deleted'],
+      isFalse,
+    );
 
     await tester.enterText(
       find.byKey(const Key('participant_name_field')),
@@ -99,7 +91,8 @@ void main() {
 
     expect(find.text('Иван Петров'), findsOneWidget);
     expect(find.text('Иван Иванов'), findsNothing);
-    expect(store.document!.participants.single['name'], 'Иван Петров');
+    expect(
+        context.repository.document.participants.single['name'], 'Иван Петров');
 
     await tester.tap(find.text('Удалить'));
     await tester.pumpAndSettle();
@@ -107,8 +100,33 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Пока нет ни одного участника.'), findsOneWidget);
-    expect(store.document!.participants.single['deleted'], isTrue);
+    expect(context.repository.document.participants.single['deleted'], isTrue);
   });
+}
+
+_TestContext _buildTestContext() {
+  final repository =
+      _MemoryProjectDocumentRepository(ProjectDocument.initial());
+  final useCase = ParticipantsDirectoryUseCase(repository: repository);
+
+  return _TestContext(
+    services: AppServices(
+      appDataDirectory: Directory('/tmp/bochki_schedule_test'),
+      logger: const _NoopLogger(),
+      participantsDirectoryUseCase: useCase,
+    ),
+    repository: repository,
+  );
+}
+
+final class _TestContext {
+  const _TestContext({
+    required this.services,
+    required this.repository,
+  });
+
+  final AppServices services;
+  final _MemoryProjectDocumentRepository repository;
 }
 
 final class _NoopLogger implements AppLogger {
@@ -125,26 +143,17 @@ final class _NoopLogger implements AppLogger {
   Future<void> info(String message) async {}
 }
 
-final class _NoopProjectDocumentStore implements ProjectDocumentStore {
-  const _NoopProjectDocumentStore();
+final class _MemoryProjectDocumentRepository
+    implements ProjectDocumentRepository {
+  _MemoryProjectDocumentRepository(this.document);
+
+  ProjectDocument document;
 
   @override
-  Future<ProjectDocument?> read(File file) async => null;
+  Future<ProjectDocument> load() async => document;
 
   @override
-  Future<void> write(File file, ProjectDocument document) async {}
-}
-
-final class _MemoryProjectDocumentStore implements ProjectDocumentStore {
-  ProjectDocument? _document;
-
-  ProjectDocument? get document => _document;
-
-  @override
-  Future<ProjectDocument?> read(File file) async => _document;
-
-  @override
-  Future<void> write(File file, ProjectDocument document) async {
-    _document = document;
+  Future<void> save(ProjectDocument updatedDocument) async {
+    document = updatedDocument;
   }
 }

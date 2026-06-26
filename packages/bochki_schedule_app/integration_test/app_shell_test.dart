@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:bochki_schedule_app/bochki_schedule_app.dart';
 import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/widgets.dart';
 import 'package:integration_test/integration_test.dart';
 
 void main() {
@@ -15,7 +15,9 @@ void main() {
     final services = AppServices(
       appDataDirectory: Directory('/tmp/bochki_schedule_test'),
       logger: const _NoopLogger(),
-      projectDocumentStore: const _NoopProjectDocumentStore(),
+      participantsDirectoryUseCase: ParticipantsDirectoryUseCase(
+        repository: _MemoryProjectDocumentRepository(ProjectDocument.initial()),
+      ),
     );
 
     await tester.pumpWidget(BochkiScheduleApp(services: services));
@@ -37,7 +39,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-        find.byKey(const Key('participants_directory_dialog')), findsOneWidget);
+      find.byKey(const Key('participants_directory_dialog')),
+      findsOneWidget,
+    );
     expect(find.byKey(const Key('participant_name_field')), findsOneWidget);
   });
 }
@@ -56,12 +60,17 @@ final class _NoopLogger implements AppLogger {
   Future<void> info(String message) async {}
 }
 
-final class _NoopProjectDocumentStore implements ProjectDocumentStore {
-  const _NoopProjectDocumentStore();
+final class _MemoryProjectDocumentRepository
+    implements ProjectDocumentRepository {
+  _MemoryProjectDocumentRepository(this.document);
+
+  ProjectDocument document;
 
   @override
-  Future<ProjectDocument?> read(File file) async => null;
+  Future<ProjectDocument> load() async => document;
 
   @override
-  Future<void> write(File file, ProjectDocument document) async {}
+  Future<void> save(ProjectDocument updatedDocument) async {
+    document = updatedDocument;
+  }
 }
