@@ -1,9 +1,10 @@
+import 'dart:io';
+
 import 'package:bochki_schedule_app/bochki_schedule_app.dart';
 import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/widgets.dart';
-import 'dart:io';
 
 void main() {
   test('package exports compile', () {
@@ -18,13 +19,14 @@ void main() {
     );
 
     await tester.pumpWidget(BochkiScheduleApp(services: services));
+    await tester.pumpAndSettle();
 
     expect(find.text('ПО Расписание Бочки'), findsOneWidget);
     expect(find.text('Справочники'), findsOneWidget);
     expect(find.text('В разработке'), findsOneWidget);
   });
 
-  testWidgets('shell switches between directory placeholders', (tester) async {
+  testWidgets('shell opens participants dialog from menu', (tester) async {
     final services = AppServices(
       appDataDirectory: Directory('/tmp/bochki_schedule_test'),
       logger: const _NoopLogger(),
@@ -32,22 +34,80 @@ void main() {
     );
 
     await tester.pumpWidget(BochkiScheduleApp(services: services));
-
-    await tester.tap(find.byKey(const Key('directories_menu_button')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Тренеры').last);
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const Key('placeholder_trainers')), findsOneWidget);
-    expect(find.text('Тренеры'), findsWidgets);
 
     await tester.tap(find.byKey(const Key('directories_menu_button')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Участники').last);
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('placeholder_participants')), findsOneWidget);
-    expect(find.text('Участники'), findsWidgets);
+    expect(
+        find.byKey(const Key('participants_directory_dialog')), findsOneWidget);
+    expect(find.byKey(const Key('participant_name_field')), findsOneWidget);
+  });
+
+  testWidgets('participants dialog adds edits and soft-deletes entries', (
+    tester,
+  ) async {
+    final store = _MemoryProjectDocumentStore();
+    final services = AppServices(
+      appDataDirectory: Directory('/tmp/bochki_schedule_test'),
+      logger: const _NoopLogger(),
+      projectDocumentStore: store,
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: services));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('directories_menu_button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Участники').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Добавить'));
+    await tester.pumpAndSettle();
+    expect(find.text('Введите имя участника.'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('participant_name_field')),
+      '  Иван   Иванов  ',
+    );
+    await tester.tap(find.text('Добавить'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Иван Иванов'), findsOneWidget);
+    expect(store.document, isNotNull);
+    expect(store.document!.participants.single['name'], 'Иван Иванов');
+    expect(store.document!.participants.single['deleted'], isFalse);
+
+    await tester.enterText(
+      find.byKey(const Key('participant_name_field')),
+      'Иван Иванов',
+    );
+    await tester.tap(find.text('Добавить'));
+    await tester.pumpAndSettle();
+    expect(find.text('Участник с таким именем уже есть.'), findsOneWidget);
+
+    await tester.tap(find.text('Редактировать'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('participant_name_field')),
+      'Иван Петров',
+    );
+    await tester.tap(find.text('Сохранить'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Иван Петров'), findsOneWidget);
+    expect(find.text('Иван Иванов'), findsNothing);
+    expect(store.document!.participants.single['name'], 'Иван Петров');
+
+    await tester.tap(find.text('Удалить'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Удалить').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Пока нет ни одного участника.'), findsOneWidget);
+    expect(store.document!.participants.single['deleted'], isTrue);
   });
 }
 
@@ -73,4 +133,18 @@ final class _NoopProjectDocumentStore implements ProjectDocumentStore {
 
   @override
   Future<void> write(File file, ProjectDocument document) async {}
+}
+
+final class _MemoryProjectDocumentStore implements ProjectDocumentStore {
+  ProjectDocument? _document;
+
+  ProjectDocument? get document => _document;
+
+  @override
+  Future<ProjectDocument?> read(File file) async => _document;
+
+  @override
+  Future<void> write(File file, ProjectDocument document) async {
+    _document = document;
+  }
 }

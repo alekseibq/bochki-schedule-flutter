@@ -10,7 +10,8 @@ import 'package:integration_test/integration_test.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('desktop shell opens menu and switches sections', (tester) async {
+  testWidgets('desktop shell opens menu and participant dialog',
+      (tester) async {
     final services = AppServices(
       appDataDirectory: Directory('/tmp/bochki_schedule_test'),
       logger: const _NoopLogger(),
@@ -18,6 +19,7 @@ void main() {
     );
 
     await tester.pumpWidget(BochkiScheduleApp(services: services));
+    await tester.pumpAndSettle();
 
     expect(find.text('ПО Расписание Бочки'), findsOneWidget);
     expect(find.text('Справочники'), findsOneWidget);
@@ -34,7 +36,9 @@ void main() {
     await tester.tap(find.text('Участники').last);
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('placeholder_participants')), findsOneWidget);
+    expect(
+        find.byKey(const Key('participants_directory_dialog')), findsOneWidget);
+    expect(find.byKey(const Key('participant_name_field')), findsOneWidget);
   });
 }
 
