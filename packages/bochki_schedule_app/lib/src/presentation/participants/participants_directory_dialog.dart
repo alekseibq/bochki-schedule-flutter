@@ -1,21 +1,19 @@
 import 'dart:async';
 
+import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:flutter/material.dart';
+
+import '../../application/participants_directory_use_case.dart';
 
 class ParticipantsDirectoryDialog extends StatefulWidget {
   const ParticipantsDirectoryDialog({
-    required this.participants,
-    required this.nextId,
-    required this.onChanged,
+    required this.document,
+    required this.useCase,
     super.key,
   });
 
-  final List<Map<String, Object?>> participants;
-  final int nextId;
-  final Future<void> Function(
-    List<Map<String, Object?>>,
-    int nextId,
-  ) onChanged;
+  final ProjectDocument document;
+  final ParticipantsDirectoryUseCase useCase;
 
   @override
   State<ParticipantsDirectoryDialog> createState() =>
@@ -26,58 +24,20 @@ class _ParticipantsDirectoryDialogState
     extends State<ParticipantsDirectoryDialog> {
   final TextEditingController _nameController = TextEditingController();
 
-  late List<_ParticipantRecord> _participants;
-  late int _nextId;
+  late ProjectDocument _document;
   int? _editingParticipantId;
   String? _nameError;
 
   @override
   void initState() {
     super.initState();
-    _participants = widget.participants
-        .map(_ParticipantRecord.fromJson)
-        .toList(growable: true);
-    _nextId = widget.nextId;
-    _participants.sort(_compareParticipantsByName);
+    _document = widget.document;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     super.dispose();
-  }
-
-  static int _compareParticipantsByName(
-    _ParticipantRecord left,
-    _ParticipantRecord right,
-  ) {
-    return _normalizedSortKey(left.name)
-        .compareTo(_normalizedSortKey(right.name));
-  }
-
-  static String _normalizedSortKey(String value) {
-    return _normalizeName(value).toLowerCase();
-  }
-
-  static String _normalizeName(String value) {
-    return value.trim().replaceAll(RegExp(r'\s+'), ' ');
-  }
-
-  List<_ParticipantRecord> get _activeParticipants {
-    final activeParticipants = _participants
-        .where((participant) => !participant.deleted)
-        .toList(growable: false);
-    activeParticipants.sort(_compareParticipantsByName);
-    return activeParticipants;
-  }
-
-  Future<void> _persistChanges() async {
-    await widget.onChanged(
-      _participants.map((participant) => participant.toJson()).toList(
-            growable: false,
-          ),
-      _nextId,
-    );
   }
 
   void _startEditing(_ParticipantRecord participant) {
@@ -99,63 +59,41 @@ class _ParticipantsDirectoryDialogState
     });
   }
 
-  bool _hasDuplicateName(String normalizedName) {
-    final normalizedCandidate = normalizedName.toLowerCase();
-    return _participants.any((participant) {
-      if (participant.deleted) {
-        return false;
-      }
-      if (participant.id == _editingParticipantId) {
-        return false;
-      }
-      return _normalizedSortKey(participant.name) == normalizedCandidate;
-    });
-  }
-
-  Future<void> _submitParticipant() async {
-    final normalizedName = _normalizeName(_nameController.text);
-    if (normalizedName.isEmpty) {
-      setState(() {
-        _nameError = 'Введите имя участника.';
-      });
+  Future<void> _showMutationError(String message) async {
+    if (!mounted) {
       return;
     }
 
-    if (_hasDuplicateName(normalizedName)) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  Future<void> _submitParticipant() async {
+    final result = _editingParticipantId == null
+        ? await widget.useCase.addParticipant(
+            _document,
+            _nameController.text,
+          )
+        : await widget.useCase.editParticipant(
+            _document,
+            _editingParticipantId!,
+            _nameController.text,
+          );
+
+    if (!result.isSuccess) {
       setState(() {
-        _nameError = 'Участник с таким именем уже есть.';
+        _nameError = result.errorMessage;
       });
       return;
     }
 
     setState(() {
-      if (_editingParticipantId == null) {
-        _participants.add(
-          _ParticipantRecord(
-            id: _nextId,
-            name: normalizedName,
-            deleted: false,
-          ),
-        );
-        _nextId += 1;
-      } else {
-        final index = _participants.indexWhere(
-          (participant) => participant.id == _editingParticipantId,
-        );
-        if (index != -1) {
-          _participants[index] = _participants[index].copyWith(
-            name: normalizedName,
-          );
-        }
-      }
-
+      _document = result.document!;
       _editingParticipantId = null;
       _nameController.clear();
       _nameError = null;
-      _participants.sort(_compareParticipantsByName);
     });
-
-    await _persistChanges();
   }
 
   Future<void> _deleteParticipant(_ParticipantRecord participant) async {
@@ -185,26 +123,33 @@ class _ParticipantsDirectoryDialogState
       return;
     }
 
-    setState(() {
-      final index = _participants.indexWhere(
-        (candidate) => candidate.id == participant.id,
+    final result = await widget.useCase.deleteParticipant(
+      _document,
+      participant.id,
+    );
+    if (!result.isSuccess) {
+      await _showMutationError(
+        result.errorMessage ?? 'Не удалось удалить участника.',
       );
-      if (index != -1) {
-        _participants[index] = _participants[index].copyWith(deleted: true);
-      }
+      return;
+    }
+
+    setState(() {
+      _document = result.document!;
       if (_editingParticipantId == participant.id) {
         _editingParticipantId = null;
         _nameController.clear();
         _nameError = null;
       }
     });
-
-    await _persistChanges();
   }
 
   @override
   Widget build(BuildContext context) {
-    final activeParticipants = _activeParticipants;
+    final activeParticipants = widget.useCase
+        .activeParticipants(_document)
+        .map(_ParticipantRecord.fromJson)
+        .toList(growable: false);
     final isEditing = _editingParticipantId != null;
 
     return Dialog(

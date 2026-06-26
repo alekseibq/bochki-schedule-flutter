@@ -76,13 +76,14 @@ void main() {
     expect(tempFiles, isEmpty);
   });
 
-  test('json project document store reads and writes document', () async {
+  test('json project document repository reads and writes document', () async {
     final tempDirectory =
         await Directory.systemTemp.createTemp('bochki_store_test');
     addTearDown(() => tempDirectory.delete(recursive: true));
 
     final file = File('${tempDirectory.path}/project.json');
-    final store = JsonProjectDocumentStore(
+    final repository = JsonProjectDocumentRepository(
+      projectFile: file,
       safeFileWriter: const AtomicFileWriter(),
     );
     const document = ProjectDocument(
@@ -100,29 +101,32 @@ void main() {
       ],
     );
 
-    await store.write(file, document);
-    final restored = await store.read(file);
+    await repository.save(document);
+    final restored = await repository.load();
 
     expect(restored, isNotNull);
-    expect(restored!.schemaVersion, 1);
+    expect(restored.schemaVersion, 1);
     expect(restored.nextId, 4);
     expect(restored.trainers.single['name'], 'Trainer One');
     expect(restored.participants.single['name'], 'Participant One');
     expect(restored.participants.single['deleted'], isTrue);
   });
 
-  test('json project document store returns null for missing file', () async {
+  test(
+      'json project document repository returns initial document for missing file',
+      () async {
     final tempDirectory =
         await Directory.systemTemp.createTemp('bochki_store_missing');
     addTearDown(() => tempDirectory.delete(recursive: true));
 
     final file = File('${tempDirectory.path}/missing.json');
-    final store = JsonProjectDocumentStore(
+    final repository = JsonProjectDocumentRepository(
+      projectFile: file,
       safeFileWriter: const AtomicFileWriter(),
     );
 
-    final restored = await store.read(file);
+    final restored = await repository.load();
 
-    expect(restored, isNull);
+    expect(restored, ProjectDocument.initial());
   });
 }

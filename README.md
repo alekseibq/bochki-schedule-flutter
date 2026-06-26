@@ -30,6 +30,39 @@
 
 Архитектурные решения фиксируются в [`docs/adr`](docs/adr).
 
+## Текущая архитектура
+
+Сейчас редактирование справочника `Участники` уже разложено по явным слоям и используется в коде.
+Рефакторинг выполнен в рамках issue [`#17`](https://github.com/alekseibq/bochki-schedule-flutter/issues/17) и опирается на ADR про layered architecture и local JSON storage:
+
+- [`docs/adr/0003-use-layered-lasagna-architecture.md`](docs/adr/0003-use-layered-lasagna-architecture.md)
+- [`docs/adr/0004-store-project-data-as-local-json.md`](docs/adr/0004-store-project-data-as-local-json.md)
+
+Цепочка сейчас такая:
+
+```text
+UI
+  -> ParticipantsDirectoryDialog
+  -> ParticipantsDirectoryUseCase
+  -> ProjectDocumentRepository
+  -> JsonProjectDocumentRepository
+  -> project.json
+```
+
+В терминах слоёв:
+
+```text
+Presentation -> Application -> Domain Port -> Infrastructure -> File
+```
+
+Роли на текущий момент:
+
+- `BochkiShell` загружает `ProjectDocument` и открывает диалог участников.
+- `ParticipantsDirectoryDialog` отвечает только за presentation-state.
+- `ParticipantsDirectoryUseCase` содержит бизнес-логику участников.
+- `ProjectDocumentRepository` определяет контракт загрузки и сохранения документа.
+- `JsonProjectDocumentRepository` пишет локальный JSON атомарно через `AtomicFileWriter`.
+
 ## Требования
 
 - `git`

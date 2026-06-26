@@ -1,9 +1,7 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
 
 import '../../app_services.dart';
 import '../participants/participants_directory_dialog.dart';
@@ -31,16 +29,11 @@ class BochkiShell extends StatefulWidget {
 }
 
 class _BochkiShellState extends State<BochkiShell> {
-  static const String _projectFileName = 'project.json';
-
   DirectorySection? _selectedSection;
   ProjectDocument _document = ProjectDocument.initial();
   bool _isLoading = true;
   bool _participantsDialogOpen = false;
   String? _loadErrorMessage;
-
-  File get _projectFile =>
-      File(p.join(widget.services.appDataDirectory.path, _projectFileName));
 
   @override
   void initState() {
@@ -55,15 +48,14 @@ class _BochkiShellState extends State<BochkiShell> {
     });
 
     try {
-      final loadedDocument = await widget.services.projectDocumentStore.read(
-        _projectFile,
-      );
+      final loadedDocument =
+          await widget.services.participantsDirectoryUseCase.loadDocument();
       if (!mounted) {
         return;
       }
 
       setState(() {
-        _document = loadedDocument ?? ProjectDocument.initial();
+        _document = loadedDocument;
         _isLoading = false;
       });
     } catch (error, stackTrace) {
@@ -83,34 +75,24 @@ class _BochkiShellState extends State<BochkiShell> {
     }
   }
 
-  Future<void> _saveProjectDocument() async {
+  Future<void> _refreshProjectDocument() async {
     try {
-      await widget.services.projectDocumentStore.write(_projectFile, _document);
+      final loadedDocument =
+          await widget.services.participantsDirectoryUseCase.loadDocument();
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _document = loadedDocument;
+      });
     } catch (error, stackTrace) {
       await widget.services.logger.error(
-        'Failed to save project document',
+        'Failed to refresh project document',
         error: error,
         stackTrace: stackTrace,
       );
     }
-  }
-
-  Future<void> _updateParticipantsDocument(
-    List<Map<String, Object?>> participants,
-    int nextId,
-  ) async {
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      _document = _document.copyWith(
-        participants: participants,
-        nextId: nextId,
-      );
-    });
-
-    await _saveProjectDocument();
   }
 
   Future<void> _openParticipantsDialog() async {
@@ -129,14 +111,14 @@ class _BochkiShellState extends State<BochkiShell> {
         builder: (context) {
           return ParticipantsDirectoryDialog(
             key: const Key('participants_directory_dialog'),
-            participants: _document.participants,
-            nextId: _document.nextId,
-            onChanged: _updateParticipantsDocument,
+            document: _document,
+            useCase: widget.services.participantsDirectoryUseCase,
           );
         },
       );
     } finally {
       if (mounted) {
+        await _refreshProjectDocument();
         setState(() {
           _participantsDialogOpen = false;
         });
