@@ -38,7 +38,11 @@ void main() {
         <String, Object?>{'id': 1, 'name': 'Trainer One'},
       ],
       participants: const [
-        <String, Object?>{'id': 2, 'name': 'Participant One'},
+        <String, Object?>{
+          'id': 2,
+          'name': 'Participant One',
+          'deleted': true,
+        },
       ],
     );
 
@@ -51,5 +55,6 @@ void main() {
     expect(restored.nextId, 7);
     expect(restored.trainers.single['name'], 'Trainer One');
     expect(restored.participants.single['name'], 'Participant One');
+    expect(restored.participants.single['deleted'], isTrue);
   });
 }
