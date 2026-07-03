@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:bochki_schedule_app/bochki_schedule_app.dart';
 import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/widgets.dart';
 
@@ -36,10 +37,13 @@ void main() {
       find.byKey(const Key('participants_directory_dialog')),
       findsOneWidget,
     );
-    expect(find.byKey(const Key('participant_name_field')), findsOneWidget);
+    expect(find.text('Список участников'), findsOneWidget);
+    expect(find.text('Участники (0)'), findsOneWidget);
+    expect(find.text('Добавить новую запись'), findsOneWidget);
+    expect(find.text('Ok'), findsOneWidget);
   });
 
-  testWidgets('participants dialog adds edits and soft-deletes entries', (
+  testWidgets('participants dialog supports inline add edit and delete', (
     tester,
   ) async {
     final context = _buildTestContext();
@@ -52,49 +56,90 @@ void main() {
     await tester.tap(find.text('Участники').last);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Добавить'));
+    await tester.tap(find.byKey(const Key('participant_add_row')));
     await tester.pumpAndSettle();
-    expect(find.text('Введите имя участника.'), findsOneWidget);
+    expect(find.byKey(const Key('participant_name_field')), findsOneWidget);
 
     await tester.enterText(
       find.byKey(const Key('participant_name_field')),
       '  Иван   Иванов  ',
     );
-    await tester.tap(find.text('Добавить'));
+    await tester.tap(find.text('Участники (0)'));
     await tester.pumpAndSettle();
 
     expect(find.text('Иван Иванов'), findsOneWidget);
     expect(context.repository.participants.single.name, 'Иван Иванов');
+    expect(find.text('Участники (1)'), findsOneWidget);
 
+    await tester.tap(find.byKey(const Key('participant_add_row')));
+    await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('participant_name_field')),
-      'Иван Иванов',
+      'Борис',
     );
-    await tester.tap(find.text('Добавить'));
+    await tester.tap(find.text('Участники (1)'));
     await tester.pumpAndSettle();
-    expect(find.text('Участник с таким именем уже есть.'), findsOneWidget);
 
-    await tester.tap(find.text('Редактировать'));
+    expect(
+      context.repository.participants.map((participant) => participant.name),
+      ['Иван Иванов', 'Борис'],
+    );
+
+    final firstRow = find.byKey(const Key('participant_row_1'));
+    await _mouseClick(tester, firstRow);
+    await tester.pump(const Duration(milliseconds: 50));
+    await _mouseClick(tester, firstRow);
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('participant_name_field')),
       'Иван Петров',
     );
-    await tester.tap(find.text('Сохранить'));
+
+    await _mouseClick(tester, find.byKey(const Key('participant_row_2')));
     await tester.pumpAndSettle();
 
     expect(find.text('Иван Петров'), findsOneWidget);
     expect(find.text('Иван Иванов'), findsNothing);
-    expect(context.repository.participants.single.name, 'Иван Петров');
+    expect(context.repository.participants.first.name, 'Иван Петров');
 
-    await tester.tap(find.text('Удалить'));
+    final borisRow = find.byKey(const Key('participant_row_2'));
+    await _mouseClick(
+      tester,
+      borisRow,
+      buttons: kSecondaryMouseButton,
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Удалить').last);
     await tester.pumpAndSettle();
 
-    expect(find.text('Пока нет ни одного участника.'), findsOneWidget);
-    expect(context.repository.participants, isEmpty);
+    expect(
+        context.repository.participants.map((participant) => participant.name),
+        [
+          'Иван Петров',
+        ]);
+    expect(find.text('Участники (1)'), findsOneWidget);
   });
+}
+
+Future<void> _mouseClick(
+  WidgetTester tester,
+  Finder finder, {
+  int buttons = kPrimaryMouseButton,
+}) async {
+  final gesture = await tester.createGesture(
+    kind: PointerDeviceKind.mouse,
+    buttons: buttons,
+  );
+  final center = tester.getCenter(finder);
+  await gesture.addPointer(location: center);
+  await gesture.moveTo(center);
+  await tester.pump();
+  await gesture.down(center);
+  await gesture.up();
+  await gesture.removePointer();
 }
 
 _TestContext _buildTestContext() {
