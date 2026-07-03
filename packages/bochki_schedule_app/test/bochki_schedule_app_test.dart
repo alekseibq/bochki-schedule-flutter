@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:bochki_schedule_app/bochki_schedule_app.dart';
-import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/widgets.dart';
@@ -65,12 +64,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Иван Иванов'), findsOneWidget);
-    expect(
-        context.repository.document.participants.single['name'], 'Иван Иванов');
-    expect(
-      context.repository.document.participants.single['deleted'],
-      isFalse,
-    );
+    expect(context.repository.participants.single.name, 'Иван Иванов');
 
     await tester.enterText(
       find.byKey(const Key('participant_name_field')),
@@ -91,8 +85,7 @@ void main() {
 
     expect(find.text('Иван Петров'), findsOneWidget);
     expect(find.text('Иван Иванов'), findsNothing);
-    expect(
-        context.repository.document.participants.single['name'], 'Иван Петров');
+    expect(context.repository.participants.single.name, 'Иван Петров');
 
     await tester.tap(find.text('Удалить'));
     await tester.pumpAndSettle();
@@ -100,20 +93,21 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Пока нет ни одного участника.'), findsOneWidget);
-    expect(context.repository.document.participants.single['deleted'], isTrue);
+    expect(context.repository.participants, isEmpty);
   });
 }
 
 _TestContext _buildTestContext() {
-  final repository =
-      _MemoryProjectDocumentRepository(ProjectDocument.initial());
-  final useCase = ParticipantsDirectoryUseCase(repository: repository);
+  final repository = _InMemoryParticipantsRepository();
 
   return _TestContext(
     services: AppServices(
       appDataDirectory: Directory('/tmp/bochki_schedule_test'),
       logger: const _NoopLogger(),
-      participantsDirectoryUseCase: useCase,
+      listParticipantsUseCase: ListParticipantsUseCase(repository),
+      createParticipantUseCase: CreateParticipantUseCase(repository),
+      updateParticipantUseCase: UpdateParticipantUseCase(repository),
+      deleteParticipantUseCase: DeleteParticipantUseCase(repository),
     ),
     repository: repository,
   );
@@ -126,7 +120,7 @@ final class _TestContext {
   });
 
   final AppServices services;
-  final _MemoryProjectDocumentRepository repository;
+  final _InMemoryParticipantsRepository repository;
 }
 
 final class _NoopLogger implements AppLogger {
@@ -143,17 +137,43 @@ final class _NoopLogger implements AppLogger {
   Future<void> info(String message) async {}
 }
 
-final class _MemoryProjectDocumentRepository
-    implements ProjectDocumentRepository {
-  _MemoryProjectDocumentRepository(this.document);
-
-  ProjectDocument document;
+final class _InMemoryParticipantsRepository implements ParticipantsRepository {
+  final List<Participant> _participants = <Participant>[];
+  int _nextId = 1;
 
   @override
-  Future<ProjectDocument> load() async => document;
+  Future<Participant> create({
+    required String name,
+  }) async {
+    final participant = Participant(
+      id: (_nextId++).toString(),
+      name: name,
+    );
+    _participants.add(participant);
+    return participant;
+  }
 
   @override
-  Future<void> save(ProjectDocument updatedDocument) async {
-    document = updatedDocument;
+  Future<void> delete(String participantId) async {
+    _participants.removeWhere((participant) => participant.id == participantId);
+  }
+
+  List<Participant> get participants =>
+      List<Participant>.unmodifiable(_participants);
+
+  @override
+  Future<List<Participant>> list() async {
+    return [..._participants];
+  }
+
+  @override
+  Future<Participant> update(Participant participant) async {
+    final index = _participants.indexWhere(
+      (candidate) => candidate.id == participant.id,
+    );
+    if (index != -1) {
+      _participants[index] = participant;
+    }
+    return participant;
   }
 }
