@@ -277,10 +277,10 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
                             children: [
                               if (isEditing) ...[
                                 TextButton(
-                                  onPressed:
-                                      viewModel.isSaving ? null : _cancelEditing,
-                                  child:
-                                      const Text('Отменить редактирование'),
+                                  onPressed: viewModel.isSaving
+                                      ? null
+                                      : _cancelEditing,
+                                  child: const Text('Отменить редактирование'),
                                 ),
                                 const SizedBox(width: 8),
                               ],

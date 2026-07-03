@@ -55,7 +55,8 @@ final class ProjectDocumentParticipantsRepository
       (candidate) => candidate.id == participantId,
     );
     if (index != -1) {
-      participants[index] = participants[index].copyWith(name: participant.name);
+      participants[index] =
+          participants[index].copyWith(name: participant.name);
       await _storage.saveDocument(
         document.copyWith(
           participants: _sortedParticipantJson(participants),

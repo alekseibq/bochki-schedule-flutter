@@ -89,7 +89,8 @@ final class _InMemoryParticipantsRepository implements ParticipantsRepository {
   final List<Participant> _participants;
   int _nextId = 1;
 
-  List<Participant> get participants => List<Participant>.unmodifiable(_participants);
+  List<Participant> get participants =>
+      List<Participant>.unmodifiable(_participants);
 
   @override
   Future<Participant> create({
