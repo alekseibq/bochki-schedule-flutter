@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:bochki_schedule_app/bochki_schedule_app.dart';
-import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/widgets.dart';
@@ -12,12 +11,14 @@ void main() {
 
   testWidgets('desktop shell opens menu and participant dialog',
       (tester) async {
+    final repository = _InMemoryParticipantsRepository();
     final services = AppServices(
       appDataDirectory: Directory('/tmp/bochki_schedule_test'),
       logger: const _NoopLogger(),
-      participantsDirectoryUseCase: ParticipantsDirectoryUseCase(
-        repository: _MemoryProjectDocumentRepository(ProjectDocument.initial()),
-      ),
+      listParticipantsUseCase: ListParticipantsUseCase(repository),
+      createParticipantUseCase: CreateParticipantUseCase(repository),
+      updateParticipantUseCase: UpdateParticipantUseCase(repository),
+      deleteParticipantUseCase: DeleteParticipantUseCase(repository),
     );
 
     await tester.pumpWidget(BochkiScheduleApp(services: services));
@@ -60,17 +61,40 @@ final class _NoopLogger implements AppLogger {
   Future<void> info(String message) async {}
 }
 
-final class _MemoryProjectDocumentRepository
-    implements ProjectDocumentRepository {
-  _MemoryProjectDocumentRepository(this.document);
-
-  ProjectDocument document;
+final class _InMemoryParticipantsRepository implements ParticipantsRepository {
+  final List<Participant> _participants = <Participant>[];
+  int _nextId = 1;
 
   @override
-  Future<ProjectDocument> load() async => document;
+  Future<Participant> create({
+    required String name,
+  }) async {
+    final participant = Participant(
+      id: (_nextId++).toString(),
+      name: name,
+    );
+    _participants.add(participant);
+    return participant;
+  }
 
   @override
-  Future<void> save(ProjectDocument updatedDocument) async {
-    document = updatedDocument;
+  Future<void> delete(String participantId) async {
+    _participants.removeWhere((participant) => participant.id == participantId);
+  }
+
+  @override
+  Future<List<Participant>> list() async {
+    return [..._participants];
+  }
+
+  @override
+  Future<Participant> update(Participant participant) async {
+    final index = _participants.indexWhere(
+      (candidate) => candidate.id == participant.id,
+    );
+    if (index != -1) {
+      _participants[index] = participant;
+    }
+    return participant;
   }
 }
