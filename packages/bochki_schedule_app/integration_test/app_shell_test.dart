@@ -43,7 +43,9 @@ void main() {
       find.byKey(const Key('participants_directory_dialog')),
       findsOneWidget,
     );
-    expect(find.byKey(const Key('participant_name_field')), findsOneWidget);
+    expect(find.text('Список участников'), findsOneWidget);
+    expect(find.text('Участники (0)'), findsOneWidget);
+    expect(find.text('Добавить новую запись'), findsOneWidget);
   });
 }
 
