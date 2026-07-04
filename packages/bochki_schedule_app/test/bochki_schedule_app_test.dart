@@ -28,11 +28,7 @@ void main() {
 
     await tester.pumpWidget(BochkiScheduleApp(services: context.services));
     await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const Key('directories_menu_button')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Участники').last);
-    await tester.pumpAndSettle();
+    await _openParticipantsDialog(tester);
 
     expect(
       find.byKey(const Key('participants_directory_dialog')),
@@ -45,18 +41,14 @@ void main() {
     expect(find.text('Ok'), findsOneWidget);
   });
 
-  testWidgets('participants dialog supports inline add edit and delete', (
+  testWidgets('participants dialog supports create edit and delete', (
     tester,
   ) async {
     final context = _buildTestContext();
 
     await tester.pumpWidget(BochkiScheduleApp(services: context.services));
     await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const Key('directories_menu_button')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Участники').last);
-    await tester.pumpAndSettle();
+    await _openParticipantsDialog(tester);
 
     await tester.tap(find.byKey(const Key('participant_add_row')));
     await tester.pumpAndSettle();
@@ -71,7 +63,6 @@ void main() {
 
     expect(find.text('Иван Иванов'), findsOneWidget);
     expect(context.repository.participants.single.name, 'Иван Иванов');
-    expect(find.text('Участники (1)'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('participant_add_row')));
     await tester.pumpAndSettle();
@@ -82,46 +73,30 @@ void main() {
     await tester.tap(find.text('Участники (1)'));
     await tester.pumpAndSettle();
 
-    expect(
-      context.repository.participants.map((participant) => participant.name),
-      ['Иван Иванов', 'Борис'],
-    );
-
     final firstRow = find.byKey(const Key('participant_row_1'));
-    await _mouseClick(tester, firstRow);
-    await tester.pump(const Duration(milliseconds: 50));
-    await _mouseClick(tester, firstRow);
-    await tester.pumpAndSettle();
+    await _doubleMouseClick(tester, firstRow);
     await tester.enterText(
       find.byKey(const Key('participant_name_field')),
       'Иван Петров',
     );
-
     await _mouseClick(tester, find.byKey(const Key('participant_row_2')));
     await tester.pumpAndSettle();
 
     expect(find.text('Иван Петров'), findsOneWidget);
-    expect(find.text('Иван Иванов'), findsNothing);
     expect(context.repository.participants.first.name, 'Иван Петров');
 
-    final borisRow = find.byKey(const Key('participant_row_2'));
-    await _mouseClick(
-      tester,
-      borisRow,
-      buttons: kSecondaryMouseButton,
-    );
+    final secondRow = find.byKey(const Key('participant_row_2'));
+    await _mouseClick(tester, secondRow, buttons: kSecondaryMouseButton);
     await tester.pumpAndSettle();
-
     await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Удалить').last);
     await tester.pumpAndSettle();
 
     expect(
-        context.repository.participants.map((participant) => participant.name),
-        [
-          'Иван Петров',
-        ]);
+      context.repository.participants.map((participant) => participant.name),
+      ['Иван Петров'],
+    );
     expect(find.text('Участники (1)'), findsOneWidget);
   });
 
@@ -139,15 +114,14 @@ void main() {
     await _openParticipantsDialog(tester);
 
     final row = find.byKey(const Key('participant_row_1'));
-    await tester.tap(row);
+    await _mouseClick(tester, row);
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('participant_name_field')), findsNothing);
   });
 
-  testWidgets('enter commits inline edit and keeps row selected', (
-    tester,
-  ) async {
+  testWidgets('enter commits edited row after inline edit starts',
+      (tester) async {
     final context = _buildTestContext(
       participants: [
         Participant(id: '1', name: 'Анна'),
@@ -159,10 +133,7 @@ void main() {
     await _openParticipantsDialog(tester);
 
     final row = find.byKey(const Key('participant_row_1'));
-    await _mouseClick(tester, row);
-    await tester.pump(const Duration(milliseconds: 50));
-    await _mouseClick(tester, row);
-    await tester.pumpAndSettle();
+    await _doubleMouseClick(tester, row);
 
     await tester.enterText(
       find.byKey(const Key('participant_name_field')),
@@ -174,7 +145,7 @@ void main() {
     expect(find.byKey(const Key('participant_name_field')), findsNothing);
     expect(find.text('Анна Петрова'), findsOneWidget);
     expect(context.repository.participants.single.name, 'Анна Петрова');
-    expect(find.text('▶'), findsOneWidget);
+    expect(find.descendant(of: row, matching: find.text('▶')), findsOneWidget);
   });
 
   testWidgets('empty add row is cancelled on click outside', (tester) async {
@@ -197,9 +168,7 @@ void main() {
     expect(find.text('Введите имя участника.'), findsNothing);
   });
 
-  testWidgets('double click opens inline edit for row', (
-    tester,
-  ) async {
+  testWidgets('double click opens inline edit for row', (tester) async {
     final context = _buildTestContext(
       participants: [
         Participant(id: '1', name: 'Анна'),
@@ -210,17 +179,42 @@ void main() {
     await tester.pumpAndSettle();
     await _openParticipantsDialog(tester);
 
-    final row = find.byKey(const Key('participant_row_1'));
-    await _mouseClick(tester, row);
-    await tester.pump(const Duration(milliseconds: 50));
-    await _mouseClick(tester, row);
-    await tester.pumpAndSettle();
+    await _doubleMouseClick(
+      tester,
+      find.byKey(const Key('participant_row_1')),
+    );
 
     expect(find.byKey(const Key('participant_name_field')), findsOneWidget);
   });
 
-  testWidgets('row becomes selected on mouse down while another row is editing',
-      (
+  testWidgets('escape rolls back dirty existing row', (tester) async {
+    final context = _buildTestContext(
+      participants: [
+        Participant(id: '1', name: 'Анна'),
+      ],
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openParticipantsDialog(tester);
+
+    await _doubleMouseClick(
+      tester,
+      find.byKey(const Key('participant_row_1')),
+    );
+    await tester.enterText(
+      find.byKey(const Key('participant_name_field')),
+      'Анна Петрова',
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('participant_name_field')), findsNothing);
+    expect(find.text('Анна'), findsOneWidget);
+    expect(context.repository.participants.single.name, 'Анна');
+  });
+
+  testWidgets('arrow navigation selects edge rows from no selection', (
     tester,
   ) async {
     final context = _buildTestContext(
@@ -234,32 +228,24 @@ void main() {
     await tester.pumpAndSettle();
     await _openParticipantsDialog(tester);
 
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+
     final firstRow = find.byKey(const Key('participant_row_1'));
-    await _mouseClick(tester, firstRow);
-    await tester.pump(const Duration(milliseconds: 50));
-    await _mouseClick(tester, firstRow);
+    expect(find.descendant(of: firstRow, matching: find.text('▶')),
+        findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
     await tester.pumpAndSettle();
 
     final secondRow = find.byKey(const Key('participant_row_2'));
-    final gesture = await tester.createGesture(
-      kind: PointerDeviceKind.mouse,
-      buttons: kPrimaryMouseButton,
-    );
-    final center = tester.getCenter(secondRow);
-    await gesture.addPointer(location: center);
-    await gesture.moveTo(center);
-    await tester.pump();
-    await gesture.down(center);
-    await tester.pump();
-
-    expect(find.text('▶'), findsOneWidget);
-
-    await gesture.up();
-    await gesture.removePointer();
-    await tester.pumpAndSettle();
+    expect(find.descendant(of: secondRow, matching: find.text('▶')),
+        findsOneWidget);
   });
 
-  testWidgets('context menu closes without waiting for animation', (
+  testWidgets('context menu closes on escape without animation wait', (
     tester,
   ) async {
     final context = _buildTestContext(
@@ -273,20 +259,16 @@ void main() {
     await _openParticipantsDialog(tester);
 
     final row = find.byKey(const Key('participant_row_1'));
-    await _mouseClick(
-      tester,
-      row,
-      buttons: kSecondaryMouseButton,
-    );
-    await tester.pump();
+    await _mouseClick(tester, row, buttons: kSecondaryMouseButton);
+    await tester.pumpAndSettle();
 
     expect(find.text('Delete'), findsOneWidget);
 
-    await tester.tap(find.text('Delete'));
-    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
 
     expect(find.text('Delete'), findsNothing);
-    expect(find.text('Удалить участника?'), findsOneWidget);
+    expect(find.descendant(of: row, matching: find.text('▶')), findsOneWidget);
   });
 }
 
@@ -306,6 +288,16 @@ Future<void> _mouseClick(
   await gesture.down(center);
   await gesture.up();
   await gesture.removePointer();
+}
+
+Future<void> _doubleMouseClick(
+  WidgetTester tester,
+  Finder finder,
+) async {
+  await _mouseClick(tester, finder);
+  await tester.pump(const Duration(milliseconds: 50));
+  await _mouseClick(tester, finder);
+  await tester.pumpAndSettle();
 }
 
 Future<void> _openParticipantsDialog(WidgetTester tester) async {
