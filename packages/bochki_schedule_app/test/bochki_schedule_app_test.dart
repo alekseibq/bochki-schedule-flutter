@@ -40,6 +40,7 @@ void main() {
     expect(find.text('Список участников'), findsOneWidget);
     expect(find.text('Участники (0)'), findsOneWidget);
     expect(find.text('Добавить новую запись'), findsOneWidget);
+    expect(find.byKey(const Key('participants_table_divider')), findsOneWidget);
     expect(find.text('Ok'), findsOneWidget);
   });
 
@@ -122,6 +123,48 @@ void main() {
         ]);
     expect(find.text('Участники (1)'), findsOneWidget);
   });
+
+  testWidgets('single click selects row without opening inline edit', (
+    tester,
+  ) async {
+    final context = _buildTestContext(
+      participants: [
+        Participant(id: '1', name: 'Анна'),
+      ],
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openParticipantsDialog(tester);
+
+    final row = find.byKey(const Key('participant_row_1'));
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('participant_name_field')), findsNothing);
+  });
+
+  testWidgets('double click opens inline edit for row', (
+    tester,
+  ) async {
+    final context = _buildTestContext(
+      participants: [
+        Participant(id: '1', name: 'Анна'),
+      ],
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openParticipantsDialog(tester);
+
+    final row = find.byKey(const Key('participant_row_1'));
+    await _mouseClick(tester, row);
+    await tester.pump(const Duration(milliseconds: 50));
+    await _mouseClick(tester, row);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('participant_name_field')), findsOneWidget);
+  });
 }
 
 Future<void> _mouseClick(
@@ -142,8 +185,19 @@ Future<void> _mouseClick(
   await gesture.removePointer();
 }
 
-_TestContext _buildTestContext() {
-  final repository = _InMemoryParticipantsRepository();
+Future<void> _openParticipantsDialog(WidgetTester tester) async {
+  await tester.tap(find.byKey(const Key('directories_menu_button')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Участники').last);
+  await tester.pumpAndSettle();
+}
+
+_TestContext _buildTestContext({
+  List<Participant>? participants,
+}) {
+  final repository = _InMemoryParticipantsRepository(
+    participants: participants,
+  );
 
   return _TestContext(
     services: AppServices(
@@ -183,7 +237,18 @@ final class _NoopLogger implements AppLogger {
 }
 
 final class _InMemoryParticipantsRepository implements ParticipantsRepository {
-  final List<Participant> _participants = <Participant>[];
+  _InMemoryParticipantsRepository({
+    List<Participant>? participants,
+  }) : _participants = [...?participants] {
+    if (_participants.isNotEmpty) {
+      final maxId = _participants
+          .map((participant) => int.parse(participant.id))
+          .reduce((left, right) => left > right ? left : right);
+      _nextId = maxId + 1;
+    }
+  }
+
+  final List<Participant> _participants;
   int _nextId = 1;
 
   @override

@@ -7,6 +7,11 @@ import 'package:flutter/services.dart';
 import '../../domain/participants/participant.dart';
 import 'participants_view_model.dart';
 
+const double _indicatorColumnWidth = 40;
+const Color _tableDividerColor = Color(0xFFD7DFE8);
+const Color _rowBorderColor = Color(0xFFD8E1EA);
+const Key _tableDividerKey = Key('participants_table_divider');
+
 class ParticipantsDialog extends StatefulWidget {
   const ParticipantsDialog({
     required this.viewModel,
@@ -22,23 +27,28 @@ class ParticipantsDialog extends StatefulWidget {
 class _ParticipantsDialogState extends State<ParticipantsDialog> {
   final TextEditingController _nameController = TextEditingController();
   final FocusNode _editorFocusNode = FocusNode();
+  final FocusNode _tableFocusNode = FocusNode();
 
   String? _selectedParticipantId;
   String? _editingParticipantId;
+  String? _editingInitialName;
   bool _isCreating = false;
   Future<bool>? _pendingSubmit;
-  String? _pendingTransitionParticipantId;
-  bool _pendingTransitionToAddRow = false;
-  bool _ignoreNextTapOutsideSubmit = false;
-  String? _tapDownHandledParticipantId;
-  bool _tapDownHandledAddRow = false;
 
   bool get _isEditing => _isCreating || _editingParticipantId != null;
 
   @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_handleHardwareKeyEvent);
+  }
+
+  @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleHardwareKeyEvent);
     _nameController.dispose();
     _editorFocusNode.dispose();
+    _tableFocusNode.dispose();
     super.dispose();
   }
 
@@ -51,9 +61,27 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
   }
 
   void _requestEditorFocus() {
+    if (_editorFocusNode.context != null) {
+      _editorFocusNode.requestFocus();
+      return;
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _editorFocusNode.requestFocus();
+      }
+    });
+  }
+
+  void _requestTableFocus() {
+    if (_tableFocusNode.context != null) {
+      _tableFocusNode.requestFocus();
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _tableFocusNode.requestFocus();
       }
     });
   }
@@ -62,6 +90,7 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
     setState(() {
       _selectedParticipantId = participant.id;
       _editingParticipantId = participant.id;
+      _editingInitialName = participant.name;
       _isCreating = false;
       _nameController.text = participant.name;
       _nameController.selection = TextSelection.fromPosition(
@@ -76,6 +105,7 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
     setState(() {
       _selectedParticipantId = null;
       _editingParticipantId = null;
+      _editingInitialName = null;
       _isCreating = true;
       _nameController.clear();
     });
@@ -83,71 +113,42 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
     _requestEditorFocus();
   }
 
-  void _cancelEditing() {
+  void _finishEditing({
+    required String? selectedParticipantId,
+  }) {
     setState(() {
+      _selectedParticipantId = selectedParticipantId;
       _editingParticipantId = null;
+      _editingInitialName = null;
       _isCreating = false;
       _nameController.clear();
     });
     widget.viewModel.clearFormError();
     _editorFocusNode.unfocus();
+    _requestTableFocus();
   }
 
-  void _prepareParticipantTransition(Participant participant) {
-    if (_isEditing && !_isEditingParticipant(participant)) {
-      _pendingTransitionParticipantId = participant.id;
-      _pendingTransitionToAddRow = false;
-      _ignoreNextTapOutsideSubmit = true;
+  void _cancelEditing() {
+    _finishEditing(selectedParticipantId: _editingParticipantId);
+  }
+
+  Participant? _findParticipantById(String participantId) {
+    for (final participant in widget.viewModel.participants) {
+      if (participant.id == participantId) {
+        return participant;
+      }
     }
+    return null;
   }
 
-  void _prepareAddRowTransition() {
-    if (_isEditing && !_isCreating) {
-      _pendingTransitionParticipantId = null;
-      _pendingTransitionToAddRow = true;
-      _ignoreNextTapOutsideSubmit = true;
+  String? _findParticipantIdByName(String name) {
+    final normalizedName = Participant.sortKeyForName(name);
+    for (final participant in widget.viewModel.participants) {
+      if (Participant.sortKeyForName(participant.name) == normalizedName) {
+        return participant.id;
+      }
     }
-  }
-
-  void _clearPendingTransition() {
-    _pendingTransitionParticipantId = null;
-    _pendingTransitionToAddRow = false;
-  }
-
-  Future<void> _submitAndStartEditing(Participant participant) async {
-    final isSuccess = await _submitCurrentEditing();
-    if (!mounted || !isSuccess) {
-      return;
-    }
-    _startEditingParticipant(participant);
-  }
-
-  Future<void> _submitAndStartCreating() async {
-    final isSuccess = await _submitCurrentEditing();
-    if (!mounted || !isSuccess) {
-      return;
-    }
-    _startCreatingParticipant();
-  }
-
-  void _handleParticipantTapDown(Participant participant) {
-    if (_isEditing && !_isEditingParticipant(participant)) {
-      _tapDownHandledParticipantId = participant.id;
-      _ignoreNextTapOutsideSubmit = true;
-      unawaited(_submitAndStartEditing(participant));
-      return;
-    }
-    _prepareParticipantTransition(participant);
-  }
-
-  void _handleAddRowTapDown() {
-    if (_isEditing && !_isCreating) {
-      _tapDownHandledAddRow = true;
-      _ignoreNextTapOutsideSubmit = true;
-      unawaited(_submitAndStartCreating());
-      return;
-    }
-    _prepareAddRowTransition();
+    return null;
   }
 
   void _showActionErrorIfNeeded() {
@@ -162,16 +163,6 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
     );
   }
 
-  String? _findParticipantIdByName(String name) {
-    final normalizedName = Participant.sortKeyForName(name);
-    for (final participant in widget.viewModel.participants) {
-      if (Participant.sortKeyForName(participant.name) == normalizedName) {
-        return participant.id;
-      }
-    }
-    return null;
-  }
-
   Future<bool> _submitCurrentEditing() {
     if (!_isEditing) {
       return Future<bool>.value(true);
@@ -181,9 +172,18 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
     }
 
     final editingParticipantId = _editingParticipantId;
+    final editingInitialName = _editingInitialName;
     final isCreating = _isCreating;
     final rawName = _nameController.text;
     final viewModel = widget.viewModel;
+
+    if (!isCreating &&
+        editingParticipantId != null &&
+        Participant.normalizeName(rawName) ==
+            Participant.normalizeName(editingInitialName ?? '')) {
+      _finishEditing(selectedParticipantId: editingParticipantId);
+      return Future<bool>.value(true);
+    }
 
     final submitFuture = () async {
       final isSuccess = isCreating
@@ -198,15 +198,11 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
       }
 
       if (isSuccess) {
-        setState(() {
-          _editingParticipantId = null;
-          _isCreating = false;
-          _nameController.clear();
-          _selectedParticipantId = isCreating
+        _finishEditing(
+          selectedParticipantId: isCreating
               ? _findParticipantIdByName(rawName)
-              : editingParticipantId;
-        });
-        _editorFocusNode.unfocus();
+              : editingParticipantId,
+        );
       } else {
         _showActionErrorIfNeeded();
       }
@@ -221,40 +217,46 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
     return submitFuture;
   }
 
-  Future<void> _handleParticipantTap(Participant participant) async {
-    if (_tapDownHandledParticipantId == participant.id) {
-      _tapDownHandledParticipantId = null;
-      return;
-    }
-
-    final shouldTransitionToEdit =
-        _pendingTransitionParticipantId == participant.id;
-    _clearPendingTransition();
-
+  Future<void> _selectParticipant(Participant participant) async {
     if (_isEditingParticipant(participant)) {
-      setState(() {
-        _selectedParticipantId = participant.id;
-      });
+      if (_selectedParticipantId != participant.id) {
+        setState(() {
+          _selectedParticipantId = participant.id;
+        });
+      }
+      _requestTableFocus();
       return;
     }
 
-    if (_isEditing || shouldTransitionToEdit) {
+    if (_isEditing) {
       final isSuccess = await _submitCurrentEditing();
       if (!mounted || !isSuccess) {
         return;
       }
-      _startEditingParticipant(participant);
+    }
+
+    setState(() {
+      _selectedParticipantId = participant.id;
+    });
+    _requestTableFocus();
+  }
+
+  void _handleParticipantTapDown(Participant participant) {
+    if (_isEditing && !_isEditingParticipant(participant)) {
+      return;
+    }
+    if (_selectedParticipantId == participant.id) {
+      _requestTableFocus();
       return;
     }
 
     setState(() {
       _selectedParticipantId = participant.id;
     });
+    _requestTableFocus();
   }
 
   Future<void> _handleParticipantDoubleTap(Participant participant) async {
-    _clearPendingTransition();
-
     if (_isEditingParticipant(participant)) {
       return;
     }
@@ -270,19 +272,11 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
   }
 
   Future<void> _handleAddRowTap() async {
-    if (_tapDownHandledAddRow) {
-      _tapDownHandledAddRow = false;
-      return;
-    }
-
-    final shouldTransitionToAddRow = _pendingTransitionToAddRow;
-    _clearPendingTransition();
-
     if (_isCreating) {
       return;
     }
 
-    if (_isEditing || shouldTransitionToAddRow) {
+    if (_isEditing) {
       final isSuccess = await _submitCurrentEditing();
       if (!mounted || !isSuccess) {
         return;
@@ -293,6 +287,11 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
   }
 
   Future<void> _deleteParticipant(Participant participant) async {
+    final previousParticipants = widget.viewModel.participants;
+    final deletedIndex = previousParticipants.indexWhere(
+      (candidate) => candidate.id == participant.id,
+    );
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -325,14 +324,28 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
     }
 
     if (isSuccess) {
-      if (_editingParticipantId == participant.id) {
-        _cancelEditing();
-      }
-      if (_selectedParticipantId == participant.id) {
-        setState(() {
-          _selectedParticipantId = null;
-        });
-      }
+      final nextParticipants = widget.viewModel.participants;
+      final nextSelectionIndex = nextParticipants.isEmpty
+          ? null
+          : deletedIndex.clamp(0, nextParticipants.length - 1) as int;
+      final nextSelectedParticipantId = nextParticipants.isEmpty
+          ? null
+          : nextParticipants[nextSelectionIndex!].id;
+
+      setState(() {
+        if (_editingParticipantId == participant.id) {
+          _editingParticipantId = null;
+          _editingInitialName = null;
+          _isCreating = false;
+          _nameController.clear();
+          _editorFocusNode.unfocus();
+        }
+
+        if (_selectedParticipantId == participant.id) {
+          _selectedParticipantId = nextSelectedParticipantId;
+        }
+      });
+      _requestTableFocus();
       return;
     }
 
@@ -357,6 +370,7 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
     setState(() {
       _selectedParticipantId = participant.id;
     });
+    _requestTableFocus();
 
     final overlay = Overlay.of(context).context.findRenderObject();
     if (overlay is! RenderBox) {
@@ -398,28 +412,117 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
     }
   }
 
-  Key _rowKey(String value) => Key('participant_row_$value');
+  void _moveSelection(int offset) {
+    final participants = widget.viewModel.participants;
+    if (participants.isEmpty) {
+      return;
+    }
+
+    final currentIndex = _selectedParticipantId == null
+        ? -1
+        : participants.indexWhere(
+            (participant) => participant.id == _selectedParticipantId,
+          );
+    final targetIndex = (currentIndex == -1
+        ? (offset > 0 ? 0 : participants.length - 1)
+        : (currentIndex + offset).clamp(0, participants.length - 1)) as int;
+
+    setState(() {
+      _selectedParticipantId = participants[targetIndex].id;
+    });
+    _requestTableFocus();
+  }
+
+  void _handleMoveSelectionShortcut(
+    ParticipantsViewModel viewModel,
+    int offset,
+  ) {
+    if (viewModel.isLoading || viewModel.isSaving || _isEditing) {
+      return;
+    }
+    _moveSelection(offset);
+  }
+
+  void _handleStartEditingShortcut(ParticipantsViewModel viewModel) {
+    if (viewModel.isLoading || viewModel.isSaving || _isEditing) {
+      return;
+    }
+
+    final selectedParticipantId = _selectedParticipantId;
+    if (selectedParticipantId == null) {
+      return;
+    }
+
+    final participant = _findParticipantById(selectedParticipantId);
+    if (participant == null) {
+      return;
+    }
+
+    _startEditingParticipant(participant);
+  }
+
+  bool _handleHardwareKeyEvent(KeyEvent event) {
+    if (!mounted || event is! KeyDownEvent || _editorFocusNode.hasFocus) {
+      return false;
+    }
+
+    final viewModel = widget.viewModel;
+    if (viewModel.isLoading || viewModel.isSaving || _isEditing) {
+      return false;
+    }
+
+    if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+      _moveSelection(1);
+      return true;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+      _moveSelection(-1);
+      return true;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.enter ||
+        event.logicalKey == LogicalKeyboardKey.f2) {
+      _handleStartEditingShortcut(viewModel);
+      return true;
+    }
+
+    return false;
+  }
+
+  Widget _buildIndicatorCell({
+    required Widget child,
+  }) {
+    return Container(
+      width: _indicatorColumnWidth,
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        border: Border(
+          right: BorderSide(color: _tableDividerColor),
+        ),
+      ),
+      child: child,
+    );
+  }
 
   Widget _buildHeaderRow(BuildContext context, int count) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: const BoxDecoration(
-        color: Color(0xFFD7E8FB),
-        border: Border(
-          bottom: BorderSide(color: Color(0xFFB6CCE3)),
-        ),
-      ),
+      color: const Color(0xFFD7E8FB),
+      padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const SizedBox(width: 28),
-          const SizedBox(width: 12),
+          _buildIndicatorCell(
+            child: const SizedBox(key: _tableDividerKey),
+          ),
           Expanded(
-            child: Text(
-              'Участники ($count)',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF123A63),
-                  ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+              child: Text(
+                'Участники ($count)',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF123A63),
+                    ),
+              ),
             ),
           ),
         ],
@@ -488,17 +591,7 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
         onChanged: (_) => viewModel.clearFormError(),
         onTapOutside: viewModel.isSaving
             ? null
-            : (_) {
-                if (_ignoreNextTapOutsideSubmit) {
-                  _ignoreNextTapOutsideSubmit = false;
-                  return;
-                }
-                if (_pendingTransitionParticipantId != null ||
-                    _pendingTransitionToAddRow) {
-                  return;
-                }
-                unawaited(_submitCurrentEditing());
-              },
+            : (_) => unawaited(_submitCurrentEditing()),
         onSubmitted: viewModel.isSaving
             ? null
             : (_) => unawaited(_submitCurrentEditing()),
@@ -520,14 +613,14 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
             : Colors.white;
 
     return GestureDetector(
-      key: _rowKey(participant.id),
+      key: Key('participant_row_${participant.id}'),
       behavior: HitTestBehavior.opaque,
       onTapDown: viewModel.isSaving
           ? null
           : (_) => _handleParticipantTapDown(participant),
       onTap: viewModel.isSaving
           ? null
-          : () => unawaited(_handleParticipantTap(participant)),
+          : () => unawaited(_selectParticipant(participant)),
       onDoubleTap: viewModel.isSaving
           ? null
           : () => unawaited(_handleParticipantDoubleTap(participant)),
@@ -537,35 +630,37 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
                 _showParticipantContextMenu(participant, details),
               ),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          border: const Border(
-            bottom: BorderSide(color: Color(0xFFD8E1EA)),
+        decoration: const BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: _rowBorderColor),
           ),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            SizedBox(
-              width: 28,
-              child: Align(
-                alignment: Alignment.center,
-                child: _buildIndicator(
-                  isEditing: isEditing,
-                  isAddRow: false,
-                  isSelected: isSelected,
-                ),
+            _buildIndicatorCell(
+              child: _buildIndicator(
+                isEditing: isEditing,
+                isAddRow: false,
+                isSelected: isSelected,
               ),
             ),
-            const SizedBox(width: 12),
             Expanded(
-              child: isEditing
-                  ? _buildNameEditor(viewModel)
-                  : Text(
-                      participant.name,
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
+              child: ColoredBox(
+                color: backgroundColor,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  child: isEditing
+                      ? _buildNameEditor(viewModel)
+                      : Text(
+                          participant.name,
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                ),
+              ),
             ),
           ],
         ),
@@ -575,44 +670,48 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
 
   Widget _buildAddRow(BuildContext context, ParticipantsViewModel viewModel) {
     final isEditing = _isCreating;
+    final backgroundColor =
+        isEditing ? const Color(0xFFDDEAF8) : const Color(0xFFE8F0F6);
 
     return GestureDetector(
       key: const Key('participant_add_row'),
       behavior: HitTestBehavior.opaque,
-      onTapDown: viewModel.isSaving ? null : (_) => _handleAddRowTapDown(),
       onTap: viewModel.isSaving ? null : () => unawaited(_handleAddRowTap()),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: const BoxDecoration(
-          color: Color(0xFFE8F0F6),
           border: Border(
-            bottom: BorderSide(color: Color(0xFFD8E1EA)),
+            bottom: BorderSide(color: _rowBorderColor),
           ),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            SizedBox(
-              width: 28,
-              child: Align(
-                alignment: Alignment.center,
-                child: _buildIndicator(
-                  isEditing: isEditing,
-                  isAddRow: true,
-                  isSelected: false,
-                ),
+            _buildIndicatorCell(
+              child: _buildIndicator(
+                isEditing: isEditing,
+                isAddRow: true,
+                isSelected: false,
               ),
             ),
-            const SizedBox(width: 12),
             Expanded(
-              child: isEditing
-                  ? _buildNameEditor(viewModel)
-                  : Text(
-                      'Добавить новую запись',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: const Color(0xFF60758B),
-                          ),
-                    ),
+              child: ColoredBox(
+                color: backgroundColor,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  child: isEditing
+                      ? _buildNameEditor(viewModel)
+                      : Text(
+                          'Добавить новую запись',
+                          style:
+                              Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    color: const Color(0xFF60758B),
+                                  ),
+                        ),
+                ),
+              ),
             ),
           ],
         ),
@@ -631,94 +730,110 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
           key: const Key('participants_directory_dialog'),
           insetPadding: const EdgeInsets.all(24),
           clipBehavior: Clip.antiAlias,
-          child: SizedBox(
-            width: 720,
-            height: 560,
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.fromLTRB(20, 14, 8, 14),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF4F7FA),
-                    border: Border(
-                      bottom: BorderSide(color: Color(0xFFD0D7DE)),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Список участников',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w700),
+          child: Focus(
+            autofocus: true,
+            focusNode: _tableFocusNode,
+            child: CallbackShortcuts(
+              bindings: <ShortcutActivator, VoidCallback>{
+                const SingleActivator(LogicalKeyboardKey.arrowDown): () =>
+                    _handleMoveSelectionShortcut(viewModel, 1),
+                const SingleActivator(LogicalKeyboardKey.arrowUp): () =>
+                    _handleMoveSelectionShortcut(viewModel, -1),
+                const SingleActivator(LogicalKeyboardKey.enter): () =>
+                    _handleStartEditingShortcut(viewModel),
+                const SingleActivator(LogicalKeyboardKey.f2): () =>
+                    _handleStartEditingShortcut(viewModel),
+              },
+              child: SizedBox(
+                width: 720,
+                height: 560,
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(20, 14, 8, 14),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF4F7FA),
+                        border: Border(
+                          bottom: BorderSide(color: Color(0xFFD0D7DE)),
                         ),
                       ),
-                      IconButton(
-                        tooltip: 'Закрыть',
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Список участников',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Закрыть',
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: const Icon(Icons.close),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: DecoratedBox(
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF9FBFD),
                     ),
-                    child: viewModel.isLoading
-                        ? const Center(child: CircularProgressIndicator())
-                        : viewModel.loadErrorMessage != null
-                            ? _ParticipantsLoadError(
-                                message: viewModel.loadErrorMessage!,
-                                onRetry: viewModel.loadParticipants,
-                              )
-                            : Column(
-                                children: [
-                                  _buildHeaderRow(
-                                    context,
-                                    viewModel.participants.length,
+                    Expanded(
+                      child: DecoratedBox(
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFF9FBFD),
+                        ),
+                        child: viewModel.isLoading
+                            ? const Center(child: CircularProgressIndicator())
+                            : viewModel.loadErrorMessage != null
+                                ? _ParticipantsLoadError(
+                                    message: viewModel.loadErrorMessage!,
+                                    onRetry: viewModel.loadParticipants,
+                                  )
+                                : Column(
+                                    children: [
+                                      _buildHeaderRow(
+                                        context,
+                                        viewModel.participants.length,
+                                      ),
+                                      Expanded(
+                                        child: ListView(
+                                          padding: EdgeInsets.zero,
+                                          children: [
+                                            for (final participant
+                                                in viewModel.participants)
+                                              _buildParticipantRow(
+                                                context,
+                                                viewModel,
+                                                participant,
+                                              ),
+                                            _buildAddRow(context, viewModel),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  Expanded(
-                                    child: ListView(
-                                      padding: EdgeInsets.zero,
-                                      children: [
-                                        for (final participant
-                                            in viewModel.participants)
-                                          _buildParticipantRow(
-                                            context,
-                                            viewModel,
-                                            participant,
-                                          ),
-                                        _buildAddRow(context, viewModel),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF4F7FA),
-                    border: Border(
-                      top: BorderSide(color: Color(0xFFD0D7DE)),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      FilledButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Ok'),
                       ),
-                    ],
-                  ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF4F7FA),
+                        border: Border(
+                          top: BorderSide(color: Color(0xFFD0D7DE)),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          FilledButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text('Ok'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         );

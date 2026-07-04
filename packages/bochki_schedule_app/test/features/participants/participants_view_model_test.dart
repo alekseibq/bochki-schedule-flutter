@@ -9,6 +9,7 @@ void main() {
     setUp(() {
       repository = _InMemoryParticipantsRepository(
         participants: [
+          Participant(id: '2', name: 'Борис'),
           Participant(id: '1', name: 'Анна'),
         ],
       );
@@ -20,38 +21,47 @@ void main() {
       );
     });
 
-    test('loads participants', () async {
+    test('loads participants sorted by name', () async {
       await viewModel.loadParticipants();
 
       expect(viewModel.participants.map((participant) => participant.name), [
         'Анна',
+        'Борис',
       ]);
       expect(viewModel.loadErrorMessage, isNull);
     });
 
-    test('adds participant', () async {
+    test('adds participant without re-sorting current list', () async {
       await viewModel.loadParticipants();
 
-      final isSuccess = await viewModel.createParticipant('Борис');
+      final isSuccess = await viewModel.createParticipant('Аарон');
 
       expect(isSuccess, isTrue);
       expect(viewModel.participants.map((participant) => participant.name), [
         'Анна',
         'Борис',
+        'Аарон',
       ]);
       expect(viewModel.formErrorMessage, isNull);
     });
 
-    test('updates participant', () async {
+    test('updates participant without moving its current row', () async {
       await viewModel.loadParticipants();
 
       final isSuccess = await viewModel.updateParticipant(
-        participantId: '1',
-        rawName: 'Анна Петрова',
+        participantId: '2',
+        rawName: 'Яков',
       );
 
       expect(isSuccess, isTrue);
-      expect(viewModel.participants.single.name, 'Анна Петрова');
+      expect(
+        viewModel.participants.map((participant) => participant.name),
+        ['Анна', 'Яков'],
+      );
+      expect(
+        viewModel.participants.map((participant) => participant.id),
+        ['1', '2'],
+      );
     });
 
     test('deletes participant', () async {
@@ -60,7 +70,9 @@ void main() {
       final isSuccess = await viewModel.deleteParticipant('1');
 
       expect(isSuccess, isTrue);
-      expect(viewModel.participants, isEmpty);
+      expect(viewModel.participants.map((participant) => participant.name), [
+        'Борис',
+      ]);
     });
 
     test('empty name sets validation error', () async {

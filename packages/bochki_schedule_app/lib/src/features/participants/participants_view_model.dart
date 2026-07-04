@@ -43,7 +43,8 @@ final class ParticipantsViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _participants = await _listParticipantsUseCase.execute();
+      _participants =
+          _sortParticipants(await _listParticipantsUseCase.execute());
     } catch (_) {
       _loadErrorMessage = 'Не удалось загрузить участников.';
     } finally {
@@ -54,8 +55,8 @@ final class ParticipantsViewModel extends ChangeNotifier {
 
   Future<bool> createParticipant(String rawName) async {
     return _runFormCommand(() async {
-      await _createParticipantUseCase.execute(rawName);
-      _participants = await _listParticipantsUseCase.execute();
+      final participant = await _createParticipantUseCase.execute(rawName);
+      _participants = [..._participants, participant];
     });
   }
 
@@ -64,11 +65,16 @@ final class ParticipantsViewModel extends ChangeNotifier {
     required String rawName,
   }) async {
     return _runFormCommand(() async {
-      await _updateParticipantUseCase.execute(
+      final participant = await _updateParticipantUseCase.execute(
         participantId: participantId,
         rawName: rawName,
       );
-      _participants = await _listParticipantsUseCase.execute();
+      _participants = _participants
+          .map(
+            (candidate) =>
+                candidate.id == participant.id ? participant : candidate,
+          )
+          .toList(growable: false);
     });
   }
 
@@ -79,7 +85,9 @@ final class ParticipantsViewModel extends ChangeNotifier {
 
     try {
       await _deleteParticipantUseCase.execute(participantId);
-      _participants = await _listParticipantsUseCase.execute();
+      _participants = _participants
+          .where((participant) => participant.id != participantId)
+          .toList(growable: false);
       return true;
     } on ParticipantsValidationException catch (error) {
       _actionErrorMessage = error.message;
@@ -124,5 +132,14 @@ final class ParticipantsViewModel extends ChangeNotifier {
       _isSaving = false;
       notifyListeners();
     }
+  }
+
+  List<Participant> _sortParticipants(List<Participant> participants) {
+    final sortedParticipants = [...participants];
+    sortedParticipants.sort(
+      (left, right) => Participant.sortKeyForName(left.name)
+          .compareTo(Participant.sortKeyForName(right.name)),
+    );
+    return List<Participant>.unmodifiable(sortedParticipants);
   }
 }
