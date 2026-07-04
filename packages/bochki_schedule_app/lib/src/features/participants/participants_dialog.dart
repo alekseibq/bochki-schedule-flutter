@@ -37,6 +37,11 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
 
   bool get _isEditing => _isCreating || _editingParticipantId != null;
 
+  bool _isEnterKey(LogicalKeyboardKey key) {
+    return key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -163,7 +168,9 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
     );
   }
 
-  Future<bool> _submitCurrentEditing() {
+  Future<bool> _submitCurrentEditing({
+    bool cancelEmptyCreate = false,
+  }) {
     if (!_isEditing) {
       return Future<bool>.value(true);
     }
@@ -175,12 +182,17 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
     final editingInitialName = _editingInitialName;
     final isCreating = _isCreating;
     final rawName = _nameController.text;
+    final normalizedName = Participant.normalizeName(rawName);
     final viewModel = widget.viewModel;
+
+    if (isCreating && cancelEmptyCreate && normalizedName.isEmpty) {
+      _finishEditing(selectedParticipantId: _selectedParticipantId);
+      return Future<bool>.value(true);
+    }
 
     if (!isCreating &&
         editingParticipantId != null &&
-        Participant.normalizeName(rawName) ==
-            Participant.normalizeName(editingInitialName ?? '')) {
+        normalizedName == Participant.normalizeName(editingInitialName ?? '')) {
       _finishEditing(selectedParticipantId: editingParticipantId);
       return Future<bool>.value(true);
     }
@@ -217,7 +229,21 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
     return submitFuture;
   }
 
+  void _restoreSelectionAfterFailedSubmit({
+    required String? previousEditingParticipantId,
+    required bool previousIsCreating,
+  }) {
+    setState(() {
+      _selectedParticipantId =
+          previousIsCreating ? null : previousEditingParticipantId;
+    });
+    _requestTableFocus();
+  }
+
   Future<void> _selectParticipant(Participant participant) async {
+    final previousEditingParticipantId = _editingParticipantId;
+    final previousIsCreating = _isCreating;
+
     if (_isEditingParticipant(participant)) {
       if (_selectedParticipantId != participant.id) {
         setState(() {
@@ -229,8 +255,12 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
     }
 
     if (_isEditing) {
-      final isSuccess = await _submitCurrentEditing();
+      final isSuccess = await _submitCurrentEditing(cancelEmptyCreate: true);
       if (!mounted || !isSuccess) {
+        _restoreSelectionAfterFailedSubmit(
+          previousEditingParticipantId: previousEditingParticipantId,
+          previousIsCreating: previousIsCreating,
+        );
         return;
       }
     }
@@ -242,9 +272,6 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
   }
 
   void _handleParticipantTapDown(Participant participant) {
-    if (_isEditing && !_isEditingParticipant(participant)) {
-      return;
-    }
     if (_selectedParticipantId == participant.id) {
       _requestTableFocus();
       return;
@@ -262,7 +289,7 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
     }
 
     if (_isEditing) {
-      final isSuccess = await _submitCurrentEditing();
+      final isSuccess = await _submitCurrentEditing(cancelEmptyCreate: true);
       if (!mounted || !isSuccess) {
         return;
       }
@@ -277,7 +304,7 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
     }
 
     if (_isEditing) {
-      final isSuccess = await _submitCurrentEditing();
+      final isSuccess = await _submitCurrentEditing(cancelEmptyCreate: true);
       if (!mounted || !isSuccess) {
         return;
       }
@@ -356,9 +383,23 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
     Participant participant,
     TapDownDetails details,
   ) async {
+    final previousEditingParticipantId = _editingParticipantId;
+    final previousIsCreating = _isCreating;
+
+    if (_selectedParticipantId != participant.id) {
+      setState(() {
+        _selectedParticipantId = participant.id;
+      });
+    }
+    _requestTableFocus();
+
     if (_isEditing && !_isEditingParticipant(participant)) {
-      final isSuccess = await _submitCurrentEditing();
+      final isSuccess = await _submitCurrentEditing(cancelEmptyCreate: true);
       if (!mounted || !isSuccess) {
+        _restoreSelectionAfterFailedSubmit(
+          previousEditingParticipantId: previousEditingParticipantId,
+          previousIsCreating: previousIsCreating,
+        );
         return;
       }
     }
@@ -366,11 +407,6 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
     if (!mounted) {
       return;
     }
-
-    setState(() {
-      _selectedParticipantId = participant.id;
-    });
-    _requestTableFocus();
 
     final overlay = Overlay.of(context).context.findRenderObject();
     if (overlay is! RenderBox) {
@@ -398,6 +434,7 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
           child: Text('Delete'),
         ),
       ],
+      popUpAnimationStyle: AnimationStyle.noAnimation,
     );
 
     if (!mounted || menuAction == null) {
@@ -479,7 +516,7 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
       _moveSelection(-1);
       return true;
     }
-    if (event.logicalKey == LogicalKeyboardKey.enter ||
+    if (_isEnterKey(event.logicalKey) ||
         event.logicalKey == LogicalKeyboardKey.f2) {
       _handleStartEditingShortcut(viewModel);
       return true;
@@ -570,6 +607,12 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
           _cancelEditing();
           return KeyEventResult.handled;
         }
+        if (_isEnterKey(event.logicalKey)) {
+          if (!viewModel.isSaving) {
+            unawaited(_submitCurrentEditing());
+          }
+          return KeyEventResult.handled;
+        }
         return KeyEventResult.ignored;
       },
       child: TextField(
@@ -591,7 +634,9 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
         onChanged: (_) => viewModel.clearFormError(),
         onTapOutside: viewModel.isSaving
             ? null
-            : (_) => unawaited(_submitCurrentEditing()),
+            : (_) => unawaited(
+                  _submitCurrentEditing(cancelEmptyCreate: true),
+                ),
         onSubmitted: viewModel.isSaving
             ? null
             : (_) => unawaited(_submitCurrentEditing()),

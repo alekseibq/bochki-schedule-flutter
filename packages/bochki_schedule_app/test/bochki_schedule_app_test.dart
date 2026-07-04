@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:bochki_schedule_app/bochki_schedule_app.dart';
 import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/widgets.dart';
 
@@ -144,6 +145,58 @@ void main() {
     expect(find.byKey(const Key('participant_name_field')), findsNothing);
   });
 
+  testWidgets('enter commits inline edit and keeps row selected', (
+    tester,
+  ) async {
+    final context = _buildTestContext(
+      participants: [
+        Participant(id: '1', name: 'Анна'),
+      ],
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openParticipantsDialog(tester);
+
+    final row = find.byKey(const Key('participant_row_1'));
+    await _mouseClick(tester, row);
+    await tester.pump(const Duration(milliseconds: 50));
+    await _mouseClick(tester, row);
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('participant_name_field')),
+      'Анна Петрова',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('participant_name_field')), findsNothing);
+    expect(find.text('Анна Петрова'), findsOneWidget);
+    expect(context.repository.participants.single.name, 'Анна Петрова');
+    expect(find.text('▶'), findsOneWidget);
+  });
+
+  testWidgets('empty add row is cancelled on click outside', (tester) async {
+    final context = _buildTestContext();
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openParticipantsDialog(tester);
+
+    await tester.tap(find.byKey(const Key('participant_add_row')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('participant_name_field')), findsOneWidget);
+
+    await tester.tap(find.text('Участники (0)'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('participant_name_field')), findsNothing);
+    expect(context.repository.participants, isEmpty);
+    expect(find.text('Введите имя участника.'), findsNothing);
+  });
+
   testWidgets('double click opens inline edit for row', (
     tester,
   ) async {
@@ -164,6 +217,76 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('participant_name_field')), findsOneWidget);
+  });
+
+  testWidgets('row becomes selected on mouse down while another row is editing',
+      (
+    tester,
+  ) async {
+    final context = _buildTestContext(
+      participants: [
+        Participant(id: '1', name: 'Анна'),
+        Participant(id: '2', name: 'Борис'),
+      ],
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openParticipantsDialog(tester);
+
+    final firstRow = find.byKey(const Key('participant_row_1'));
+    await _mouseClick(tester, firstRow);
+    await tester.pump(const Duration(milliseconds: 50));
+    await _mouseClick(tester, firstRow);
+    await tester.pumpAndSettle();
+
+    final secondRow = find.byKey(const Key('participant_row_2'));
+    final gesture = await tester.createGesture(
+      kind: PointerDeviceKind.mouse,
+      buttons: kPrimaryMouseButton,
+    );
+    final center = tester.getCenter(secondRow);
+    await gesture.addPointer(location: center);
+    await gesture.moveTo(center);
+    await tester.pump();
+    await gesture.down(center);
+    await tester.pump();
+
+    expect(find.text('▶'), findsOneWidget);
+
+    await gesture.up();
+    await gesture.removePointer();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('context menu closes without waiting for animation', (
+    tester,
+  ) async {
+    final context = _buildTestContext(
+      participants: [
+        Participant(id: '1', name: 'Анна'),
+      ],
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openParticipantsDialog(tester);
+
+    final row = find.byKey(const Key('participant_row_1'));
+    await _mouseClick(
+      tester,
+      row,
+      buttons: kSecondaryMouseButton,
+    );
+    await tester.pump();
+
+    expect(find.text('Delete'), findsOneWidget);
+
+    await tester.tap(find.text('Delete'));
+    await tester.pump();
+
+    expect(find.text('Delete'), findsNothing);
+    expect(find.text('Удалить участника?'), findsOneWidget);
   });
 }
 
