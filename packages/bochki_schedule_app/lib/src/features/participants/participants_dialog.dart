@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -480,65 +481,71 @@ class _ParticipantsDialogState extends State<ParticipantsDialog> {
             ? const Color(0xFFF0F7FF)
             : Colors.white;
 
-    return GestureDetector(
+    return Listener(
       key: Key('participant_row_${participant.id}'),
-      behavior: HitTestBehavior.opaque,
-      onTapDown: viewModel.isSaving
+      onPointerDown: viewModel.isSaving
           ? null
-          : (_) => _handleParticipantTapDown(participant),
-      onTap: viewModel.isSaving
-          ? null
-          : () => _dispatch(
-                ParticipantsTableEvent.clickDataRow(participant.id),
-              ),
-      onDoubleTap: viewModel.isSaving
-          ? null
-          : () => _dispatch(
-                ParticipantsTableEvent.doubleClickDataRow(participant.id),
-                clearFormError: true,
-              ),
-      onSecondaryTapDown: viewModel.isSaving
-          ? null
-          : (details) => _dispatch(
-                ParticipantsTableEvent.rightClickDataRow(
-                  participantId: participant.id,
-                  position: _toTableLocalPosition(details.globalPosition),
+          : (event) {
+              if (event.buttons == kPrimaryMouseButton) {
+                _handleParticipantTapDown(participant);
+              }
+            },
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: viewModel.isSaving || !_tableState.isEditing
+            ? null
+            : () => _dispatch(
+                  ParticipantsTableEvent.clickDataRow(participant.id),
                 ),
-              ),
-      child: Container(
-        decoration: const BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: _rowBorderColor),
-          ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            _buildIndicatorCell(
-              child: _buildIndicator(
-                isEditing: isEditing,
-                isAddRow: false,
-                isSelected: isSelected,
-              ),
-            ),
-            Expanded(
-              child: ColoredBox(
-                color: backgroundColor,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
+        onDoubleTap: viewModel.isSaving
+            ? null
+            : () => _dispatch(
+                  ParticipantsTableEvent.doubleClickDataRow(participant.id),
+                  clearFormError: true,
+                ),
+        onSecondaryTapDown: viewModel.isSaving
+            ? null
+            : (details) => _dispatch(
+                  ParticipantsTableEvent.rightClickDataRow(
+                    participantId: participant.id,
+                    position: _toTableLocalPosition(details.globalPosition),
                   ),
-                  child: isEditing
-                      ? _buildNameEditor(viewModel)
-                      : Text(
-                          participant.name,
-                          style: Theme.of(context).textTheme.bodyLarge,
-                        ),
+                ),
+        child: Container(
+          decoration: const BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: _rowBorderColor),
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              _buildIndicatorCell(
+                child: _buildIndicator(
+                  isEditing: isEditing,
+                  isAddRow: false,
+                  isSelected: isSelected,
                 ),
               ),
-            ),
-          ],
+              Expanded(
+                child: ColoredBox(
+                  color: backgroundColor,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: isEditing
+                        ? _buildNameEditor(viewModel)
+                        : Text(
+                            participant.name,
+                            style: Theme.of(context).textTheme.bodyLarge,
+                          ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

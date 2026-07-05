@@ -120,6 +120,40 @@ void main() {
     expect(find.byKey(const Key('participant_name_field')), findsNothing);
   });
 
+  testWidgets('row becomes selected on mouse down before tap completes', (
+    tester,
+  ) async {
+    final context = _buildTestContext(
+      participants: [
+        Participant(id: '1', name: 'Анна'),
+      ],
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openParticipantsDialog(tester);
+
+    final row = find.byKey(const Key('participant_row_1'));
+    final gesture = await tester.createGesture(
+      kind: PointerDeviceKind.mouse,
+      buttons: kPrimaryMouseButton,
+    );
+    final center = tester.getCenter(row);
+
+    await gesture.addPointer(location: center);
+    await gesture.moveTo(center);
+    await tester.pump();
+    await gesture.down(center);
+    await tester.pump();
+
+    expect(find.descendant(of: row, matching: find.text('▶')), findsOneWidget);
+    expect(find.byKey(const Key('participant_name_field')), findsNothing);
+
+    await gesture.up();
+    await gesture.removePointer();
+    await tester.pump(const Duration(milliseconds: 50));
+  });
+
   testWidgets('enter commits edited row after inline edit starts',
       (tester) async {
     final context = _buildTestContext(
