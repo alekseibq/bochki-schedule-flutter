@@ -44,8 +44,7 @@ final class UpdateNamedDirectoryEntryUseCase<T extends NamedDirectoryEntry> {
     final hasDuplicate = entries.any(
       (entry) =>
           entry.id != normalizedId &&
-          NamedDirectoryEntry.sortKeyForName(entry.name) ==
-              normalizedCandidate,
+          NamedDirectoryEntry.sortKeyForName(entry.name) == normalizedCandidate,
     );
     if (hasDuplicate) {
       throw exceptionFactory(duplicateNameMessage);

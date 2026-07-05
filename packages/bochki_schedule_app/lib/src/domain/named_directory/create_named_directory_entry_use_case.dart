@@ -25,8 +25,8 @@ final class CreateNamedDirectoryEntryUseCase<T extends NamedDirectoryEntry> {
     final normalizedCandidate =
         NamedDirectoryEntry.sortKeyForName(normalizedName);
     final hasDuplicate = entries.any(
-      (entry) => NamedDirectoryEntry.sortKeyForName(entry.name) ==
-          normalizedCandidate,
+      (entry) =>
+          NamedDirectoryEntry.sortKeyForName(entry.name) == normalizedCandidate,
     );
     if (hasDuplicate) {
       throw exceptionFactory(duplicateNameMessage);

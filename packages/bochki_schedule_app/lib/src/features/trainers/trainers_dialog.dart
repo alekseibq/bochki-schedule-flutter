@@ -15,37 +15,37 @@ class TrainersDialog extends NamedDirectoryDialog<Trainer> {
 
   static const NamedDirectoryDialogConfig<Trainer> _config =
       NamedDirectoryDialogConfig<Trainer>(
-        dialogKey: 'trainers_directory_dialog',
-        tableDividerKey: 'trainers_table_divider',
-        entryKeyPrefix: 'trainer',
-        dialogTitle: 'Список тренеров',
-        sectionTitleBuilder: _sectionTitle,
-        inlineFieldHintText: 'Введите имя тренера',
-        addRowLabel: 'Добавить новую запись',
-        deleteConfirmationTitle: 'Удалить тренера?',
-        deleteConfirmationMessage: _deleteConfirmationMessage,
-        columns: [
-          DirectoryColumnSpec<Trainer>(
-            id: 'name',
-            label: 'Имя',
-            cellText: _cellText,
-          ),
-        ],
-        rowActions: [
-          DirectoryRowActionSpec<Trainer>(
-            id: 'edit',
-            label: 'Edit',
-            placement: DirectoryRowActionPlacement.contextMenu,
-            onInvoke: _editAction,
-          ),
-          DirectoryRowActionSpec<Trainer>(
-            id: 'delete',
-            label: 'Delete',
-            placement: DirectoryRowActionPlacement.contextMenu,
-            onInvoke: _deleteAction,
-          ),
-        ],
-      );
+    dialogKey: 'trainers_directory_dialog',
+    tableDividerKey: 'trainers_table_divider',
+    entryKeyPrefix: 'trainer',
+    dialogTitle: 'Список тренеров',
+    sectionTitleBuilder: _sectionTitle,
+    inlineFieldHintText: 'Введите имя тренера',
+    addRowLabel: 'Добавить новую запись',
+    deleteConfirmationTitle: 'Удалить тренера?',
+    deleteConfirmationMessage: _deleteConfirmationMessage,
+    columns: [
+      DirectoryColumnSpec<Trainer>(
+        id: 'name',
+        label: 'Имя',
+        cellText: _cellText,
+      ),
+    ],
+    rowActions: [
+      DirectoryRowActionSpec<Trainer>(
+        id: 'edit',
+        label: 'Edit',
+        placement: DirectoryRowActionPlacement.contextMenu,
+        onInvoke: _editAction,
+      ),
+      DirectoryRowActionSpec<Trainer>(
+        id: 'delete',
+        label: 'Delete',
+        placement: DirectoryRowActionPlacement.contextMenu,
+        onInvoke: _deleteAction,
+      ),
+    ],
+  );
 
   static String _sectionTitle(int count) => 'Тренеры ($count)';
 

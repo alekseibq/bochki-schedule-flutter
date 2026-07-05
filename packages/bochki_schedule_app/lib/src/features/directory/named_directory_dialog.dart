@@ -28,7 +28,8 @@ class NamedDirectoryDialog<T extends NamedDirectoryEntry>
   final NamedDirectoryDialogConfig<T> config;
 
   @override
-  State<NamedDirectoryDialog<T>> createState() => _NamedDirectoryDialogState<T>();
+  State<NamedDirectoryDialog<T>> createState() =>
+      _NamedDirectoryDialogState<T>();
 }
 
 class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
@@ -45,10 +46,12 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
 
   NamedDirectoryDialogConfig<T> get _config => widget.config;
   List<DirectoryRowActionSpec<T>> get _contextMenuActions => _config.rowActions
-      .where((action) => action.placement == DirectoryRowActionPlacement.contextMenu)
+      .where((action) =>
+          action.placement == DirectoryRowActionPlacement.contextMenu)
       .toList(growable: false);
   List<DirectoryRowActionSpec<T>> get _rowButtonActions => _config.rowActions
-      .where((action) => action.placement == DirectoryRowActionPlacement.rowButton)
+      .where(
+          (action) => action.placement == DirectoryRowActionPlacement.rowButton)
       .toList(growable: false);
 
   List<DirectoryTableRowData> get _rows => [
@@ -77,7 +80,8 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
 
   bool _isEditingEntry(T entry) {
     final tableState = _tableState;
-    return tableState is DirectoryTableEditRow && tableState.entryId == entry.id;
+    return tableState is DirectoryTableEditRow &&
+        tableState.entryId == entry.id;
   }
 
   bool _isSelectedEntry(T entry) {
@@ -445,8 +449,7 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
               ],
             ),
           ),
-          if (_rowButtonActions.isNotEmpty)
-            const SizedBox(width: 44),
+          if (_rowButtonActions.isNotEmpty) const SizedBox(width: 44),
         ],
       ),
     );
@@ -633,7 +636,8 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
                           Expanded(child: _buildNameEditor(viewModel))
                         else
                           ..._buildDisplayColumns(context, entry),
-                        if (_rowButtonActions.isNotEmpty) _buildRowButtons(entry),
+                        if (_rowButtonActions.isNotEmpty)
+                          _buildRowButtons(entry),
                       ],
                     ),
                   ),
@@ -692,9 +696,10 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
                       ? _buildNameEditor(viewModel)
                       : Text(
                           _config.addRowLabel,
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: const Color(0xFF60758B),
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    color: const Color(0xFF60758B),
+                                  ),
                         ),
                 ),
               ),
@@ -740,7 +745,9 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              for (var index = 0; index < _contextMenuActions.length; index++) ...[
+              for (var index = 0;
+                  index < _contextMenuActions.length;
+                  index++) ...[
                 _ContextMenuButton(
                   label: _contextMenuActions[index].label,
                   onTap: () => unawaited(
@@ -769,7 +776,8 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
             Positioned.fill(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: () => _dispatch(const DirectoryTableEvent.clickOutside()),
+                onTap: () =>
+                    _dispatch(const DirectoryTableEvent.clickOutside()),
                 child: const DecoratedBox(
                   decoration: BoxDecoration(
                     color: Color(0xFFF9FBFD),

@@ -4,7 +4,8 @@ import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('loads active trainers from memory and preserves deleted rows', () async {
+  test('loads active trainers from memory and preserves deleted rows',
+      () async {
     var changeNotifications = 0;
     final repository = ProjectDocumentTrainersRepository(
       initialDocument: const ProjectDocument(
@@ -26,7 +27,8 @@ void main() {
     );
 
     final trainers = await repository.list();
-    final exportedDocument = repository.applyToDocument(ProjectDocument.initial());
+    final exportedDocument =
+        repository.applyToDocument(ProjectDocument.initial());
 
     expect(trainers.map((trainer) => trainer.name), ['Анна']);
     expect(exportedDocument.trainers, [

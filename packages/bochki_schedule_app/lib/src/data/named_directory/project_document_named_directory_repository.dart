@@ -102,9 +102,7 @@ class ProjectDocumentNamedDirectoryRepository<T extends NamedDirectoryEntry>
         (left, right) => NamedDirectoryEntry.sortKeyForName(left.name)
             .compareTo(NamedDirectoryEntry.sortKeyForName(right.name)),
       );
-    return sortedEntries
-        .map((entry) => entry.toJson())
-        .toList(growable: false);
+    return sortedEntries.map((entry) => entry.toJson()).toList(growable: false);
   }
 
   void _markRepositoryChanged() {

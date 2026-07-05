@@ -84,10 +84,8 @@ sealed class DirectoryTableEvent {
 
   const factory DirectoryTableEvent.clickRow(String entryId) =
       DirectoryTableClickRow;
-  const factory DirectoryTableEvent.clickNewRow() =
-      DirectoryTableClickNewRow;
-  const factory DirectoryTableEvent.clickOutside() =
-      DirectoryTableClickOutside;
+  const factory DirectoryTableEvent.clickNewRow() = DirectoryTableClickNewRow;
+  const factory DirectoryTableEvent.clickOutside() = DirectoryTableClickOutside;
   const factory DirectoryTableEvent.doubleClickRow(String entryId) =
       DirectoryTableDoubleClickRow;
   const factory DirectoryTableEvent.doubleClickNewRow() =
@@ -98,12 +96,9 @@ sealed class DirectoryTableEvent {
   }) = DirectoryTableRightClickRow;
   const factory DirectoryTableEvent.rightClickNewRow() =
       DirectoryTableRightClickNewRow;
-  const factory DirectoryTableEvent.pressEnter() =
-      DirectoryTablePressEnter;
-  const factory DirectoryTableEvent.pressEscape() =
-      DirectoryTablePressEscape;
-  const factory DirectoryTableEvent.pressArrowUp() =
-      DirectoryTablePressArrowUp;
+  const factory DirectoryTableEvent.pressEnter() = DirectoryTablePressEnter;
+  const factory DirectoryTableEvent.pressEscape() = DirectoryTablePressEscape;
+  const factory DirectoryTableEvent.pressArrowUp() = DirectoryTablePressArrowUp;
   const factory DirectoryTableEvent.pressArrowDown() =
       DirectoryTablePressArrowDown;
   const factory DirectoryTableEvent.textChanged(String value) =
@@ -217,7 +212,8 @@ final class DirectoryTableSuccessEditRow extends DirectoryTableSuccessTarget {
   final String entryId;
 }
 
-final class DirectoryTableSuccessEditNewRow extends DirectoryTableSuccessTarget {
+final class DirectoryTableSuccessEditNewRow
+    extends DirectoryTableSuccessTarget {
   const DirectoryTableSuccessEditNewRow();
 }
 
@@ -330,7 +326,8 @@ final class DirectoryTableReducer {
     required String targetEntryId,
   }) {
     return switch (state) {
-      DirectoryTableNoSelection() || DirectoryTableSelectedRow() =>
+      DirectoryTableNoSelection() ||
+      DirectoryTableSelectedRow() =>
         DirectoryTableTransition(
           state: DirectoryTableSelectedRow(entryId: targetEntryId),
         ),
@@ -373,11 +370,16 @@ final class DirectoryTableReducer {
 
   DirectoryTableTransition _onClickNewRow(DirectoryTableState state) {
     return switch (state) {
-      DirectoryTableNoSelection() || DirectoryTableSelectedRow() =>
+      DirectoryTableNoSelection() ||
+      DirectoryTableSelectedRow() =>
         const DirectoryTableTransition(
           state: DirectoryTableEditNewRow(currentValue: ''),
         ),
-      DirectoryTableEditRow(:final entryId, :final currentValue, :final isDirty) =>
+      DirectoryTableEditRow(
+        :final entryId,
+        :final currentValue,
+        :final isDirty
+      ) =>
         isDirty
             ? DirectoryTableTransition(
                 state: state,
@@ -397,9 +399,14 @@ final class DirectoryTableReducer {
 
   DirectoryTableTransition _onClickOutside(DirectoryTableState state) {
     return switch (state) {
-      DirectoryTableNoSelection() || DirectoryTableSelectedRow() =>
+      DirectoryTableNoSelection() ||
+      DirectoryTableSelectedRow() =>
         const DirectoryTableTransition(state: DirectoryTableNoSelection()),
-      DirectoryTableEditRow(:final entryId, :final currentValue, :final isDirty) =>
+      DirectoryTableEditRow(
+        :final entryId,
+        :final currentValue,
+        :final isDirty
+      ) =>
         isDirty
             ? DirectoryTableTransition(
                 state: state,
@@ -411,15 +418,15 @@ final class DirectoryTableReducer {
                       const DirectoryTableSuccessTarget.noSelection(),
                 ),
               )
-            : const DirectoryTableTransition(state: DirectoryTableNoSelection()),
+            : const DirectoryTableTransition(
+                state: DirectoryTableNoSelection()),
       DirectoryTableEditNewRow(:final currentValue, :final isDirty) => isDirty
           ? DirectoryTableTransition(
               state: state,
               submitRequest: DirectoryTableSubmitRequest(
                 mode: DirectoryTableSubmitMode.create,
                 rawValue: currentValue,
-                successTarget:
-                    const DirectoryTableSuccessTarget.noSelection(),
+                successTarget: const DirectoryTableSuccessTarget.noSelection(),
               ),
             )
           : const DirectoryTableTransition(state: DirectoryTableNoSelection()),
@@ -437,7 +444,11 @@ final class DirectoryTableReducer {
     }
 
     return switch (state) {
-      DirectoryTableEditRow(:final entryId, :final currentValue, :final isDirty) =>
+      DirectoryTableEditRow(
+        :final entryId,
+        :final currentValue,
+        :final isDirty
+      ) =>
         isDirty
             ? DirectoryTableTransition(
                 state: state,
@@ -469,7 +480,11 @@ final class DirectoryTableReducer {
 
   DirectoryTableTransition _onDoubleClickNewRow(DirectoryTableState state) {
     return switch (state) {
-      DirectoryTableEditRow(:final entryId, :final currentValue, :final isDirty) =>
+      DirectoryTableEditRow(
+        :final entryId,
+        :final currentValue,
+        :final isDirty
+      ) =>
         isDirty
             ? DirectoryTableTransition(
                 state: state,
@@ -496,14 +511,19 @@ final class DirectoryTableReducer {
     required Offset position,
   }) {
     return switch (state) {
-      DirectoryTableNoSelection() || DirectoryTableSelectedRow() =>
+      DirectoryTableNoSelection() ||
+      DirectoryTableSelectedRow() =>
         DirectoryTableTransition(
           state: DirectoryTableSelectedRow(
             entryId: targetEntryId,
             contextMenuPosition: position,
           ),
         ),
-      DirectoryTableEditRow(:final entryId, :final currentValue, :final isDirty) =>
+      DirectoryTableEditRow(
+        :final entryId,
+        :final currentValue,
+        :final isDirty
+      ) =>
         isDirty
             ? DirectoryTableTransition(
                 state: state,
@@ -583,7 +603,11 @@ final class DirectoryTableReducer {
               : _editStateForRow(rows, entryId) ??
                   DirectoryTableSelectedRow(entryId: entryId),
         ),
-      DirectoryTableEditRow(:final entryId, :final currentValue, :final isDirty) =>
+      DirectoryTableEditRow(
+        :final entryId,
+        :final currentValue,
+        :final isDirty
+      ) =>
         isDirty
             ? DirectoryTableTransition(
                 state: state,
@@ -591,8 +615,7 @@ final class DirectoryTableReducer {
                   mode: DirectoryTableSubmitMode.update,
                   entryId: entryId,
                   rawValue: currentValue,
-                  successTarget:
-                      DirectoryTableSuccessTarget.selectRow(entryId),
+                  successTarget: DirectoryTableSuccessTarget.selectRow(entryId),
                 ),
               )
             : DirectoryTableTransition(
@@ -623,8 +646,7 @@ final class DirectoryTableReducer {
               ? DirectoryTableSelectedRow(entryId: entryId)
               : const DirectoryTableNoSelection(),
         ),
-      DirectoryTableEditRow(:final entryId) =>
-        DirectoryTableTransition(
+      DirectoryTableEditRow(:final entryId) => DirectoryTableTransition(
           state: DirectoryTableSelectedRow(entryId: entryId),
         ),
       DirectoryTableEditNewRow() => const DirectoryTableTransition(
@@ -648,7 +670,11 @@ final class DirectoryTableReducer {
                 entryId: entryId,
                 offset: offset,
               ),
-      DirectoryTableEditRow(:final entryId, :final currentValue, :final isDirty) =>
+      DirectoryTableEditRow(
+        :final entryId,
+        :final currentValue,
+        :final isDirty
+      ) =>
         _moveEditRow(
           rows: rows,
           entryId: entryId,
@@ -744,8 +770,8 @@ final class DirectoryTableReducer {
     final targetIndex = currentIndex + offset;
     if (targetIndex < 0 || targetIndex >= rows.length) {
       return DirectoryTableTransition(
-        state:
-            _editStateForRow(rows, entryId) ?? const DirectoryTableNoSelection(),
+        state: _editStateForRow(rows, entryId) ??
+            const DirectoryTableNoSelection(),
       );
     }
 

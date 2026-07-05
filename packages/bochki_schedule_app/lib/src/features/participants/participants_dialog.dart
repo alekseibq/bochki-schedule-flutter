@@ -15,37 +15,37 @@ class ParticipantsDialog extends NamedDirectoryDialog<Participant> {
 
   static const NamedDirectoryDialogConfig<Participant> _config =
       NamedDirectoryDialogConfig<Participant>(
-        dialogKey: 'participants_directory_dialog',
-        tableDividerKey: 'participants_table_divider',
-        entryKeyPrefix: 'participant',
-        dialogTitle: 'Список участников',
-        sectionTitleBuilder: _sectionTitle,
-        inlineFieldHintText: 'Введите имя участника',
-        addRowLabel: 'Добавить новую запись',
-        deleteConfirmationTitle: 'Удалить участника?',
-        deleteConfirmationMessage: _deleteConfirmationMessage,
-        columns: [
-          DirectoryColumnSpec<Participant>(
-            id: 'name',
-            label: 'Имя',
-            cellText: _cellText,
-          ),
-        ],
-        rowActions: [
-          DirectoryRowActionSpec<Participant>(
-            id: 'edit',
-            label: 'Edit',
-            placement: DirectoryRowActionPlacement.contextMenu,
-            onInvoke: _editAction,
-          ),
-          DirectoryRowActionSpec<Participant>(
-            id: 'delete',
-            label: 'Delete',
-            placement: DirectoryRowActionPlacement.contextMenu,
-            onInvoke: _deleteAction,
-          ),
-        ],
-      );
+    dialogKey: 'participants_directory_dialog',
+    tableDividerKey: 'participants_table_divider',
+    entryKeyPrefix: 'participant',
+    dialogTitle: 'Список участников',
+    sectionTitleBuilder: _sectionTitle,
+    inlineFieldHintText: 'Введите имя участника',
+    addRowLabel: 'Добавить новую запись',
+    deleteConfirmationTitle: 'Удалить участника?',
+    deleteConfirmationMessage: _deleteConfirmationMessage,
+    columns: [
+      DirectoryColumnSpec<Participant>(
+        id: 'name',
+        label: 'Имя',
+        cellText: _cellText,
+      ),
+    ],
+    rowActions: [
+      DirectoryRowActionSpec<Participant>(
+        id: 'edit',
+        label: 'Edit',
+        placement: DirectoryRowActionPlacement.contextMenu,
+        onInvoke: _editAction,
+      ),
+      DirectoryRowActionSpec<Participant>(
+        id: 'delete',
+        label: 'Delete',
+        placement: DirectoryRowActionPlacement.contextMenu,
+        onInvoke: _deleteAction,
+      ),
+    ],
+  );
 
   static String _sectionTitle(int count) => 'Участники ($count)';
 
