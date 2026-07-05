@@ -39,7 +39,7 @@ packages:
       path: "../bochki_schedule_domain"
       relative: true
     source: path
-    version: "0.2.2"
+    version: "0.2.3"
   boolean_selector:
     dependency: transitive
     description:

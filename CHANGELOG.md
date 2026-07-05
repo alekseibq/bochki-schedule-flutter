@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.2.3
+
+Release date: 2026-07-05
+
+### Highlights
+
+- Made project data portable by storing `project.json` and `logs/app.log` beside the launched desktop binary by default.
+- Added `--app-data-dir` for CI and local smoke runs that need an explicit temp directory.
+
+### Details
+
+- `fix: store project data beside launch binary`
+
 ## v0.2.2
 
 Release date: 2026-07-05
