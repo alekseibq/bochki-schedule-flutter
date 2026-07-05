@@ -144,11 +144,23 @@ jobs:
         working-directory: packages/bochki_schedule_app
         run: flutter test integration_test/app_shell_test.dart -d windows -r expanded
 
-  macos-release:
+  macos-release-build:
     if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
-    runs-on: macos-latest
-    permissions:
-      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: intel
+            runner: macos-13
+            architecture: x64
+            artifact_name: bochki-schedule-macos-intel-release
+            zip_name: bochki_schedule_app-macos-intel-release.zip
+          - name: arm64
+            runner: macos-15
+            architecture: ARM64
+            artifact_name: bochki-schedule-macos-arm64-release
+            zip_name: bochki_schedule_app-macos-arm64-release.zip
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -171,6 +183,7 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+          architecture: ${{ matrix.architecture }}
 
       - name: Enable macOS desktop
         run: flutter config --enable-macos-desktop
@@ -186,20 +199,34 @@ jobs:
 
       - name: Archive macOS app bundle
         working-directory: packages/bochki_schedule_app/build/macos/Build/Products/Release
-        run: zip -r bochki_schedule_app-macos-release.zip bochki_schedule_app.app
+        run: zip -r "${{ matrix.zip_name }}" bochki_schedule_app.app
 
       - name: Upload macOS release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: bochki-schedule-macos-release
-          path: packages/bochki_schedule_app/build/macos/Build/Products/Release/bochki_schedule_app-macos-release.zip
+          name: ${{ matrix.artifact_name }}
+          path: packages/bochki_schedule_app/build/macos/Build/Products/Release/${{ matrix.zip_name }}
           if-no-files-found: error
 
-      - name: Publish macOS release asset
+  macos-release-publish:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    needs: macos-release-build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download macOS release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: bochki-schedule-macos-*-release
+          path: release-assets
+          merge-multiple: true
+
+      - name: Publish macOS release assets
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
-          files: packages/bochki_schedule_app/build/macos/Build/Products/Release/bochki_schedule_app-macos-release.zip
+          files: release-assets/*.zip
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
