@@ -9,30 +9,50 @@ void main() {
     expect(bochkiScheduleInfraPackageName, 'bochki_schedule_infra');
   });
 
-  test('platform app data provider uses linux fallback path', () async {
-    final provider = PlatformAppDataDirectoryProvider(
-      appDirectoryName: 'bochki_schedule',
-      environment: const <String, String>{'HOME': '/tmp/test-home'},
+  test('launch data directory resolves linux executable parent', () {
+    final directoryPath = resolveLaunchAppDataDirectoryPath(
+      resolvedExecutable: '/tmp/test-home/bin/bochki_schedule_app',
       operatingSystem: 'linux',
     );
 
-    final directory = await provider.getAppDataDirectory();
-
-    expect(directory.path, '/tmp/test-home/.local/share/bochki_schedule');
+    expect(directoryPath, '/tmp/test-home/bin');
   });
 
-  test('platform app data provider uses APPDATA on windows', () async {
-    final provider = PlatformAppDataDirectoryProvider(
-      appDirectoryName: 'bochki_schedule',
-      environment: const <String, String>{
-        'APPDATA': r'C:\Users\Test\AppData\Roaming'
-      },
+  test('launch data directory resolves windows executable parent', () {
+    final directoryPath = resolveLaunchAppDataDirectoryPath(
+      resolvedExecutable: r'C:\Users\Test\Desktop\bochki_schedule_app.exe',
       operatingSystem: 'windows',
+    );
+
+    expect(directoryPath, r'C:\Users\Test\Desktop');
+  });
+
+  test('launch data directory resolves macos app bundle sibling', () {
+    final directoryPath = resolveLaunchAppDataDirectoryPath(
+      resolvedExecutable:
+          '/Applications/bochki_schedule_app.app/Contents/MacOS/bochki_schedule_app',
+      operatingSystem: 'macos',
+    );
+
+    expect(directoryPath, '/Applications');
+  });
+
+  test('launch app data provider creates directory under launch root',
+      () async {
+    final tempDirectory =
+        await Directory.systemTemp.createTemp('bochki_launch_root_test');
+    addTearDown(() => tempDirectory.delete(recursive: true));
+
+    final provider = LaunchAppDataDirectoryProvider(
+      resolvedExecutable:
+          '${tempDirectory.path}/bochki_schedule_app.app/Contents/MacOS/bochki_schedule_app',
+      operatingSystem: 'macos',
     );
 
     final directory = await provider.getAppDataDirectory();
 
-    expect(directory.path, r'C:\Users\Test\AppData\Roaming/bochki_schedule');
+    expect(directory.path, tempDirectory.path);
+    expect(await directory.exists(), isTrue);
   });
 
   test('file logger appends log lines to file', () async {

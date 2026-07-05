@@ -111,6 +111,9 @@ fvm flutter run -d windows
 make windows-release
 ```
 
+По умолчанию desktop-сборка хранит `project.json` и `logs/app.log` рядом с файлом запуска.
+Если нужен явный путь для CI или локального smoke-run, передайте `--app-data-dir=<path>`.
+
 ## Команды workspace
 
 ```bash

@@ -6,16 +6,19 @@ import 'package:bochki_schedule_app/bochki_schedule_app.dart';
 import 'package:flutter/widgets.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'src/app_launch_arguments.dart';
 import 'src/presentation/startup_error_app.dart';
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   await _configureWindow();
 
   AppServices? services;
 
   try {
-    services = await AppBootstrap.initialize();
+    services = await AppBootstrap.initialize(
+      appDataDirectory: resolveAppDataDirectoryOverride(args),
+    );
     FlutterError.onError = (details) {
       FlutterError.presentError(details);
       unawaited(

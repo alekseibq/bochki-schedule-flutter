@@ -18,18 +18,16 @@ import 'domain/trainers/list_trainers_use_case.dart';
 import 'domain/trainers/update_trainer_use_case.dart';
 
 final class AppBootstrap {
-  static const String appDirectoryName = 'bochki_schedule';
-
-  static Future<AppServices> initialize() async {
-    final appDataProvider = PlatformAppDataDirectoryProvider(
-      appDirectoryName: appDirectoryName,
-    );
-    final appDataDirectory = await appDataProvider.getAppDataDirectory();
+  static Future<AppServices> initialize({
+    Directory? appDataDirectory,
+  }) async {
+    final resolvedAppDataDirectory = appDataDirectory ??
+        await LaunchAppDataDirectoryProvider().getAppDataDirectory();
     final logger = FileAppLogger(
-      logFile: File(p.join(appDataDirectory.path, 'logs', 'app.log')),
+      logFile: File(p.join(resolvedAppDataDirectory.path, 'logs', 'app.log')),
     );
     final projectDocumentRepository = JsonProjectDocumentRepository(
-      projectFile: File(p.join(appDataDirectory.path, 'project.json')),
+      projectFile: File(p.join(resolvedAppDataDirectory.path, 'project.json')),
       safeFileWriter: const AtomicFileWriter(),
     );
     final initialDocument = await projectDocumentRepository.load();
@@ -81,11 +79,11 @@ final class AppBootstrap {
     );
 
     await logger.info(
-      'Bootstrap completed. appDataDirectory=${appDataDirectory.path}',
+      'Bootstrap completed. appDataDirectory=${resolvedAppDataDirectory.path}',
     );
 
     return AppServices(
-      appDataDirectory: appDataDirectory,
+      appDataDirectory: resolvedAppDataDirectory,
       logger: logger,
       listParticipantsUseCase: listParticipantsUseCase,
       createParticipantUseCase: createParticipantUseCase,

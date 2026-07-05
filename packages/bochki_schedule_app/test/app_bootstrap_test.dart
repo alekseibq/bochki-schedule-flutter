@@ -1,0 +1,31 @@
+import 'dart:io';
+
+import 'package:bochki_schedule_app/bochki_schedule_app.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
+
+void main() {
+  test('bootstrap uses the provided app data directory override', () async {
+    final tempRoot = await Directory.systemTemp.createTemp(
+      'bochki_bootstrap_test',
+    );
+    final services = await AppBootstrap.initialize(
+      appDataDirectory: tempRoot,
+    );
+    addTearDown(() async {
+      await services.shutdown();
+      await tempRoot.delete(recursive: true);
+    });
+
+    await services.logger.info('bootstrap smoke');
+    await services.createParticipantUseCase.execute('Иван');
+    await services.flushPending();
+
+    final logFile = File(p.join(tempRoot.path, 'logs', 'app.log'));
+    final projectFile = File(p.join(tempRoot.path, 'project.json'));
+
+    expect(await logFile.exists(), isTrue);
+    expect(await projectFile.exists(), isTrue);
+    expect(services.appDataDirectory.path, tempRoot.path);
+  });
+}
