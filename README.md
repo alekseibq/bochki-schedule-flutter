@@ -90,6 +90,27 @@ dart pub global activate melos
 Если `melos` установлен глобально, убедитесь, что он доступен в `PATH`.
 Альтернатива без глобальной установки: `dart run melos <command>`.
 
+## Запуск в Windows
+
+В PowerShell из корня репозитория:
+
+```powershell
+fvm install
+fvm use
+dart pub get
+dart pub global activate melos
+melos bootstrap
+cd packages/bochki_schedule_app
+fvm flutter config --enable-windows-desktop
+fvm flutter run -d windows
+```
+
+Если нужен release-артефакт для Windows, используйте:
+
+```powershell
+make windows-release
+```
+
 ## Команды workspace
 
 ```bash
