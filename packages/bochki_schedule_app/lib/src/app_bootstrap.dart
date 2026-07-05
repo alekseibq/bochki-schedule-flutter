@@ -4,8 +4,9 @@ import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
 import 'package:path/path.dart' as p;
 
 import 'app_services.dart';
-import 'data/participants/participants_storage.dart';
 import 'data/participants/project_document_participants_repository.dart';
+import 'data/project_document/project_document_id_allocator.dart';
+import 'data/project_document/project_document_sync_coordinator.dart';
 import 'domain/participants/create_participant_use_case.dart';
 import 'domain/participants/delete_participant_use_case.dart';
 import 'domain/participants/list_participants_use_case.dart';
@@ -26,12 +27,23 @@ final class AppBootstrap {
       projectFile: File(p.join(appDataDirectory.path, 'project.json')),
       safeFileWriter: const AtomicFileWriter(),
     );
-    final participantsStorage = ProjectDocumentParticipantsStorage(
-      projectDocumentRepository,
+    final initialDocument = await projectDocumentRepository.load();
+    final syncCoordinator = ProjectDocumentSyncCoordinator(
+      repository: projectDocumentRepository,
+      initialDocument: initialDocument,
+      logger: logger,
+    );
+    final idAllocator = ProjectDocumentIdAllocator(
+      nextId: initialDocument.nextId,
+      onChanged: syncCoordinator.markChanged,
     );
     final participantsRepository = ProjectDocumentParticipantsRepository(
-      storage: participantsStorage,
+      initialDocument: initialDocument,
+      idAllocator: idAllocator,
+      onChanged: syncCoordinator.markChanged,
     );
+    syncCoordinator.registerPart(idAllocator);
+    syncCoordinator.registerPart(participantsRepository);
     final listParticipantsUseCase = ListParticipantsUseCase(
       participantsRepository,
     );
@@ -56,6 +68,8 @@ final class AppBootstrap {
       createParticipantUseCase: createParticipantUseCase,
       updateParticipantUseCase: updateParticipantUseCase,
       deleteParticipantUseCase: deleteParticipantUseCase,
+      flushPending: syncCoordinator.flushPending,
+      shutdown: syncCoordinator.shutdown,
     );
   }
 }

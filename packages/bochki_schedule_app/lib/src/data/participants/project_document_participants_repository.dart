@@ -2,22 +2,30 @@ import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 
 import '../../domain/participants/participant.dart';
 import '../../domain/participants/participants_repository.dart';
+import '../project_document/project_document_id_allocator.dart';
+import '../project_document/project_document_sync_part.dart';
 import 'participants_dto.dart';
-import 'participants_storage.dart';
 
 final class ProjectDocumentParticipantsRepository
-    implements ParticipantsRepository {
-  const ProjectDocumentParticipantsRepository({
-    required ParticipantsStorage storage,
-  }) : _storage = storage;
+    with DirtyTrackingProjectDocumentSyncPart
+    implements ParticipantsRepository, ProjectDocumentSyncPart {
+  ProjectDocumentParticipantsRepository({
+    required ProjectDocument initialDocument,
+    required ProjectDocumentIdAllocator idAllocator,
+    required void Function() onChanged,
+  })  : _idAllocator = idAllocator,
+        _onChanged = onChanged,
+        _participants = initialDocument.participants
+            .map(ParticipantDto.fromJson)
+            .toList(growable: true);
 
-  final ParticipantsStorage _storage;
+  final ProjectDocumentIdAllocator _idAllocator;
+  final void Function() _onChanged;
+  final List<ParticipantDto> _participants;
 
   @override
   Future<List<Participant>> list() async {
-    final document = await _storage.loadDocument();
-    return document.participants
-        .map(ParticipantDto.fromJson)
+    return _participants
         .where((participant) => !participant.deleted)
         .map((participant) => participant.toDomain())
         .toList(growable: false);
@@ -27,41 +35,32 @@ final class ProjectDocumentParticipantsRepository
   Future<Participant> create({
     required String name,
   }) async {
-    final document = await _storage.loadDocument();
-    final participants = _participantDtosFromDocument(document);
     final createdParticipant = Participant(
-      id: document.nextId.toString(),
+      id: _idAllocator.nextId().toString(),
       name: name,
     );
-    participants.add(
+    _participants.add(
       ParticipantDto.fromDomain(createdParticipant, deleted: false),
     );
-
-    await _storage.saveDocument(
-      document.copyWith(
-        nextId: document.nextId + 1,
-        participants: _sortedParticipantJson(participants),
-      ),
-    );
+    _markRepositoryChanged();
     return createdParticipant;
   }
 
   @override
   Future<Participant> update(Participant participant) async {
-    final document = await _storage.loadDocument();
-    final participants = _participantDtosFromDocument(document);
     final participantId = int.parse(participant.id);
-    final index = participants.indexWhere(
+    final index = _participants.indexWhere(
       (candidate) => candidate.id == participantId,
     );
     if (index != -1) {
-      participants[index] =
-          participants[index].copyWith(name: participant.name);
-      await _storage.saveDocument(
-        document.copyWith(
-          participants: _sortedParticipantJson(participants),
-        ),
-      );
+      final current = _participants[index];
+      if (current.name != participant.name || current.deleted) {
+        _participants[index] = current.copyWith(
+          name: participant.name,
+          deleted: false,
+        );
+        _markRepositoryChanged();
+      }
     }
 
     return participant;
@@ -69,39 +68,39 @@ final class ProjectDocumentParticipantsRepository
 
   @override
   Future<void> delete(String participantId) async {
-    final document = await _storage.loadDocument();
-    final participants = _participantDtosFromDocument(document);
     final parsedId = int.parse(participantId);
-    final index = participants.indexWhere(
+    final index = _participants.indexWhere(
       (candidate) => candidate.id == parsedId,
     );
-    if (index == -1) {
+    if (index == -1 || _participants[index].deleted) {
       return;
     }
 
-    participants[index] = participants[index].copyWith(deleted: true);
-    await _storage.saveDocument(
-      document.copyWith(
-        participants: _sortedParticipantJson(participants),
-      ),
-    );
+    _participants[index] = _participants[index].copyWith(deleted: true);
+    _markRepositoryChanged();
   }
 
-  List<ParticipantDto> _participantDtosFromDocument(ProjectDocument document) {
-    return document.participants
-        .map(ParticipantDto.fromJson)
-        .toList(growable: true);
+  @override
+  ProjectDocument applyToDocument(ProjectDocument document) {
+    return document.copyWith(
+      participants: _sortedParticipantJson(_participants),
+    );
   }
 
   List<Map<String, Object?>> _sortedParticipantJson(
     List<ParticipantDto> participants,
   ) {
-    participants.sort(
-      (left, right) => Participant.sortKeyForName(left.name)
-          .compareTo(Participant.sortKeyForName(right.name)),
-    );
-    return participants
+    final sortedParticipants = [...participants]..sort(
+        (left, right) => Participant.sortKeyForName(left.name)
+            .compareTo(Participant.sortKeyForName(right.name)),
+      );
+    return sortedParticipants
         .map((participant) => participant.toJson())
         .toList(growable: false);
+  }
+
+  void _markRepositoryChanged() {
+    markChanged();
+    _onChanged();
   }
 }
