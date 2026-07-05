@@ -55,13 +55,20 @@ void main() {
     await tester.tap(find.text('Участники').last);
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const Key('participants_directory_dialog')),
-      findsOneWidget,
+    final participantsDialog = find.byKey(
+      const Key('participants_directory_dialog'),
     );
+
+    expect(participantsDialog, findsOneWidget);
     expect(find.text('Список участников'), findsOneWidget);
     expect(find.text('Участники (0)'), findsOneWidget);
-    expect(find.text('Добавить новую запись'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: participantsDialog,
+        matching: find.text('Добавить новую запись'),
+      ),
+      findsOneWidget,
+    );
   });
 }
 
