@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.2.4
+
+Release date: 2026-07-05
+
+### Highlights
+
+- Split macOS release publishing into Intel and Apple Silicon artifacts.
+- Kept macOS release artifact generation on release triggers only.
+
+### Details
+
+- `ci: split macOS release artifacts by architecture`
+
 ## v0.2.3
 
 Release date: 2026-07-05
