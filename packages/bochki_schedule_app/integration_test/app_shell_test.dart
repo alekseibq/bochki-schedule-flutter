@@ -19,6 +19,8 @@ void main() {
       createParticipantUseCase: CreateParticipantUseCase(repository),
       updateParticipantUseCase: UpdateParticipantUseCase(repository),
       deleteParticipantUseCase: DeleteParticipantUseCase(repository),
+      flushPending: _noopAsync,
+      shutdown: _noopAsync,
     );
 
     await tester.pumpWidget(BochkiScheduleApp(services: services));
@@ -48,6 +50,8 @@ void main() {
     expect(find.text('Добавить новую запись'), findsOneWidget);
   });
 }
+
+Future<void> _noopAsync() async {}
 
 final class _NoopLogger implements AppLogger {
   const _NoopLogger();

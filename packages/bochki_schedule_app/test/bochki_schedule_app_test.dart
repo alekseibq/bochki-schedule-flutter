@@ -356,10 +356,14 @@ _TestContext _buildTestContext({
       createParticipantUseCase: CreateParticipantUseCase(repository),
       updateParticipantUseCase: UpdateParticipantUseCase(repository),
       deleteParticipantUseCase: DeleteParticipantUseCase(repository),
+      flushPending: _noopAsync,
+      shutdown: _noopAsync,
     ),
     repository: repository,
   );
 }
+
+Future<void> _noopAsync() async {}
 
 final class _TestContext {
   const _TestContext({

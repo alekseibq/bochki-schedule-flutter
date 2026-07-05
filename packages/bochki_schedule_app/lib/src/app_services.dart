@@ -15,6 +15,8 @@ final class AppServices {
     required this.createParticipantUseCase,
     required this.updateParticipantUseCase,
     required this.deleteParticipantUseCase,
+    required this.flushPending,
+    required this.shutdown,
   });
 
   final Directory appDataDirectory;
@@ -23,4 +25,6 @@ final class AppServices {
   final CreateParticipantUseCase createParticipantUseCase;
   final UpdateParticipantUseCase updateParticipantUseCase;
   final DeleteParticipantUseCase deleteParticipantUseCase;
+  final Future<void> Function() flushPending;
+  final Future<void> Function() shutdown;
 }
