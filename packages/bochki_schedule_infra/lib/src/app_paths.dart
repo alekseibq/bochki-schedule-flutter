@@ -6,59 +6,43 @@ abstract interface class AppDataDirectoryProvider {
   Future<Directory> getAppDataDirectory();
 }
 
-final class PlatformAppDataDirectoryProvider
-    implements AppDataDirectoryProvider {
-  PlatformAppDataDirectoryProvider({
-    required this.appDirectoryName,
-    Map<String, String>? environment,
+String resolveLaunchAppDataDirectoryPath({
+  required String resolvedExecutable,
+  required String operatingSystem,
+}) {
+  final pathContext = p.Context(
+      style: operatingSystem == 'windows' ? p.Style.windows : p.Style.posix);
+  final executableDirectory = pathContext.dirname(resolvedExecutable);
+
+  if (operatingSystem == 'macos') {
+    final contentsDirectory = pathContext.dirname(executableDirectory);
+    final bundleDirectory = pathContext.dirname(contentsDirectory);
+    if (pathContext.basename(bundleDirectory).endsWith('.app')) {
+      return pathContext.dirname(bundleDirectory);
+    }
+  }
+
+  return executableDirectory;
+}
+
+final class LaunchAppDataDirectoryProvider implements AppDataDirectoryProvider {
+  LaunchAppDataDirectoryProvider({
+    String? resolvedExecutable,
     String? operatingSystem,
-  })  : _environment = environment ?? Platform.environment,
+  })  : _resolvedExecutable = resolvedExecutable ?? Platform.resolvedExecutable,
         _operatingSystem = operatingSystem ?? Platform.operatingSystem;
 
-  final String appDirectoryName;
-  final Map<String, String> _environment;
+  final String _resolvedExecutable;
   final String _operatingSystem;
 
   @override
   Future<Directory> getAppDataDirectory() async {
-    final baseDirectoryPath = _resolveBaseDirectoryPath();
-    final directory = Directory(p.join(baseDirectoryPath, appDirectoryName));
+    final baseDirectoryPath = resolveLaunchAppDataDirectoryPath(
+      resolvedExecutable: _resolvedExecutable,
+      operatingSystem: _operatingSystem,
+    );
+    final directory = Directory(baseDirectoryPath);
     await directory.create(recursive: true);
     return directory;
-  }
-
-  String _resolveBaseDirectoryPath() {
-    switch (_operatingSystem) {
-      case 'windows':
-        final appData = _environment['APPDATA'];
-        if (appData != null && appData.isNotEmpty) {
-          return appData;
-        }
-
-        return p.join(
-            _requiredEnvironmentValue('USERPROFILE'), 'AppData', 'Roaming');
-      case 'macos':
-        return p.join(
-          _requiredEnvironmentValue('HOME'),
-          'Library',
-          'Application Support',
-        );
-      default:
-        final xdgDataHome = _environment['XDG_DATA_HOME'];
-        if (xdgDataHome != null && xdgDataHome.isNotEmpty) {
-          return xdgDataHome;
-        }
-
-        return p.join(_requiredEnvironmentValue('HOME'), '.local', 'share');
-    }
-  }
-
-  String _requiredEnvironmentValue(String key) {
-    final value = _environment[key];
-    if (value == null || value.isEmpty) {
-      throw StateError('Missing required environment variable: $key');
-    }
-
-    return value;
   }
 }

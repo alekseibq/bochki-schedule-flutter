@@ -42,3 +42,8 @@ For local Linux desktop integration runs, install:
 - `ninja-build`
 - `pkg-config`
 - `libgtk-3-dev`
+
+## Desktop Launch Path
+
+When the desktop app is launched without arguments, it stores `project.json` in the same folder as the launched binary or macOS bundle location.
+For CI or local smoke runs, pass `--app-data-dir=<path>` so the app writes into an explicit temporary directory.
