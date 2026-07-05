@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.2.1
+
+Release date: 2026-07-05
+
+### Highlights
+
+- Published the macOS release archive directly to the GitHub Release page.
+- Added a manual `workflow_dispatch` path to backfill release assets for a specific tag.
+- Kept the existing CI checks for PRs and `main` pushes unchanged.
+
+### Details
+
+- `ci: publish macos release assets`
+
 ## v0.2.0
 
 Release date: 2026-07-05
