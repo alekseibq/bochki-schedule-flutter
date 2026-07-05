@@ -147,7 +147,7 @@ make windows-release
 - `pr-title` - проверка названия PR по Conventional Commits.
 - `linux-checks` - `bootstrap`, `format-check`, `analyze`, unit/widget tests и Linux desktop integration test.
 - `windows-desktop` - Windows release build, desktop integration test и публикация ZIP artifact.
-- `macos-release` - macOS release build и публикация артефакта приложения.
+- `macos-release` - macOS release build, публикация ZIP artifact и прикрепление его к GitHub Release для tag builds.
 
 Для merge в `main` должны быть зелеными все обязательные checks.
 macOS артефакт на текущем этапе неподписан и не notarized.
