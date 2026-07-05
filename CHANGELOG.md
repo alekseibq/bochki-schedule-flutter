@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.2.2
+
+Release date: 2026-07-05
+
+### Highlights
+
+- Fixed macOS startup by not awaiting `windowManager.waitUntilReadyToShow` before `runApp`.
+- Kept the new GitHub Release asset publishing flow in CI.
+
+### Details
+
+- `fix(app): do not await macos window readiness before runApp`
+
 ## v0.2.1
 
 Release date: 2026-07-05
