@@ -11,14 +11,22 @@ void main() {
 
   testWidgets('desktop shell opens menu and participant dialog',
       (tester) async {
-    final repository = _InMemoryParticipantsRepository();
+    final participantsRepository = _InMemoryParticipantsRepository();
+    final trainersRepository = _InMemoryTrainersRepository();
     final services = AppServices(
       appDataDirectory: Directory('/tmp/bochki_schedule_test'),
       logger: const _NoopLogger(),
-      listParticipantsUseCase: ListParticipantsUseCase(repository),
-      createParticipantUseCase: CreateParticipantUseCase(repository),
-      updateParticipantUseCase: UpdateParticipantUseCase(repository),
-      deleteParticipantUseCase: DeleteParticipantUseCase(repository),
+      listParticipantsUseCase: ListParticipantsUseCase(participantsRepository),
+      createParticipantUseCase:
+          CreateParticipantUseCase(participantsRepository),
+      updateParticipantUseCase:
+          UpdateParticipantUseCase(participantsRepository),
+      deleteParticipantUseCase:
+          DeleteParticipantUseCase(participantsRepository),
+      listTrainersUseCase: ListTrainersUseCase(trainersRepository),
+      createTrainerUseCase: CreateTrainerUseCase(trainersRepository),
+      updateTrainerUseCase: UpdateTrainerUseCase(trainersRepository),
+      deleteTrainerUseCase: DeleteTrainerUseCase(trainersRepository),
       flushPending: _noopAsync,
       shutdown: _noopAsync,
     );
@@ -34,7 +42,12 @@ void main() {
     await tester.tap(find.text('Тренеры').last);
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('placeholder_trainers')), findsOneWidget);
+    expect(
+      find.byKey(const Key('trainers_directory_dialog')),
+      findsOneWidget,
+    );
+    expect(find.text('Список тренеров'), findsOneWidget);
+    expect(find.text('Тренеры (0)'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('directories_menu_button')));
     await tester.pumpAndSettle();
@@ -102,5 +115,43 @@ final class _InMemoryParticipantsRepository implements ParticipantsRepository {
       _participants[index] = participant;
     }
     return participant;
+  }
+}
+
+final class _InMemoryTrainersRepository implements TrainersRepository {
+  final List<Trainer> _trainers = <Trainer>[];
+  int _nextId = 1;
+
+  @override
+  Future<Trainer> create({
+    required String name,
+  }) async {
+    final trainer = Trainer(
+      id: (_nextId++).toString(),
+      name: name,
+    );
+    _trainers.add(trainer);
+    return trainer;
+  }
+
+  @override
+  Future<void> delete(String trainerId) async {
+    _trainers.removeWhere((trainer) => trainer.id == trainerId);
+  }
+
+  @override
+  Future<List<Trainer>> list() async {
+    return [..._trainers];
+  }
+
+  @override
+  Future<Trainer> update(Trainer trainer) async {
+    final index = _trainers.indexWhere(
+      (candidate) => candidate.id == trainer.id,
+    );
+    if (index != -1) {
+      _trainers[index] = trainer;
+    }
+    return trainer;
   }
 }

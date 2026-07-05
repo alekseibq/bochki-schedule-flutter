@@ -41,6 +41,22 @@ void main() {
     expect(find.text('Ok'), findsOneWidget);
   });
 
+  testWidgets('shell opens trainers dialog from menu', (tester) async {
+    final context = _buildTestContext();
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openTrainersDialog(tester);
+
+    expect(
+      find.byKey(const Key('trainers_directory_dialog')),
+      findsOneWidget,
+    );
+    expect(find.text('Список тренеров'), findsOneWidget);
+    expect(find.text('Тренеры (0)'), findsOneWidget);
+    expect(find.byKey(const Key('trainers_table_divider')), findsOneWidget);
+  });
+
   testWidgets('participants dialog supports create edit and delete', (
     tester,
   ) async {
@@ -98,6 +114,65 @@ void main() {
       ['Иван Петров'],
     );
     expect(find.text('Участники (1)'), findsOneWidget);
+  });
+
+  testWidgets('trainers dialog supports create edit and delete', (
+    tester,
+  ) async {
+    final context = _buildTestContext();
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openTrainersDialog(tester);
+
+    await tester.tap(find.byKey(const Key('trainer_add_row')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('trainer_name_field')), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('trainer_name_field')),
+      '  Иван   Тренер  ',
+    );
+    await tester.tap(find.text('Тренеры (0)'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Иван Тренер'), findsOneWidget);
+    expect(context.trainersRepository.trainers.single.name, 'Иван Тренер');
+
+    await tester.tap(find.byKey(const Key('trainer_add_row')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('trainer_name_field')),
+      'Борис',
+    );
+    await tester.tap(find.text('Тренеры (1)'));
+    await tester.pumpAndSettle();
+
+    final firstRow = find.byKey(const Key('trainer_row_1'));
+    await _doubleMouseClick(tester, firstRow);
+    await tester.enterText(
+      find.byKey(const Key('trainer_name_field')),
+      'Иван Петров',
+    );
+    await _mouseClick(tester, find.byKey(const Key('trainer_row_2')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Иван Петров'), findsOneWidget);
+    expect(context.trainersRepository.trainers.first.name, 'Иван Петров');
+
+    final secondRow = find.byKey(const Key('trainer_row_2'));
+    await _mouseClick(tester, secondRow, buttons: kSecondaryMouseButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Удалить').last);
+    await tester.pumpAndSettle();
+
+    expect(
+      context.trainersRepository.trainers.map((trainer) => trainer.name),
+      ['Иван Петров'],
+    );
+    expect(find.text('Тренеры (1)'), findsOneWidget);
   });
 
   testWidgets('single click selects row without opening inline edit', (
@@ -341,25 +416,44 @@ Future<void> _openParticipantsDialog(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+Future<void> _openTrainersDialog(WidgetTester tester) async {
+  await tester.tap(find.byKey(const Key('directories_menu_button')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Тренеры').last);
+  await tester.pumpAndSettle();
+}
+
 _TestContext _buildTestContext({
   List<Participant>? participants,
+  List<Trainer>? trainers,
 }) {
-  final repository = _InMemoryParticipantsRepository(
+  final participantsRepository = _InMemoryParticipantsRepository(
     participants: participants,
+  );
+  final trainersRepository = _InMemoryTrainersRepository(
+    trainers: trainers,
   );
 
   return _TestContext(
     services: AppServices(
       appDataDirectory: Directory('/tmp/bochki_schedule_test'),
       logger: const _NoopLogger(),
-      listParticipantsUseCase: ListParticipantsUseCase(repository),
-      createParticipantUseCase: CreateParticipantUseCase(repository),
-      updateParticipantUseCase: UpdateParticipantUseCase(repository),
-      deleteParticipantUseCase: DeleteParticipantUseCase(repository),
+      listParticipantsUseCase: ListParticipantsUseCase(participantsRepository),
+      createParticipantUseCase:
+          CreateParticipantUseCase(participantsRepository),
+      updateParticipantUseCase:
+          UpdateParticipantUseCase(participantsRepository),
+      deleteParticipantUseCase:
+          DeleteParticipantUseCase(participantsRepository),
+      listTrainersUseCase: ListTrainersUseCase(trainersRepository),
+      createTrainerUseCase: CreateTrainerUseCase(trainersRepository),
+      updateTrainerUseCase: UpdateTrainerUseCase(trainersRepository),
+      deleteTrainerUseCase: DeleteTrainerUseCase(trainersRepository),
       flushPending: _noopAsync,
       shutdown: _noopAsync,
     ),
-    repository: repository,
+    repository: participantsRepository,
+    trainersRepository: trainersRepository,
   );
 }
 
@@ -369,10 +463,12 @@ final class _TestContext {
   const _TestContext({
     required this.services,
     required this.repository,
+    required this.trainersRepository,
   });
 
   final AppServices services;
   final _InMemoryParticipantsRepository repository;
+  final _InMemoryTrainersRepository trainersRepository;
 }
 
 final class _NoopLogger implements AppLogger {
@@ -438,5 +534,56 @@ final class _InMemoryParticipantsRepository implements ParticipantsRepository {
       _participants[index] = participant;
     }
     return participant;
+  }
+}
+
+final class _InMemoryTrainersRepository implements TrainersRepository {
+  _InMemoryTrainersRepository({
+    List<Trainer>? trainers,
+  }) : _trainers = [...?trainers] {
+    if (_trainers.isNotEmpty) {
+      final maxId = _trainers
+          .map((trainer) => int.parse(trainer.id))
+          .reduce((left, right) => left > right ? left : right);
+      _nextId = maxId + 1;
+    }
+  }
+
+  final List<Trainer> _trainers;
+  int _nextId = 1;
+
+  @override
+  Future<Trainer> create({
+    required String name,
+  }) async {
+    final trainer = Trainer(
+      id: (_nextId++).toString(),
+      name: name,
+    );
+    _trainers.add(trainer);
+    return trainer;
+  }
+
+  @override
+  Future<void> delete(String trainerId) async {
+    _trainers.removeWhere((trainer) => trainer.id == trainerId);
+  }
+
+  @override
+  Future<List<Trainer>> list() async {
+    return [..._trainers];
+  }
+
+  List<Trainer> get trainers => List<Trainer>.unmodifiable(_trainers);
+
+  @override
+  Future<Trainer> update(Trainer trainer) async {
+    final index = _trainers.indexWhere(
+      (candidate) => candidate.id == trainer.id,
+    );
+    if (index != -1) {
+      _trainers[index] = trainer;
+    }
+    return trainer;
   }
 }

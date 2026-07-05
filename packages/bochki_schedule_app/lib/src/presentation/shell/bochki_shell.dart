@@ -5,15 +5,16 @@ import 'package:flutter/material.dart';
 import '../../app_services.dart';
 import '../../features/participants/participants_dialog.dart';
 import '../../features/participants/participants_view_model.dart';
+import '../../features/trainers/trainers_dialog.dart';
+import '../../features/trainers/trainers_view_model.dart';
 
 enum DirectorySection {
-  trainers('Тренеры', 'Раздел тренеров находится в разработке.'),
-  participants('Участники', 'Откройте диалог участников для редактирования.');
+  trainers('Тренеры'),
+  participants('Участники');
 
-  const DirectorySection(this.title, this.description);
+  const DirectorySection(this.title);
 
   final String title;
-  final String description;
 }
 
 class BochkiShell extends StatefulWidget {
@@ -29,8 +30,8 @@ class BochkiShell extends StatefulWidget {
 }
 
 class _BochkiShellState extends State<BochkiShell> {
-  DirectorySection? _selectedSection;
   bool _participantsDialogOpen = false;
+  bool _trainersDialogOpen = false;
 
   Future<void> _openParticipantsDialog() async {
     if (_participantsDialogOpen) {
@@ -67,11 +68,44 @@ class _BochkiShellState extends State<BochkiShell> {
     }
   }
 
+  Future<void> _openTrainersDialog() async {
+    if (_trainersDialogOpen) {
+      return;
+    }
+
+    setState(() {
+      _trainersDialogOpen = true;
+    });
+
+    final viewModel = TrainersViewModel(
+      listTrainersUseCase: widget.services.listTrainersUseCase,
+      createTrainerUseCase: widget.services.createTrainerUseCase,
+      updateTrainerUseCase: widget.services.updateTrainerUseCase,
+      deleteTrainerUseCase: widget.services.deleteTrainerUseCase,
+    );
+
+    try {
+      unawaited(viewModel.loadTrainers());
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return TrainersDialog(viewModel: viewModel);
+        },
+      );
+    } finally {
+      viewModel.dispose();
+      if (mounted) {
+        setState(() {
+          _trainersDialogOpen = false;
+        });
+      }
+    }
+  }
+
   void _selectDirectorySection(DirectorySection section) {
     if (section == DirectorySection.trainers) {
-      setState(() {
-        _selectedSection = section;
-      });
+      unawaited(_openTrainersDialog());
       return;
     }
 
@@ -143,9 +177,7 @@ class _BochkiShellState extends State<BochkiShell> {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(24),
-              child: _selectedSection == null
-                  ? const _HomePlaceholder()
-                  : _SectionPlaceholder(section: _selectedSection!),
+              child: const _HomePlaceholder(),
             ),
           ),
         ],
@@ -180,50 +212,8 @@ class _HomePlaceholder extends StatelessWidget {
               ),
               SizedBox(height: 12),
               Text(
-                'Выберите раздел из меню "Справочники", чтобы открыть экран-заглушку.',
+                'Выберите раздел из меню "Справочники", чтобы открыть нужный справочник.',
                 textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SectionPlaceholder extends StatelessWidget {
-  const _SectionPlaceholder({
-    required this.section,
-  });
-
-  final DirectorySection section;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFD0D7DE)),
-      ),
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            key: Key('placeholder_${section.name}'),
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                section.title,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                section.description,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge,
               ),
             ],
           ),

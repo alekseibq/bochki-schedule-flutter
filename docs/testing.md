@@ -27,10 +27,11 @@ Use this checklist on the developer Windows machine after building or running th
 2. Verify that the main window opens with the title `ПО Расписание Бочки`.
 3. Verify that the window can be resized and does not collapse below the intended minimum layout.
 4. Open the `Справочники` menu in the header.
-5. Select `Тренеры` and verify that the trainers placeholder screen is shown.
-6. Open `Справочники` again, select `Участники`, and verify that the participants dialog is shown.
-7. Verify that the dialog contains the participant name field and the add/edit/delete controls.
-8. Verify that the application stays responsive and does not crash during those actions.
+5. Select `Тренеры` and verify that the trainers dialog is shown.
+6. Verify that the trainers dialog supports create, edit, and delete for trainer rows.
+7. Open `Справочники` again, select `Участники`, and verify that the participants dialog is shown.
+8. Verify that the participants dialog contains the participant name field and the add/edit/delete controls.
+9. Verify that the application stays responsive and does not crash during those actions.
 
 ## Linux Integration Prerequisites
 
