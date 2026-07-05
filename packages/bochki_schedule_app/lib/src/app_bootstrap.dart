@@ -7,10 +7,15 @@ import 'app_services.dart';
 import 'data/participants/project_document_participants_repository.dart';
 import 'data/project_document/project_document_id_allocator.dart';
 import 'data/project_document/project_document_sync_coordinator.dart';
+import 'data/trainers/project_document_trainers_repository.dart';
 import 'domain/participants/create_participant_use_case.dart';
 import 'domain/participants/delete_participant_use_case.dart';
 import 'domain/participants/list_participants_use_case.dart';
 import 'domain/participants/update_participant_use_case.dart';
+import 'domain/trainers/create_trainer_use_case.dart';
+import 'domain/trainers/delete_trainer_use_case.dart';
+import 'domain/trainers/list_trainers_use_case.dart';
+import 'domain/trainers/update_trainer_use_case.dart';
 
 final class AppBootstrap {
   static const String appDirectoryName = 'bochki_schedule';
@@ -42,8 +47,14 @@ final class AppBootstrap {
       idAllocator: idAllocator,
       onChanged: syncCoordinator.markChanged,
     );
+    final trainersRepository = ProjectDocumentTrainersRepository(
+      initialDocument: initialDocument,
+      idAllocator: idAllocator,
+      onChanged: syncCoordinator.markChanged,
+    );
     syncCoordinator.registerPart(idAllocator);
     syncCoordinator.registerPart(participantsRepository);
+    syncCoordinator.registerPart(trainersRepository);
     final listParticipantsUseCase = ListParticipantsUseCase(
       participantsRepository,
     );
@@ -55,6 +66,18 @@ final class AppBootstrap {
     );
     final deleteParticipantUseCase = DeleteParticipantUseCase(
       participantsRepository,
+    );
+    final listTrainersUseCase = ListTrainersUseCase(
+      trainersRepository,
+    );
+    final createTrainerUseCase = CreateTrainerUseCase(
+      trainersRepository,
+    );
+    final updateTrainerUseCase = UpdateTrainerUseCase(
+      trainersRepository,
+    );
+    final deleteTrainerUseCase = DeleteTrainerUseCase(
+      trainersRepository,
     );
 
     await logger.info(
@@ -68,6 +91,10 @@ final class AppBootstrap {
       createParticipantUseCase: createParticipantUseCase,
       updateParticipantUseCase: updateParticipantUseCase,
       deleteParticipantUseCase: deleteParticipantUseCase,
+      listTrainersUseCase: listTrainersUseCase,
+      createTrainerUseCase: createTrainerUseCase,
+      updateTrainerUseCase: updateTrainerUseCase,
+      deleteTrainerUseCase: deleteTrainerUseCase,
       flushPending: syncCoordinator.flushPending,
       shutdown: syncCoordinator.shutdown,
     );

@@ -1,20 +1,24 @@
+import '../named_directory/delete_named_directory_entry_use_case.dart';
+
 import 'participant.dart';
 import 'participants_repository.dart';
 import 'participants_validation_exception.dart';
 
 final class DeleteParticipantUseCase {
-  const DeleteParticipantUseCase(this._repository);
+  DeleteParticipantUseCase(ParticipantsRepository repository)
+      : _delegate = DeleteNamedDirectoryEntryUseCase<Participant>(
+          repository,
+          emptyIdMessage: 'Идентификатор участника не должен быть пустым.',
+          exceptionFactory: _validationException,
+        );
 
-  final ParticipantsRepository _repository;
+  final DeleteNamedDirectoryEntryUseCase<Participant> _delegate;
 
-  Future<void> execute(String participantId) async {
-    final normalizedId = Participant.normalizeId(participantId);
-    if (normalizedId.isEmpty) {
-      throw const ParticipantsValidationException(
-        'Идентификатор участника не должен быть пустым.',
-      );
-    }
+  Future<void> execute(String participantId) {
+    return _delegate.execute(participantId);
+  }
 
-    await _repository.delete(normalizedId);
+  static ParticipantsValidationException _validationException(String message) {
+    return ParticipantsValidationException(message);
   }
 }

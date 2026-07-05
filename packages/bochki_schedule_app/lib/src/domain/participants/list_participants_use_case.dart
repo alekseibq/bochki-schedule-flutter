@@ -1,17 +1,15 @@
+import '../named_directory/list_named_directory_entries_use_case.dart';
+
 import 'participant.dart';
 import 'participants_repository.dart';
 
 final class ListParticipantsUseCase {
-  const ListParticipantsUseCase(this._repository);
+  ListParticipantsUseCase(ParticipantsRepository repository)
+      : _delegate = ListNamedDirectoryEntriesUseCase<Participant>(repository);
 
-  final ParticipantsRepository _repository;
+  final ListNamedDirectoryEntriesUseCase<Participant> _delegate;
 
-  Future<List<Participant>> execute() async {
-    final participants = await _repository.list();
-    participants.sort(
-      (left, right) => Participant.sortKeyForName(left.name)
-          .compareTo(Participant.sortKeyForName(right.name)),
-    );
-    return List<Participant>.unmodifiable(participants);
+  Future<List<Participant>> execute() {
+    return _delegate.execute();
   }
 }
