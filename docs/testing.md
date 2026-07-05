@@ -47,3 +47,10 @@ For local Linux desktop integration runs, install:
 
 When the desktop app is launched without arguments, it stores `project.json` in the same folder as the launched binary or macOS bundle location.
 For CI or local smoke runs, pass `--app-data-dir=<path>` so the app writes into an explicit temporary directory.
+
+## macOS Release Artifacts
+
+Release tags publish two separate macOS zips:
+
+- `bochki_schedule_app-macos-intel-release.zip` for Intel Macs
+- `bochki_schedule_app-macos-arm64-release.zip` for Apple Silicon Macs
