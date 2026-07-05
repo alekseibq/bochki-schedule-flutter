@@ -151,7 +151,7 @@ jobs:
       matrix:
         include:
           - name: intel
-            runner: macos-13
+            runner: macos-15-intel
             architecture: x64
             artifact_name: bochki-schedule-macos-intel-release
             zip_name: bochki_schedule_app-macos-intel-release.zip
