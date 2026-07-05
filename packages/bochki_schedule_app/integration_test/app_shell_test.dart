@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:bochki_schedule_app/bochki_schedule_app.dart';
 import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/widgets.dart';
 import 'package:integration_test/integration_test.dart';
@@ -37,7 +38,7 @@ void main() {
     expect(find.text('ПО Расписание Бочки'), findsOneWidget);
     expect(find.text('Справочники'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('directories_menu_button')));
+    _openDirectoriesMenu(tester);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Тренеры').last);
     await tester.pumpAndSettle();
@@ -49,7 +50,7 @@ void main() {
     expect(find.text('Список тренеров'), findsOneWidget);
     expect(find.text('Тренеры (0)'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('directories_menu_button')));
+    _openDirectoriesMenu(tester);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Участники').last);
     await tester.pumpAndSettle();
@@ -65,6 +66,13 @@ void main() {
 }
 
 Future<void> _noopAsync() async {}
+
+void _openDirectoriesMenu(WidgetTester tester) {
+  final state = tester.state<PopupMenuButtonState<DirectorySection>>(
+    find.byKey(const Key('directories_menu_button')),
+  );
+  state.showButtonMenu();
+}
 
 final class _NoopLogger implements AppLogger {
   const _NoopLogger();
