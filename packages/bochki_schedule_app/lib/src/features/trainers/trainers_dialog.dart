@@ -5,7 +5,7 @@ import '../directory/named_directory_dialog_config.dart';
 import 'trainers_view_model.dart';
 
 class TrainersDialog extends NamedDirectoryDialog<Trainer> {
-  TrainersDialog({
+  const TrainersDialog({
     required TrainersViewModel viewModel,
     super.key,
   }) : super(

@@ -119,6 +119,16 @@ void main() {
           'deleted': true,
         },
       ],
+      procedureKinds: <Map<String, Object?>>[
+        <String, Object?>{
+          'id': 3,
+          'patternId': 'curated',
+          'name': 'Procedure One',
+          'capacity': 5,
+          'participantBusyTime': 20,
+          'assistantBusyTime': 10,
+        },
+      ],
     );
 
     await repository.save(document);
@@ -130,6 +140,7 @@ void main() {
     expect(restored.trainers.single['name'], 'Trainer One');
     expect(restored.participants.single['name'], 'Participant One');
     expect(restored.participants.single['deleted'], isTrue);
+    expect(restored.procedureKinds.single['name'], 'Procedure One');
   });
 
   test(

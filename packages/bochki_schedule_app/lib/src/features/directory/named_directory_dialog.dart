@@ -68,9 +68,6 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
   }
 
   @override
-  BuildContext get context => super.context;
-
-  @override
   void dispose() {
     _nameController.dispose();
     _editorFocusNode.dispose();
@@ -173,7 +170,7 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
     }
 
     widget.viewModel.clearActionError();
-    ScaffoldMessenger.of(this.context).showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
   }
@@ -294,7 +291,7 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
     );
 
     final confirmed = await showDialog<bool>(
-      context: this.context,
+      context: context,
       builder: (context) {
         return AlertDialog(
           title: Text(_config.deleteConfirmationTitle),

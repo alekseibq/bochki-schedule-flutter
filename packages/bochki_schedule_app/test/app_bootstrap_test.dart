@@ -19,6 +19,17 @@ void main() {
 
     await services.logger.info('bootstrap smoke');
     await services.createParticipantUseCase.execute('Иван');
+    await services.createProcedureKindUseCase.execute(
+      ProcedureKind(
+        id: 'draft',
+        patternId: ProcedureKindPatterns.curated.patternId,
+        name: 'Основная баня',
+        capacity: 6,
+        participantBusyTime: 30,
+        assistantBusyTime: 20,
+        resourceBusyTime: 15,
+      ),
+    );
     await services.flushPending();
 
     final logFile = File(p.join(tempRoot.path, 'logs', 'app.log'));
@@ -27,5 +38,7 @@ void main() {
     expect(await logFile.exists(), isTrue);
     expect(await projectFile.exists(), isTrue);
     expect(services.appDataDirectory.path, tempRoot.path);
+    final projectContents = await projectFile.readAsString();
+    expect(projectContents, contains('"procedureKinds"'));
   });
 }

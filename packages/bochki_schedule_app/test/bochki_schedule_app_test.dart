@@ -57,6 +57,21 @@ void main() {
     expect(find.byKey(const Key('trainers_table_divider')), findsOneWidget);
   });
 
+  testWidgets('shell opens procedure kinds dialog from menu', (tester) async {
+    final context = _buildTestContext();
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openProcedureKindsDialog(tester);
+
+    expect(find.byKey(const Key('procedure_kinds_dialog')), findsOneWidget);
+    expect(find.text('Список процедур'), findsOneWidget);
+    expect(
+      find.byKey(const Key('procedure_kind_add_button')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('participants dialog supports create edit and delete', (
     tester,
   ) async {
@@ -173,6 +188,76 @@ void main() {
       ['Иван Петров'],
     );
     expect(find.text('Тренеры (1)'), findsOneWidget);
+  });
+
+  testWidgets('procedure kinds dialog supports create edit and delete', (
+    tester,
+  ) async {
+    final context = _buildTestContext();
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openProcedureKindsDialog(tester);
+
+    await tester.tap(find.byKey(const Key('procedure_kind_add_button')));
+    await tester.pumpAndSettle();
+    expect(
+        find.byKey(const Key('procedure_kind_create_dialog')), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('procedure_kind_name_field')),
+      '  Баня   1  ',
+    );
+    await tester.enterText(
+      find.byKey(const Key('procedure_kind_capacity_field')),
+      '6',
+    );
+    await tester.enterText(
+      find.byKey(const Key('procedure_kind_participant_busy_time_field')),
+      '30',
+    );
+    await tester.enterText(
+      find.byKey(const Key('procedure_kind_assistant_busy_time_field')),
+      '10',
+    );
+    await tester.enterText(
+      find.byKey(const Key('procedure_kind_resource_busy_time_field')),
+      '5',
+    );
+    await tester.tap(find.text('Создать'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Баня 1'), findsOneWidget);
+    expect(
+        context.procedureKindsRepository.procedureKinds.single.name, 'Баня 1');
+
+    await tester.tap(find.byKey(const Key('procedure_kind_edit_1')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('procedure_kind_name_field')),
+      'Медитация',
+    );
+    await tester.tap(find.byKey(const Key('procedure_kind_pattern_field')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Групповая (медитация)').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Сохранить'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Медитация'), findsOneWidget);
+    expect(context.procedureKindsRepository.procedureKinds.single.patternId,
+        ProcedureKindPatterns.grouped.patternId);
+    expect(
+        context
+            .procedureKindsRepository.procedureKinds.single.assistantBusyTime,
+        isNull);
+
+    await tester.tap(find.byKey(const Key('procedure_kind_delete_1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Удалить').last);
+    await tester.pumpAndSettle();
+
+    expect(context.procedureKindsRepository.procedureKinds, isEmpty);
   });
 
   testWidgets('single click selects row without opening inline edit', (
@@ -423,15 +508,26 @@ Future<void> _openTrainersDialog(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+Future<void> _openProcedureKindsDialog(WidgetTester tester) async {
+  await tester.tap(find.byKey(const Key('directories_menu_button')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Процедуры').last);
+  await tester.pumpAndSettle();
+}
+
 _TestContext _buildTestContext({
   List<Participant>? participants,
   List<Trainer>? trainers,
+  List<ProcedureKind>? procedureKinds,
 }) {
   final participantsRepository = _InMemoryParticipantsRepository(
     participants: participants,
   );
   final trainersRepository = _InMemoryTrainersRepository(
     trainers: trainers,
+  );
+  final procedureKindsRepository = _InMemoryProcedureKindsRepository(
+    procedureKinds: procedureKinds,
   );
 
   return _TestContext(
@@ -449,11 +545,20 @@ _TestContext _buildTestContext({
       createTrainerUseCase: CreateTrainerUseCase(trainersRepository),
       updateTrainerUseCase: UpdateTrainerUseCase(trainersRepository),
       deleteTrainerUseCase: DeleteTrainerUseCase(trainersRepository),
+      listProcedureKindsUseCase:
+          ListProcedureKindsUseCase(procedureKindsRepository),
+      createProcedureKindUseCase:
+          CreateProcedureKindUseCase(procedureKindsRepository),
+      updateProcedureKindUseCase:
+          UpdateProcedureKindUseCase(procedureKindsRepository),
+      deleteProcedureKindUseCase:
+          DeleteProcedureKindUseCase(procedureKindsRepository),
       flushPending: _noopAsync,
       shutdown: _noopAsync,
     ),
     repository: participantsRepository,
     trainersRepository: trainersRepository,
+    procedureKindsRepository: procedureKindsRepository,
   );
 }
 
@@ -464,11 +569,13 @@ final class _TestContext {
     required this.services,
     required this.repository,
     required this.trainersRepository,
+    required this.procedureKindsRepository,
   });
 
   final AppServices services;
   final _InMemoryParticipantsRepository repository;
   final _InMemoryTrainersRepository trainersRepository;
+  final _InMemoryProcedureKindsRepository procedureKindsRepository;
 }
 
 final class _NoopLogger implements AppLogger {
@@ -585,5 +692,59 @@ final class _InMemoryTrainersRepository implements TrainersRepository {
       _trainers[index] = trainer;
     }
     return trainer;
+  }
+}
+
+final class _InMemoryProcedureKindsRepository
+    implements ProcedureKindsRepository {
+  _InMemoryProcedureKindsRepository({
+    List<ProcedureKind>? procedureKinds,
+  }) : _procedureKinds = [...?procedureKinds] {
+    if (_procedureKinds.isNotEmpty) {
+      final maxId = _procedureKinds
+          .map((procedureKind) => int.parse(procedureKind.id))
+          .reduce((left, right) => left > right ? left : right);
+      _nextId = maxId + 1;
+    }
+  }
+
+  final List<ProcedureKind> _procedureKinds;
+  int _nextId = 1;
+
+  List<ProcedureKind> get procedureKinds =>
+      List<ProcedureKind>.unmodifiable(_procedureKinds);
+
+  @override
+  Future<ProcedureKind> create(ProcedureKind procedureKind) async {
+    final createdProcedureKind = procedureKind
+        .copyWith(
+          id: (_nextId++).toString(),
+        )
+        .sanitizedForPersistence();
+    _procedureKinds.add(createdProcedureKind);
+    return createdProcedureKind;
+  }
+
+  @override
+  Future<void> delete(String procedureKindId) async {
+    _procedureKinds.removeWhere(
+      (procedureKind) => procedureKind.id == procedureKindId,
+    );
+  }
+
+  @override
+  Future<List<ProcedureKind>> list() async {
+    return [..._procedureKinds];
+  }
+
+  @override
+  Future<ProcedureKind> update(ProcedureKind procedureKind) async {
+    final index = _procedureKinds.indexWhere(
+      (candidate) => candidate.id == procedureKind.id,
+    );
+    if (index != -1) {
+      _procedureKinds[index] = procedureKind.sanitizedForPersistence();
+    }
+    return procedureKind.sanitizedForPersistence();
   }
 }

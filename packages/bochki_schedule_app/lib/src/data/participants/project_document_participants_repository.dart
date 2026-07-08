@@ -3,19 +3,16 @@ import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import '../../domain/participants/participant.dart';
 import '../../domain/participants/participants_repository.dart';
 import '../named_directory/project_document_named_directory_repository.dart';
-import '../project_document/project_document_id_allocator.dart';
 
 final class ProjectDocumentParticipantsRepository
     extends ProjectDocumentNamedDirectoryRepository<Participant>
     implements ParticipantsRepository {
   ProjectDocumentParticipantsRepository({
     required ProjectDocument initialDocument,
-    required ProjectDocumentIdAllocator idAllocator,
-    required void Function() onChanged,
+    required super.idAllocator,
+    required super.onChanged,
   }) : super(
           initialEntries: initialDocument.participants,
-          idAllocator: idAllocator,
-          onChanged: onChanged,
           entryFactory: _entryFactory,
           collectionWriter: _collectionWriter,
         );

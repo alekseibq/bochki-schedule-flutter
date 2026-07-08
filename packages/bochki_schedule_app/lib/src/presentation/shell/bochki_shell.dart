@@ -5,10 +5,13 @@ import 'package:flutter/material.dart';
 import '../../app_services.dart';
 import '../../features/participants/participants_dialog.dart';
 import '../../features/participants/participants_view_model.dart';
+import '../../features/procedure_kinds/procedure_kinds_dialog.dart';
+import '../../features/procedure_kinds/procedure_kinds_view_model.dart';
 import '../../features/trainers/trainers_dialog.dart';
 import '../../features/trainers/trainers_view_model.dart';
 
 enum DirectorySection {
+  procedureKinds('Процедуры'),
   trainers('Тренеры'),
   participants('Участники');
 
@@ -30,8 +33,44 @@ class BochkiShell extends StatefulWidget {
 }
 
 class _BochkiShellState extends State<BochkiShell> {
+  bool _procedureKindsDialogOpen = false;
   bool _participantsDialogOpen = false;
   bool _trainersDialogOpen = false;
+
+  Future<void> _openProcedureKindsDialog() async {
+    if (_procedureKindsDialogOpen) {
+      return;
+    }
+
+    setState(() {
+      _procedureKindsDialogOpen = true;
+    });
+
+    final viewModel = ProcedureKindsViewModel(
+      listProcedureKindsUseCase: widget.services.listProcedureKindsUseCase,
+      createProcedureKindUseCase: widget.services.createProcedureKindUseCase,
+      updateProcedureKindUseCase: widget.services.updateProcedureKindUseCase,
+      deleteProcedureKindUseCase: widget.services.deleteProcedureKindUseCase,
+    );
+
+    try {
+      unawaited(viewModel.loadProcedureKinds());
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return ProcedureKindsDialog(viewModel: viewModel);
+        },
+      );
+    } finally {
+      viewModel.dispose();
+      if (mounted) {
+        setState(() {
+          _procedureKindsDialogOpen = false;
+        });
+      }
+    }
+  }
 
   Future<void> _openParticipantsDialog() async {
     if (_participantsDialogOpen) {
@@ -104,12 +143,17 @@ class _BochkiShellState extends State<BochkiShell> {
   }
 
   void _selectDirectorySection(DirectorySection section) {
-    if (section == DirectorySection.trainers) {
-      unawaited(_openTrainersDialog());
-      return;
+    switch (section) {
+      case DirectorySection.procedureKinds:
+        unawaited(_openProcedureKindsDialog());
+        return;
+      case DirectorySection.trainers:
+        unawaited(_openTrainersDialog());
+        return;
+      case DirectorySection.participants:
+        unawaited(_openParticipantsDialog());
+        return;
     }
-
-    unawaited(_openParticipantsDialog());
   }
 
   @override
@@ -143,6 +187,10 @@ class _BochkiShellState extends State<BochkiShell> {
                   onSelected: _selectDirectorySection,
                   itemBuilder: (context) => const [
                     PopupMenuItem<DirectorySection>(
+                      value: DirectorySection.procedureKinds,
+                      child: Text('Процедуры'),
+                    ),
+                    PopupMenuItem<DirectorySection>(
                       value: DirectorySection.trainers,
                       child: Text('Тренеры'),
                     ),
@@ -174,10 +222,10 @@ class _BochkiShellState extends State<BochkiShell> {
               ],
             ),
           ),
-          Expanded(
+          const Expanded(
             child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: const _HomePlaceholder(),
+              padding: EdgeInsets.all(24),
+              child: _HomePlaceholder(),
             ),
           ),
         ],

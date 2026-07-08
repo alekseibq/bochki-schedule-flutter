@@ -28,6 +28,7 @@ void main() {
     expect(document.nextId, 1);
     expect(document.trainers, isEmpty);
     expect(document.participants, isEmpty);
+    expect(document.procedureKinds, isEmpty);
   });
 
   test('project document serializes and deserializes predictably', () {
@@ -44,6 +45,15 @@ void main() {
           'deleted': true,
         },
       ],
+      procedureKinds: const [
+        <String, Object?>{
+          'id': 3,
+          'patternId': 'curated',
+          'name': 'Procedure One',
+          'capacity': 5,
+          'participantBusyTime': 30,
+        },
+      ],
     );
 
     final json = document.toJson();
@@ -56,5 +66,6 @@ void main() {
     expect(restored.trainers.single['name'], 'Trainer One');
     expect(restored.participants.single['name'], 'Participant One');
     expect(restored.participants.single['deleted'], isTrue);
+    expect(restored.procedureKinds.single['name'], 'Procedure One');
   });
 }

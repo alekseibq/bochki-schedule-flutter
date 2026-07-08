@@ -2,8 +2,5 @@ import '../named_directory/named_directory_validation_exception.dart';
 
 final class ParticipantsValidationException
     extends NamedDirectoryValidationException {
-  const ParticipantsValidationException(String message) : super(message);
-
-  @override
-  String get message => super.message;
+  const ParticipantsValidationException(super.message);
 }

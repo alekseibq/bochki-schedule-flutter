@@ -5,7 +5,7 @@ import '../directory/named_directory_dialog_config.dart';
 import 'participants_view_model.dart';
 
 class ParticipantsDialog extends NamedDirectoryDialog<Participant> {
-  ParticipantsDialog({
+  const ParticipantsDialog({
     required ParticipantsViewModel viewModel,
     super.key,
   }) : super(
