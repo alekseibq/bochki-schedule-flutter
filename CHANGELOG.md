@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.3.0
+
+Release date: 2026-07-08
+
+### Highlights
+
+- Added CRUD for the `ProcedureKind` directory in the desktop app.
+- Introduced `ProcedureKindPattern` variants with pattern-aware validation and UI behavior.
+- Persisted procedure kinds in the project document and covered the new flows with tests.
+
+### Details
+
+- `feat(app): add procedure kinds CRUD`
+
 ## v0.2.4
 
 Release date: 2026-07-05
