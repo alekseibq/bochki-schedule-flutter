@@ -104,7 +104,7 @@ cd packages/bochki_schedule_app
 fvm flutter config --enable-windows-desktop
 fvm flutter run -d windows
 ```
-
+В Windows для выполнения "fvm use" нужно включить "Режим разработчика". Для этого "Win + I", там в поиске "Для разработчика"
 Если нужен release-артефакт для Windows, используйте:
 
 ```powershell
