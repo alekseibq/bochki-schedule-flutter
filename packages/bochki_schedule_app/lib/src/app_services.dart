@@ -6,6 +6,10 @@ import 'domain/participants/create_participant_use_case.dart';
 import 'domain/participants/delete_participant_use_case.dart';
 import 'domain/participants/list_participants_use_case.dart';
 import 'domain/participants/update_participant_use_case.dart';
+import 'domain/procedure_kinds/create_procedure_kind_use_case.dart';
+import 'domain/procedure_kinds/delete_procedure_kind_use_case.dart';
+import 'domain/procedure_kinds/list_procedure_kinds_use_case.dart';
+import 'domain/procedure_kinds/update_procedure_kind_use_case.dart';
 import 'domain/trainers/create_trainer_use_case.dart';
 import 'domain/trainers/delete_trainer_use_case.dart';
 import 'domain/trainers/list_trainers_use_case.dart';
@@ -23,6 +27,10 @@ final class AppServices {
     required this.createTrainerUseCase,
     required this.updateTrainerUseCase,
     required this.deleteTrainerUseCase,
+    required this.listProcedureKindsUseCase,
+    required this.createProcedureKindUseCase,
+    required this.updateProcedureKindUseCase,
+    required this.deleteProcedureKindUseCase,
     required this.flushPending,
     required this.shutdown,
   });
@@ -37,6 +45,10 @@ final class AppServices {
   final CreateTrainerUseCase createTrainerUseCase;
   final UpdateTrainerUseCase updateTrainerUseCase;
   final DeleteTrainerUseCase deleteTrainerUseCase;
+  final ListProcedureKindsUseCase listProcedureKindsUseCase;
+  final CreateProcedureKindUseCase createProcedureKindUseCase;
+  final UpdateProcedureKindUseCase updateProcedureKindUseCase;
+  final DeleteProcedureKindUseCase deleteProcedureKindUseCase;
   final Future<void> Function() flushPending;
   final Future<void> Function() shutdown;
 }

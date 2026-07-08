@@ -4,7 +4,6 @@ import 'package:bochki_schedule_app/bochki_schedule_app.dart';
 import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/widgets.dart';
 import 'package:integration_test/integration_test.dart';
 
 void main() {
@@ -14,6 +13,7 @@ void main() {
       (tester) async {
     final participantsRepository = _InMemoryParticipantsRepository();
     final trainersRepository = _InMemoryTrainersRepository();
+    final procedureKindsRepository = _InMemoryProcedureKindsRepository();
     final services = AppServices(
       appDataDirectory: Directory('/tmp/bochki_schedule_test'),
       logger: const _NoopLogger(),
@@ -28,6 +28,14 @@ void main() {
       createTrainerUseCase: CreateTrainerUseCase(trainersRepository),
       updateTrainerUseCase: UpdateTrainerUseCase(trainersRepository),
       deleteTrainerUseCase: DeleteTrainerUseCase(trainersRepository),
+      listProcedureKindsUseCase:
+          ListProcedureKindsUseCase(procedureKindsRepository),
+      createProcedureKindUseCase:
+          CreateProcedureKindUseCase(procedureKindsRepository),
+      updateProcedureKindUseCase:
+          UpdateProcedureKindUseCase(procedureKindsRepository),
+      deleteProcedureKindUseCase:
+          DeleteProcedureKindUseCase(procedureKindsRepository),
       flushPending: _noopAsync,
       shutdown: _noopAsync,
     );
@@ -168,5 +176,45 @@ final class _InMemoryTrainersRepository implements TrainersRepository {
       _trainers[index] = trainer;
     }
     return trainer;
+  }
+}
+
+final class _InMemoryProcedureKindsRepository
+    implements ProcedureKindsRepository {
+  final List<ProcedureKind> _procedureKinds = <ProcedureKind>[];
+  int _nextId = 1;
+
+  @override
+  Future<ProcedureKind> create(ProcedureKind procedureKind) async {
+    final createdProcedureKind = procedureKind
+        .copyWith(
+          id: (_nextId++).toString(),
+        )
+        .sanitizedForPersistence();
+    _procedureKinds.add(createdProcedureKind);
+    return createdProcedureKind;
+  }
+
+  @override
+  Future<void> delete(String procedureKindId) async {
+    _procedureKinds.removeWhere(
+      (procedureKind) => procedureKind.id == procedureKindId,
+    );
+  }
+
+  @override
+  Future<List<ProcedureKind>> list() async {
+    return [..._procedureKinds];
+  }
+
+  @override
+  Future<ProcedureKind> update(ProcedureKind procedureKind) async {
+    final index = _procedureKinds.indexWhere(
+      (candidate) => candidate.id == procedureKind.id,
+    );
+    if (index != -1) {
+      _procedureKinds[index] = procedureKind.sanitizedForPersistence();
+    }
+    return procedureKind.sanitizedForPersistence();
   }
 }
