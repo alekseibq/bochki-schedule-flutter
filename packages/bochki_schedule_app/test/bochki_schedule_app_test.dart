@@ -260,6 +260,65 @@ void main() {
     expect(context.procedureKindsRepository.procedureKinds, isEmpty);
   });
 
+  testWidgets('procedure kind form uses compact two-column layout', (
+    tester,
+  ) async {
+    final context = _buildTestContext();
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openProcedureKindsDialog(tester);
+
+    await tester.tap(find.byKey(const Key('procedure_kind_add_button')));
+    await tester.pumpAndSettle();
+
+    final dialog = find.byKey(const Key('procedure_kind_create_dialog'));
+
+    expect(
+      find.descendant(of: dialog, matching: find.text('Тип процедуры')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: dialog, matching: find.text('Название')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: dialog, matching: find.text('Емкость')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: dialog, matching: find.text('Время участн.(мин)')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: dialog, matching: find.text('Время ассит.(мин)')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: dialog, matching: find.text('Время ресурс.(мин)')),
+      findsOneWidget,
+    );
+
+    final patternFieldWidth = tester
+        .getSize(find.byKey(const Key('procedure_kind_pattern_field')))
+        .width;
+    final nameFieldWidth = tester
+        .getSize(find.byKey(const Key('procedure_kind_name_field')))
+        .width;
+    final capacityFieldWidth = tester
+        .getSize(find.byKey(const Key('procedure_kind_capacity_field')))
+        .width;
+    final participantTimeFieldWidth = tester
+        .getSize(
+          find.byKey(const Key('procedure_kind_participant_busy_time_field')),
+        )
+        .width;
+
+    expect(nameFieldWidth, greaterThan(capacityFieldWidth));
+    expect(patternFieldWidth, greaterThan(capacityFieldWidth));
+    expect(capacityFieldWidth, equals(participantTimeFieldWidth));
+  });
+
   testWidgets('single click selects row without opening inline edit', (
     tester,
   ) async {
