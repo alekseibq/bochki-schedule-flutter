@@ -22,6 +22,11 @@ class ProcedureKindDialog extends StatefulWidget {
 }
 
 class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
+  static const double _dialogWidth = 640;
+  static const double _labelColumnWidth = 172;
+  static const double _selectFieldWidth = 320;
+  static const double _numericFieldWidth = 72;
+
   late final TextEditingController _nameController;
   late final TextEditingController _capacityController;
   late final TextEditingController _participantBusyTimeController;
@@ -137,106 +142,129 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
             widget.isEditing ? 'Редактирование процедуры' : 'Новая процедура',
           ),
           content: SizedBox(
-            width: 640,
+            width: _dialogWidth,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  DropdownButtonFormField<String>(
-                    key: const Key('procedure_kind_pattern_field'),
-                    value: _patternId,
-                    decoration: const InputDecoration(
-                      labelText: 'Тип процедуры',
+                  _FormRow(
+                    label: 'Тип процедуры',
+                    labelWidth: _labelColumnWidth,
+                    child: SizedBox(
+                      width: _selectFieldWidth,
+                      child: DropdownButtonFormField<String>(
+                        key: const Key('procedure_kind_pattern_field'),
+                        value: _patternId,
+                        isExpanded: true,
+                        items: [
+                          for (final pattern in ProcedureKindPatterns.values)
+                            DropdownMenuItem<String>(
+                              value: pattern.patternId,
+                              child: Text(pattern.longName),
+                            ),
+                        ],
+                        onChanged:
+                            widget.viewModel.isSaving ? null : _setPatternId,
+                      ),
                     ),
-                    items: [
-                      for (final pattern in ProcedureKindPatterns.values)
-                        DropdownMenuItem<String>(
-                          value: pattern.patternId,
-                          child: Text(pattern.longName),
-                        ),
-                    ],
-                    onChanged: widget.viewModel.isSaving ? null : _setPatternId,
                   ),
                   const SizedBox(height: 12),
-                  TextField(
-                    key: const Key('procedure_kind_name_field'),
-                    controller: _nameController,
-                    enabled: !widget.viewModel.isSaving,
-                    decoration: const InputDecoration(
-                      labelText: 'Название',
+                  _FormRow(
+                    label: 'Название',
+                    labelWidth: _labelColumnWidth,
+                    child: TextField(
+                      key: const Key('procedure_kind_name_field'),
+                      controller: _nameController,
+                      enabled: !widget.viewModel.isSaving,
+                      onChanged: (_) => widget.viewModel.clearFormError(),
                     ),
-                    onChanged: (_) => widget.viewModel.clearFormError(),
                   ),
                   const SizedBox(height: 12),
-                  _NumericField(
-                    fieldKey: const Key('procedure_kind_capacity_field'),
+                  _FormRow(
                     label: 'Емкость',
-                    controller: _capacityController,
-                    enabled: !widget.viewModel.isSaving,
-                    onChanged: () => widget.viewModel.clearFormError(),
-                    onIncrement: () => _adjustNumericField(
-                      _capacityController,
-                      1,
-                    ),
-                    onDecrement: () => _adjustNumericField(
-                      _capacityController,
-                      -1,
+                    labelWidth: _labelColumnWidth,
+                    child: _NumericField(
+                      fieldKey: const Key('procedure_kind_capacity_field'),
+                      controller: _capacityController,
+                      enabled: !widget.viewModel.isSaving,
+                      fieldWidth: _numericFieldWidth,
+                      onChanged: () => widget.viewModel.clearFormError(),
+                      onIncrement: () => _adjustNumericField(
+                        _capacityController,
+                        1,
+                      ),
+                      onDecrement: () => _adjustNumericField(
+                        _capacityController,
+                        -1,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _NumericField(
-                    fieldKey: const Key(
-                      'procedure_kind_participant_busy_time_field',
-                    ),
-                    label: 'Время участника (мин)',
-                    controller: _participantBusyTimeController,
-                    enabled: !widget.viewModel.isSaving,
-                    onChanged: () => widget.viewModel.clearFormError(),
-                    onIncrement: () => _adjustNumericField(
-                      _participantBusyTimeController,
-                      1,
-                    ),
-                    onDecrement: () => _adjustNumericField(
-                      _participantBusyTimeController,
-                      -1,
+                  _FormRow(
+                    label: 'Время участн.(мин)',
+                    labelWidth: _labelColumnWidth,
+                    child: _NumericField(
+                      fieldKey: const Key(
+                        'procedure_kind_participant_busy_time_field',
+                      ),
+                      controller: _participantBusyTimeController,
+                      enabled: !widget.viewModel.isSaving,
+                      fieldWidth: _numericFieldWidth,
+                      onChanged: () => widget.viewModel.clearFormError(),
+                      onIncrement: () => _adjustNumericField(
+                        _participantBusyTimeController,
+                        1,
+                      ),
+                      onDecrement: () => _adjustNumericField(
+                        _participantBusyTimeController,
+                        -1,
+                      ),
                     ),
                   ),
                   if (_isCurated) ...[
                     const SizedBox(height: 12),
-                    _NumericField(
-                      fieldKey: const Key(
-                        'procedure_kind_assistant_busy_time_field',
-                      ),
-                      label: 'Время ассистента (мин)',
-                      controller: _assistantBusyTimeController,
-                      enabled: !widget.viewModel.isSaving,
-                      onChanged: () => widget.viewModel.clearFormError(),
-                      onIncrement: () => _adjustNumericField(
-                        _assistantBusyTimeController,
-                        1,
-                      ),
-                      onDecrement: () => _adjustNumericField(
-                        _assistantBusyTimeController,
-                        -1,
+                    _FormRow(
+                      label: 'Время ассит.(мин)',
+                      labelWidth: _labelColumnWidth,
+                      child: _NumericField(
+                        fieldKey: const Key(
+                          'procedure_kind_assistant_busy_time_field',
+                        ),
+                        controller: _assistantBusyTimeController,
+                        enabled: !widget.viewModel.isSaving,
+                        fieldWidth: _numericFieldWidth,
+                        onChanged: () => widget.viewModel.clearFormError(),
+                        onIncrement: () => _adjustNumericField(
+                          _assistantBusyTimeController,
+                          1,
+                        ),
+                        onDecrement: () => _adjustNumericField(
+                          _assistantBusyTimeController,
+                          -1,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _NumericField(
-                      fieldKey: const Key(
-                        'procedure_kind_resource_busy_time_field',
-                      ),
-                      label: 'Время ресурса (мин)',
-                      controller: _resourceBusyTimeController,
-                      enabled: !widget.viewModel.isSaving,
-                      onChanged: () => widget.viewModel.clearFormError(),
-                      onIncrement: () => _adjustNumericField(
-                        _resourceBusyTimeController,
-                        1,
-                      ),
-                      onDecrement: () => _adjustNumericField(
-                        _resourceBusyTimeController,
-                        -1,
+                    _FormRow(
+                      label: 'Время ресурс.(мин)',
+                      labelWidth: _labelColumnWidth,
+                      child: _NumericField(
+                        fieldKey: const Key(
+                          'procedure_kind_resource_busy_time_field',
+                        ),
+                        controller: _resourceBusyTimeController,
+                        enabled: !widget.viewModel.isSaving,
+                        fieldWidth: _numericFieldWidth,
+                        onChanged: () => widget.viewModel.clearFormError(),
+                        onIncrement: () => _adjustNumericField(
+                          _resourceBusyTimeController,
+                          1,
+                        ),
+                        onDecrement: () => _adjustNumericField(
+                          _resourceBusyTimeController,
+                          -1,
+                        ),
                       ),
                     ),
                   ],
@@ -272,21 +300,50 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
   }
 }
 
+class _FormRow extends StatelessWidget {
+  const _FormRow({
+    required this.label,
+    required this.labelWidth,
+    required this.child,
+  });
+
+  final String label;
+  final double labelWidth;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: labelWidth,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 14, right: 16),
+            child: Text(label),
+          ),
+        ),
+        Expanded(child: child),
+      ],
+    );
+  }
+}
+
 class _NumericField extends StatelessWidget {
   const _NumericField({
     required this.fieldKey,
-    required this.label,
     required this.controller,
     required this.enabled,
+    required this.fieldWidth,
     required this.onChanged,
     required this.onIncrement,
     required this.onDecrement,
   });
 
   final Key fieldKey;
-  final String label;
   final TextEditingController controller;
   final bool enabled;
+  final double fieldWidth;
   final VoidCallback onChanged;
   final VoidCallback onIncrement;
   final VoidCallback onDecrement;
@@ -296,17 +353,21 @@ class _NumericField extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
+        SizedBox(
+          width: fieldWidth,
           child: TextField(
             key: fieldKey,
             controller: controller,
             enabled: enabled,
+            textAlign: TextAlign.center,
             keyboardType: TextInputType.number,
             inputFormatters: [
               FilteringTextInputFormatter.digitsOnly,
               LengthLimitingTextInputFormatter(3),
             ],
-            decoration: InputDecoration(labelText: label),
+            decoration: const InputDecoration(
+              isDense: true,
+            ),
             onChanged: (_) => onChanged(),
           ),
         ),
