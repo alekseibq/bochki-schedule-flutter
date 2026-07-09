@@ -72,6 +72,50 @@ void main() {
     );
   });
 
+  testWidgets('procedure kinds dialog shows updated table headers', (
+    tester,
+  ) async {
+    final context = _buildTestContext(
+      procedureKinds: [
+        ProcedureKind(
+          id: '1',
+          patternId: ProcedureKindPatterns.curated.patternId,
+          name: 'Парение',
+          capacity: 6,
+          participantBusyTime: 30,
+          assistantBusyTime: 10,
+          resourceBusyTime: 5,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openProcedureKindsDialog(tester);
+
+    final headerTexts = tester
+        .widgetList<Text>(
+          find.descendant(
+            of: find.byKey(const Key('procedure_kinds_table_header')),
+            matching: find.byType(Text),
+          ),
+        )
+        .map((widget) => widget.data)
+        .toList();
+
+    expect(headerTexts, [
+      '',
+      'Тип',
+      'Название',
+      'емкость',
+      't участн.',
+      't ассист.',
+      't ресуср.',
+      '',
+      '',
+    ]);
+  });
+
   testWidgets('participants dialog supports create edit and delete', (
     tester,
   ) async {
