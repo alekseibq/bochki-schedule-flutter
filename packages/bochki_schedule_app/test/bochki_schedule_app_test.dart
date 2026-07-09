@@ -363,6 +363,27 @@ void main() {
     expect(capacityFieldWidth, equals(participantTimeFieldWidth));
   });
 
+  testWidgets('procedure kind create form defaults capacity to 1', (
+    tester,
+  ) async {
+    final context = _buildTestContext();
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openProcedureKindsDialog(tester);
+
+    await tester.tap(find.byKey(const Key('procedure_kind_add_button')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('procedure_kind_capacity_field')),
+        matching: find.text('1'),
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('single click selects row without opening inline edit', (
     tester,
   ) async {

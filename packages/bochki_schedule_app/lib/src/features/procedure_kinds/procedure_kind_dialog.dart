@@ -46,7 +46,7 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
     _nameController = TextEditingController(text: initialProcedureKind?.name);
     _capacityController = TextEditingController(
       text: initialProcedureKind == null
-          ? ''
+          ? '1'
           : '${initialProcedureKind.capacity}',
     );
     _participantBusyTimeController = TextEditingController(
