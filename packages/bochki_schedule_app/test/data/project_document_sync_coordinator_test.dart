@@ -17,8 +17,14 @@ void main() {
     );
     final part = _MutableSyncPart(
       apply: (document, revision) => document.copyWith(
-        participants: [
-          <String, Object?>{'id': revision, 'name': 'P$revision'},
+        humans: [
+          <String, Object?>{
+            'id': revision,
+            'name': 'P$revision',
+            'isParticipant': true,
+            'isAssistant': false,
+            'deleted': false,
+          },
         ],
       ),
     );
@@ -38,7 +44,7 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 80));
 
     expect(repository.savedDocuments, hasLength(1));
-    expect(repository.savedDocuments.single.participants.single['id'], 3);
+    expect(repository.savedDocuments.single.humans.single['id'], 3);
     expect(part.isDirty, isFalse);
   });
 
@@ -49,8 +55,14 @@ void main() {
       repository: repository,
       initialDocument: const ProjectDocument(
         nextId: 4,
-        assistants: <Map<String, Object?>>[
-          <String, Object?>{'id': 7, 'name': 'Assistant One'},
+        humans: <Map<String, Object?>>[
+          <String, Object?>{
+            'id': 7,
+            'name': 'Assistant One',
+            'isParticipant': false,
+            'isAssistant': true,
+            'deleted': false,
+          },
         ],
       ),
       logger: const _NoopLogger(),
@@ -58,8 +70,15 @@ void main() {
     );
     final part = _MutableSyncPart(
       apply: (document, revision) => document.copyWith(
-        participants: [
-          <String, Object?>{'id': revision, 'name': 'Participant'},
+        humans: [
+          ...document.humans,
+          <String, Object?>{
+            'id': revision,
+            'name': 'Participant',
+            'isParticipant': true,
+            'isAssistant': false,
+            'deleted': false,
+          },
         ],
       ),
     );
@@ -69,12 +88,9 @@ void main() {
     await coordinator.flushPending();
 
     expect(repository.savedDocuments, hasLength(1));
-    expect(repository.savedDocuments.single.assistants.single['name'],
-        'Assistant One');
     expect(
-      repository.savedDocuments.single.participants.single['name'],
-      'Participant',
-    );
+        repository.savedDocuments.single.humans.first['name'], 'Assistant One');
+    expect(repository.savedDocuments.single.humans.last['name'], 'Participant');
     expect(part.isDirty, isFalse);
   });
 
