@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.4.0
+
+Release date: 2026-07-10
+
+### Highlights
+
+- Added CRUD for the `Workday` directory in the desktop app.
+- Added project document persistence and test coverage for workdays.
+- Refined the procedure kind form layout and corrected default capacity behavior.
+
+### Details
+
+- `feat(app): add workday directory CRUD (#47)`
+- `fix(app): default procedure kind capacity to 1 (#45)`
+- `fix(ui): update procedure kinds table headers`
+- `feat(app): refine procedure kind form layout`
+
 ## v0.3.0
 
 Release date: 2026-07-08
