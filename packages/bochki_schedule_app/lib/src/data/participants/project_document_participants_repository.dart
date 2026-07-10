@@ -1,36 +1,88 @@
-import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
-
+import '../../domain/humans/human.dart';
+import '../../domain/humans/humans_repository.dart';
 import '../../domain/participants/participant.dart';
 import '../../domain/participants/participants_repository.dart';
-import '../named_directory/project_document_named_directory_repository.dart';
 
 final class ProjectDocumentParticipantsRepository
-    extends ProjectDocumentNamedDirectoryRepository<Participant>
     implements ParticipantsRepository {
   ProjectDocumentParticipantsRepository({
-    required ProjectDocument initialDocument,
-    required super.idAllocator,
-    required super.onChanged,
-  }) : super(
-          initialEntries: initialDocument.participants,
-          entryFactory: _entryFactory,
-          collectionWriter: _collectionWriter,
-        );
+    required HumansRepository humansRepository,
+  }) : _humansRepository = humansRepository;
 
-  static Participant _entryFactory({
-    required String id,
-    required String name,
-  }) {
-    return Participant(
-      id: id,
-      name: name,
-    );
+  final HumansRepository _humansRepository;
+
+  @override
+  Future<List<Participant>> list() async {
+    final humans = await _humansRepository.list();
+    return humans
+        .where((human) => human.isParticipant)
+        .map(
+          (human) => Participant(
+            id: human.id,
+            name: human.name,
+          ),
+        )
+        .toList(growable: false);
   }
 
-  static ProjectDocument _collectionWriter(
-    ProjectDocument document,
-    List<Map<String, Object?>> entries,
-  ) {
-    return document.copyWith(participants: entries);
+  @override
+  Future<Participant> create({
+    required String name,
+  }) async {
+    final human = await _humansRepository.create(
+      name: name,
+      isParticipant: true,
+      isAssistant: false,
+    );
+    return Participant(id: human.id, name: human.name);
+  }
+
+  @override
+  Future<Participant> update(Participant entry) async {
+    final humans = await _humansRepository.list();
+    Human? current;
+    for (final human in humans) {
+      if (human.id == entry.id) {
+        current = human;
+        break;
+      }
+    }
+    if (current == null) {
+      return entry;
+    }
+
+    await _humansRepository.update(
+      current.copyWith(
+        name: entry.name,
+        isParticipant: true,
+      ),
+    );
+    return entry;
+  }
+
+  @override
+  Future<void> delete(String entryId) async {
+    final humans = await _humansRepository.list();
+    Human? current;
+    for (final human in humans) {
+      if (human.id == entryId) {
+        current = human;
+        break;
+      }
+    }
+    if (current == null) {
+      return;
+    }
+
+    await _humansRepository.update(
+      current.copyWith(
+        isParticipant: false,
+        isAssistant: current.isAssistant,
+      ),
+    );
+
+    if (!current.isAssistant) {
+      await _humansRepository.delete(entryId);
+    }
   }
 }

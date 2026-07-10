@@ -4,6 +4,7 @@ import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
 import 'package:path/path.dart' as p;
 
 import 'app_services.dart';
+import 'data/humans/project_document_humans_repository.dart';
 import 'data/participants/project_document_participants_repository.dart';
 import 'data/project_document/project_document_id_allocator.dart';
 import 'data/project_document/project_document_sync_coordinator.dart';
@@ -50,15 +51,16 @@ final class AppBootstrap {
       nextId: initialDocument.nextId,
       onChanged: syncCoordinator.markChanged,
     );
-    final participantsRepository = ProjectDocumentParticipantsRepository(
+    final humansRepository = ProjectDocumentHumansRepository(
       initialDocument: initialDocument,
       idAllocator: idAllocator,
       onChanged: syncCoordinator.markChanged,
     );
+    final participantsRepository = ProjectDocumentParticipantsRepository(
+      humansRepository: humansRepository,
+    );
     final assistantsRepository = ProjectDocumentAssistantsRepository(
-      initialDocument: initialDocument,
-      idAllocator: idAllocator,
-      onChanged: syncCoordinator.markChanged,
+      humansRepository: humansRepository,
     );
     final procedureKindsRepository = ProjectDocumentProcedureKindsRepository(
       initialDocument: initialDocument,
@@ -71,8 +73,7 @@ final class AppBootstrap {
       onChanged: syncCoordinator.markChanged,
     );
     syncCoordinator.registerPart(idAllocator);
-    syncCoordinator.registerPart(participantsRepository);
-    syncCoordinator.registerPart(assistantsRepository);
+    syncCoordinator.registerPart(humansRepository);
     syncCoordinator.registerPart(procedureKindsRepository);
     syncCoordinator.registerPart(workdaysRepository);
     final listParticipantsUseCase = ListParticipantsUseCase(

@@ -109,13 +109,19 @@ void main() {
     const document = ProjectDocument(
       schemaVersion: 1,
       nextId: 4,
-      assistants: <Map<String, Object?>>[
-        <String, Object?>{'id': 1, 'name': 'Assistant One'},
-      ],
-      participants: <Map<String, Object?>>[
+      humans: <Map<String, Object?>>[
+        <String, Object?>{
+          'id': 1,
+          'name': 'Assistant One',
+          'isParticipant': false,
+          'isAssistant': true,
+          'deleted': false,
+        },
         <String, Object?>{
           'id': 2,
           'name': 'Participant One',
+          'isParticipant': true,
+          'isAssistant': false,
           'deleted': true,
         },
       ],
@@ -137,9 +143,9 @@ void main() {
     expect(restored, isNotNull);
     expect(restored.schemaVersion, 1);
     expect(restored.nextId, 4);
-    expect(restored.assistants.single['name'], 'Assistant One');
-    expect(restored.participants.single['name'], 'Participant One');
-    expect(restored.participants.single['deleted'], isTrue);
+    expect(restored.humans.first['name'], 'Assistant One');
+    expect(restored.humans.last['name'], 'Participant One');
+    expect(restored.humans.last['deleted'], isTrue);
     expect(restored.procedureKinds.single['name'], 'Procedure One');
   });
 

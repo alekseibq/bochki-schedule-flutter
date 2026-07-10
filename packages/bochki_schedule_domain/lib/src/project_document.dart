@@ -4,8 +4,7 @@ final class ProjectDocument {
   const ProjectDocument({
     this.schemaVersion = SchemaVersion.current,
     this.nextId = 1,
-    this.assistants = const [],
-    this.participants = const [],
+    this.humans = const [],
     this.procedureKinds = const [],
     this.workdays = const [],
   })  : assert(schemaVersion > 0, 'schemaVersion must be positive'),
@@ -13,8 +12,7 @@ final class ProjectDocument {
 
   final int schemaVersion;
   final int nextId;
-  final List<Map<String, Object?>> assistants;
-  final List<Map<String, Object?>> participants;
+  final List<Map<String, Object?>> humans;
   final List<Map<String, Object?>> procedureKinds;
   final List<Map<String, Object?>> workdays;
 
@@ -23,12 +21,19 @@ final class ProjectDocument {
   }
 
   factory ProjectDocument.fromJson(Map<String, Object?> json) {
+    final decodedHumans = _decodeCollection(json['humans']);
     return ProjectDocument(
       schemaVersion:
           (json['schemaVersion'] as num?)?.toInt() ?? SchemaVersion.current,
       nextId: (json['nextId'] as num?)?.toInt() ?? 1,
-      assistants: _decodeCollection(json['assistants'] ?? json['trainers']),
-      participants: _decodeCollection(json['participants']),
+      humans: decodedHumans.isNotEmpty
+          ? decodedHumans
+          : _migrateLegacyHumans(
+              participants: _decodeCollection(json['participants']),
+              assistants: _decodeCollection(
+                json['assistants'] ?? json['trainers'],
+              ),
+            ),
       procedureKinds: _decodeCollection(json['procedureKinds']),
       workdays: _decodeCollection(json['workdays']),
     );
@@ -38,8 +43,7 @@ final class ProjectDocument {
     return <String, Object?>{
       'schemaVersion': schemaVersion,
       'nextId': nextId,
-      'assistants': assistants,
-      'participants': participants,
+      'humans': humans,
       'procedureKinds': procedureKinds,
       'workdays': workdays,
     };
@@ -48,16 +52,14 @@ final class ProjectDocument {
   ProjectDocument copyWith({
     int? schemaVersion,
     int? nextId,
-    List<Map<String, Object?>>? assistants,
-    List<Map<String, Object?>>? participants,
+    List<Map<String, Object?>>? humans,
     List<Map<String, Object?>>? procedureKinds,
     List<Map<String, Object?>>? workdays,
   }) {
     return ProjectDocument(
       schemaVersion: schemaVersion ?? this.schemaVersion,
       nextId: nextId ?? this.nextId,
-      assistants: assistants ?? this.assistants,
-      participants: participants ?? this.participants,
+      humans: humans ?? this.humans,
       procedureKinds: procedureKinds ?? this.procedureKinds,
       workdays: workdays ?? this.workdays,
     );
@@ -77,5 +79,84 @@ final class ProjectDocument {
           },
         )
         .toList(growable: false);
+  }
+
+  static List<Map<String, Object?>> _migrateLegacyHumans({
+    required List<Map<String, Object?>> participants,
+    required List<Map<String, Object?>> assistants,
+  }) {
+    if (participants.isEmpty && assistants.isEmpty) {
+      return const [];
+    }
+
+    final mergedById = <String, Map<String, Object?>>{};
+
+    for (final entry in assistants) {
+      final normalized = _normalizeLegacyHuman(
+        entry,
+        isParticipant: false,
+        isAssistant: true,
+      );
+      mergedById[normalized['id'].toString()] = normalized;
+    }
+
+    for (final entry in participants) {
+      final normalized = _normalizeLegacyHuman(
+        entry,
+        isParticipant: true,
+        isAssistant: false,
+      );
+      final id = normalized['id'].toString();
+      final current = mergedById[id];
+      if (current == null) {
+        mergedById[id] = normalized;
+        continue;
+      }
+
+      mergedById[id] = <String, Object?>{
+        'id': normalized['id'] ?? current['id'] ?? 0,
+        'name': normalized['name'] ?? current['name'] ?? '',
+        'isParticipant': true,
+        'isAssistant': _asBool(current['isAssistant']),
+        'deleted':
+            _asBool(current['deleted']) && _asBool(normalized['deleted']),
+      };
+    }
+
+    final migrated = mergedById.values.toList(growable: false)
+      ..sort((left, right) => _compareHumanNames(left, right));
+    return migrated;
+  }
+
+  static Map<String, Object?> _normalizeLegacyHuman(
+    Map<String, Object?> entry, {
+    required bool isParticipant,
+    required bool isAssistant,
+  }) {
+    return <String, Object?>{
+      'id': (entry['id'] as num?)?.toInt() ?? 0,
+      'name': (entry['name'] as String?) ?? '',
+      'isParticipant': isParticipant,
+      'isAssistant': isAssistant,
+      'deleted': entry['deleted'] as bool? ?? false,
+    };
+  }
+
+  static bool _asBool(Object? value) => value as bool? ?? false;
+
+  static int _compareHumanNames(
+    Map<String, Object?> left,
+    Map<String, Object?> right,
+  ) {
+    final leftName = ((left['name'] as String?) ?? '').toLowerCase();
+    final rightName = ((right['name'] as String?) ?? '').toLowerCase();
+    final byName = leftName.compareTo(rightName);
+    if (byName != 0) {
+      return byName;
+    }
+
+    final leftId = (left['id'] as num?)?.toInt() ?? 0;
+    final rightId = (right['id'] as num?)?.toInt() ?? 0;
+    return leftId.compareTo(rightId);
   }
 }

@@ -1,3 +1,4 @@
+import 'package:bochki_schedule_app/src/data/humans/project_document_humans_repository.dart';
 import 'package:bochki_schedule_app/src/data/project_document/project_document_id_allocator.dart';
 import 'package:bochki_schedule_app/src/data/assistants/project_document_assistants_repository.dart';
 import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
@@ -7,12 +8,24 @@ void main() {
   test('loads active assistants from memory and preserves deleted rows',
       () async {
     var changeNotifications = 0;
-    final repository = ProjectDocumentAssistantsRepository(
+    final humansRepository = ProjectDocumentHumansRepository(
       initialDocument: const ProjectDocument(
         nextId: 5,
-        assistants: <Map<String, Object?>>[
-          <String, Object?>{'id': 1, 'name': 'Анна', 'deleted': false},
-          <String, Object?>{'id': 2, 'name': 'Борис', 'deleted': true},
+        humans: <Map<String, Object?>>[
+          <String, Object?>{
+            'id': 1,
+            'name': 'Анна',
+            'isParticipant': false,
+            'isAssistant': true,
+            'deleted': false,
+          },
+          <String, Object?>{
+            'id': 2,
+            'name': 'Борис',
+            'isParticipant': false,
+            'isAssistant': true,
+            'deleted': true,
+          },
         ],
       ),
       idAllocator: ProjectDocumentIdAllocator(
@@ -25,21 +38,36 @@ void main() {
         changeNotifications += 1;
       },
     );
+    final repository = ProjectDocumentAssistantsRepository(
+      humansRepository: humansRepository,
+    );
 
     final assistants = await repository.list();
     final exportedDocument =
-        repository.applyToDocument(ProjectDocument.initial());
+        humansRepository.applyToDocument(ProjectDocument.initial());
 
     expect(assistants.map((assistant) => assistant.name), ['Анна']);
-    expect(exportedDocument.assistants, [
-      <String, Object?>{'id': 1, 'name': 'Анна', 'deleted': false},
-      <String, Object?>{'id': 2, 'name': 'Борис', 'deleted': true},
+    expect(exportedDocument.humans, [
+      <String, Object?>{
+        'id': 1,
+        'name': 'Анна',
+        'isParticipant': false,
+        'isAssistant': true,
+        'deleted': false,
+      },
+      <String, Object?>{
+        'id': 2,
+        'name': 'Борис',
+        'isParticipant': false,
+        'isAssistant': true,
+        'deleted': true,
+      },
     ]);
-    expect(repository.isDirty, isFalse);
+    expect(humansRepository.isDirty, isFalse);
     expect(changeNotifications, 0);
   });
 
-  test('create update and delete stay in memory and mark repository dirty',
+  test('assistant delete clears only assistant role when participant remains',
       () async {
     var changeNotifications = 0;
     final idAllocator = ProjectDocumentIdAllocator(
@@ -48,12 +76,24 @@ void main() {
         changeNotifications += 1;
       },
     );
-    final repository = ProjectDocumentAssistantsRepository(
+    final humansRepository = ProjectDocumentHumansRepository(
       initialDocument: const ProjectDocument(
         nextId: 3,
-        assistants: <Map<String, Object?>>[
-          <String, Object?>{'id': 1, 'name': 'Борис', 'deleted': false},
-          <String, Object?>{'id': 2, 'name': 'Анна', 'deleted': false},
+        humans: <Map<String, Object?>>[
+          <String, Object?>{
+            'id': 1,
+            'name': 'Борис',
+            'isParticipant': true,
+            'isAssistant': true,
+            'deleted': false,
+          },
+          <String, Object?>{
+            'id': 2,
+            'name': 'Анна',
+            'isParticipant': false,
+            'isAssistant': true,
+            'deleted': false,
+          },
         ],
       ),
       idAllocator: idAllocator,
@@ -61,13 +101,16 @@ void main() {
         changeNotifications += 1;
       },
     );
+    final repository = ProjectDocumentAssistantsRepository(
+      humansRepository: humansRepository,
+    );
 
     final created = await repository.create(name: 'Василий');
     await repository.update(created.copyWith(name: 'Василиса'));
     await repository.delete('1');
 
     final assistants = await repository.list();
-    final exportedDocument = repository.applyToDocument(
+    final exportedDocument = humansRepository.applyToDocument(
       const ProjectDocument(nextId: 4),
     );
 
@@ -76,12 +119,30 @@ void main() {
       assistants.map((assistant) => assistant.name),
       ['Анна', 'Василиса'],
     );
-    expect(exportedDocument.assistants, [
-      <String, Object?>{'id': 2, 'name': 'Анна', 'deleted': false},
-      <String, Object?>{'id': 1, 'name': 'Борис', 'deleted': true},
-      <String, Object?>{'id': 3, 'name': 'Василиса', 'deleted': false},
+    expect(exportedDocument.humans, [
+      <String, Object?>{
+        'id': 2,
+        'name': 'Анна',
+        'isParticipant': false,
+        'isAssistant': true,
+        'deleted': false,
+      },
+      <String, Object?>{
+        'id': 1,
+        'name': 'Борис',
+        'isParticipant': true,
+        'isAssistant': false,
+        'deleted': false,
+      },
+      <String, Object?>{
+        'id': 3,
+        'name': 'Василиса',
+        'isParticipant': false,
+        'isAssistant': true,
+        'deleted': false,
+      },
     ]);
-    expect(repository.isDirty, isTrue);
+    expect(humansRepository.isDirty, isTrue);
     expect(changeNotifications, 4);
   });
 }
