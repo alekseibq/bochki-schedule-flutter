@@ -26,7 +26,7 @@ void main() {
 
     expect(document.schemaVersion, SchemaVersion.current);
     expect(document.nextId, 1);
-    expect(document.trainers, isEmpty);
+    expect(document.assistants, isEmpty);
     expect(document.participants, isEmpty);
     expect(document.procedureKinds, isEmpty);
   });
@@ -35,8 +35,8 @@ void main() {
     final document = ProjectDocument(
       schemaVersion: 1,
       nextId: 7,
-      trainers: const [
-        <String, Object?>{'id': 1, 'name': 'Trainer One'},
+      assistants: const [
+        <String, Object?>{'id': 1, 'name': 'Assistant One'},
       ],
       participants: const [
         <String, Object?>{
@@ -63,9 +63,25 @@ void main() {
     expect(json['nextId'], 7);
     expect(restored.schemaVersion, 1);
     expect(restored.nextId, 7);
-    expect(restored.trainers.single['name'], 'Trainer One');
+    expect(restored.assistants.single['name'], 'Assistant One');
     expect(restored.participants.single['name'], 'Participant One');
     expect(restored.participants.single['deleted'], isTrue);
     expect(restored.procedureKinds.single['name'], 'Procedure One');
+  });
+
+  test('project document reads legacy trainers collection as assistants', () {
+    final restored = ProjectDocument.fromJson(const <String, Object?>{
+      'schemaVersion': 1,
+      'nextId': 3,
+      'trainers': <Map<String, Object?>>[
+        <String, Object?>{'id': 1, 'name': 'Assistant One'},
+      ],
+    });
+
+    expect(restored.assistants.single['name'], 'Assistant One');
+    expect(restored.toJson().containsKey('trainers'), isFalse);
+    expect(restored.toJson()['assistants'], [
+      <String, Object?>{'id': 1, 'name': 'Assistant One'},
+    ]);
   });
 }

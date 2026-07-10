@@ -1,6 +1,6 @@
 import '../named_directory/named_directory_validation_exception.dart';
 
-final class TrainersValidationException
+final class AssistantsValidationException
     extends NamedDirectoryValidationException {
-  const TrainersValidationException(super.message);
+  const AssistantsValidationException(super.message);
 }

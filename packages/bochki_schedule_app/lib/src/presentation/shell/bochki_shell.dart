@@ -7,15 +7,15 @@ import '../../features/participants/participants_dialog.dart';
 import '../../features/participants/participants_view_model.dart';
 import '../../features/procedure_kinds/procedure_kinds_dialog.dart';
 import '../../features/procedure_kinds/procedure_kinds_view_model.dart';
-import '../../features/trainers/trainers_dialog.dart';
-import '../../features/trainers/trainers_view_model.dart';
+import '../../features/assistants/assistants_dialog.dart';
+import '../../features/assistants/assistants_view_model.dart';
 import '../../features/workdays/workdays_dialog.dart';
 import '../../features/workdays/workdays_view_model.dart';
 
 enum DirectorySection {
   procedureKinds('Процедуры'),
   workdays('Дни'),
-  trainers('Тренеры'),
+  assistants('Ассистенты'),
   participants('Участники');
 
   const DirectorySection(this.title);
@@ -39,7 +39,7 @@ class _BochkiShellState extends State<BochkiShell> {
   bool _procedureKindsDialogOpen = false;
   bool _workdaysDialogOpen = false;
   bool _participantsDialogOpen = false;
-  bool _trainersDialogOpen = false;
+  bool _assistantsDialogOpen = false;
 
   Future<void> _openProcedureKindsDialog() async {
     if (_procedureKindsDialogOpen) {
@@ -146,36 +146,36 @@ class _BochkiShellState extends State<BochkiShell> {
     }
   }
 
-  Future<void> _openTrainersDialog() async {
-    if (_trainersDialogOpen) {
+  Future<void> _openAssistantsDialog() async {
+    if (_assistantsDialogOpen) {
       return;
     }
 
     setState(() {
-      _trainersDialogOpen = true;
+      _assistantsDialogOpen = true;
     });
 
-    final viewModel = TrainersViewModel(
-      listTrainersUseCase: widget.services.listTrainersUseCase,
-      createTrainerUseCase: widget.services.createTrainerUseCase,
-      updateTrainerUseCase: widget.services.updateTrainerUseCase,
-      deleteTrainerUseCase: widget.services.deleteTrainerUseCase,
+    final viewModel = AssistantsViewModel(
+      listAssistantsUseCase: widget.services.listAssistantsUseCase,
+      createAssistantUseCase: widget.services.createAssistantUseCase,
+      updateAssistantUseCase: widget.services.updateAssistantUseCase,
+      deleteAssistantUseCase: widget.services.deleteAssistantUseCase,
     );
 
     try {
-      unawaited(viewModel.loadTrainers());
+      unawaited(viewModel.loadAssistants());
       await showDialog<void>(
         context: context,
         barrierDismissible: false,
         builder: (context) {
-          return TrainersDialog(viewModel: viewModel);
+          return AssistantsDialog(viewModel: viewModel);
         },
       );
     } finally {
       viewModel.dispose();
       if (mounted) {
         setState(() {
-          _trainersDialogOpen = false;
+          _assistantsDialogOpen = false;
         });
       }
     }
@@ -189,8 +189,8 @@ class _BochkiShellState extends State<BochkiShell> {
       case DirectorySection.workdays:
         unawaited(_openWorkdaysDialog());
         return;
-      case DirectorySection.trainers:
-        unawaited(_openTrainersDialog());
+      case DirectorySection.assistants:
+        unawaited(_openAssistantsDialog());
         return;
       case DirectorySection.participants:
         unawaited(_openParticipantsDialog());
@@ -237,8 +237,8 @@ class _BochkiShellState extends State<BochkiShell> {
                       child: Text('Дни'),
                     ),
                     PopupMenuItem<DirectorySection>(
-                      value: DirectorySection.trainers,
-                      child: Text('Тренеры'),
+                      value: DirectorySection.assistants,
+                      child: Text('Ассистенты'),
                     ),
                     PopupMenuItem<DirectorySection>(
                       value: DirectorySection.participants,
