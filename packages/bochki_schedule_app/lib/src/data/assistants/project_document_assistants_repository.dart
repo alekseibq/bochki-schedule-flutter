@@ -1,27 +1,27 @@
 import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 
-import '../../domain/trainers/trainer.dart';
-import '../../domain/trainers/trainers_repository.dart';
+import '../../domain/assistants/assistant.dart';
+import '../../domain/assistants/assistants_repository.dart';
 import '../named_directory/project_document_named_directory_repository.dart';
 
-final class ProjectDocumentTrainersRepository
-    extends ProjectDocumentNamedDirectoryRepository<Trainer>
-    implements TrainersRepository {
-  ProjectDocumentTrainersRepository({
+final class ProjectDocumentAssistantsRepository
+    extends ProjectDocumentNamedDirectoryRepository<Assistant>
+    implements AssistantsRepository {
+  ProjectDocumentAssistantsRepository({
     required ProjectDocument initialDocument,
     required super.idAllocator,
     required super.onChanged,
   }) : super(
-          initialEntries: initialDocument.trainers,
+          initialEntries: initialDocument.assistants,
           entryFactory: _entryFactory,
           collectionWriter: _collectionWriter,
         );
 
-  static Trainer _entryFactory({
+  static Assistant _entryFactory({
     required String id,
     required String name,
   }) {
-    return Trainer(
+    return Assistant(
       id: id,
       name: name,
     );
@@ -31,6 +31,6 @@ final class ProjectDocumentTrainersRepository
     ProjectDocument document,
     List<Map<String, Object?>> entries,
   ) {
-    return document.copyWith(trainers: entries);
+    return document.copyWith(assistants: entries);
   }
 }

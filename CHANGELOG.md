@@ -90,7 +90,7 @@ Release date: 2026-07-05
 
 ### Highlights
 
-- Added the trainers directory scaffold and aligned it with the shared directory UI.
+- Added the assistants directory scaffold and aligned it with the shared directory UI.
 - Introduced asynchronous project document persistence.
 - Reworked participants editing flows, including the table state machine and UX fixes.
 - Added Windows release packaging support and startup instructions.
@@ -107,7 +107,7 @@ Release date: 2026-07-05
 - `feat(participants): model table interactions as state machine`
 - `fix(app): make participant row selection instant`
 - `feat(app): async project document persistence (#30)`
-- `feat(app): add trainers directory on shared scaffold`
+- `feat(app): add assistants directory on shared scaffold`
 - `style(app): format shared directory changes`
 - `fix(app): stabilize desktop integration menu opening`
 - `fix(app): scope desktop integration dialog assertion`

@@ -4,7 +4,7 @@ final class ProjectDocument {
   const ProjectDocument({
     this.schemaVersion = SchemaVersion.current,
     this.nextId = 1,
-    this.trainers = const [],
+    this.assistants = const [],
     this.participants = const [],
     this.procedureKinds = const [],
     this.workdays = const [],
@@ -13,7 +13,7 @@ final class ProjectDocument {
 
   final int schemaVersion;
   final int nextId;
-  final List<Map<String, Object?>> trainers;
+  final List<Map<String, Object?>> assistants;
   final List<Map<String, Object?>> participants;
   final List<Map<String, Object?>> procedureKinds;
   final List<Map<String, Object?>> workdays;
@@ -27,7 +27,7 @@ final class ProjectDocument {
       schemaVersion:
           (json['schemaVersion'] as num?)?.toInt() ?? SchemaVersion.current,
       nextId: (json['nextId'] as num?)?.toInt() ?? 1,
-      trainers: _decodeCollection(json['trainers']),
+      assistants: _decodeCollection(json['assistants'] ?? json['trainers']),
       participants: _decodeCollection(json['participants']),
       procedureKinds: _decodeCollection(json['procedureKinds']),
       workdays: _decodeCollection(json['workdays']),
@@ -38,7 +38,7 @@ final class ProjectDocument {
     return <String, Object?>{
       'schemaVersion': schemaVersion,
       'nextId': nextId,
-      'trainers': trainers,
+      'assistants': assistants,
       'participants': participants,
       'procedureKinds': procedureKinds,
       'workdays': workdays,
@@ -48,7 +48,7 @@ final class ProjectDocument {
   ProjectDocument copyWith({
     int? schemaVersion,
     int? nextId,
-    List<Map<String, Object?>>? trainers,
+    List<Map<String, Object?>>? assistants,
     List<Map<String, Object?>>? participants,
     List<Map<String, Object?>>? procedureKinds,
     List<Map<String, Object?>>? workdays,
@@ -56,7 +56,7 @@ final class ProjectDocument {
     return ProjectDocument(
       schemaVersion: schemaVersion ?? this.schemaVersion,
       nextId: nextId ?? this.nextId,
-      trainers: trainers ?? this.trainers,
+      assistants: assistants ?? this.assistants,
       participants: participants ?? this.participants,
       procedureKinds: procedureKinds ?? this.procedureKinds,
       workdays: workdays ?? this.workdays,

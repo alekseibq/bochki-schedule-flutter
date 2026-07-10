@@ -1,9 +1,9 @@
 import '../named_directory/named_directory_entry.dart';
 
-import 'trainers_validation_exception.dart';
+import 'assistants_validation_exception.dart';
 
-final class Trainer extends NamedDirectoryEntry {
-  Trainer({
+final class Assistant extends NamedDirectoryEntry {
+  Assistant({
     required String id,
     required String name,
   }) : super(
@@ -11,13 +11,13 @@ final class Trainer extends NamedDirectoryEntry {
           name: NamedDirectoryEntry.normalizeName(name),
         ) {
     if (this.id.isEmpty) {
-      throw const TrainersValidationException(
-        'Идентификатор тренера не должен быть пустым.',
+      throw const AssistantsValidationException(
+        'Идентификатор ассистента не должен быть пустым.',
       );
     }
     if (this.name.isEmpty) {
-      throw const TrainersValidationException(
-        'Введите имя тренера.',
+      throw const AssistantsValidationException(
+        'Введите имя ассистента.',
       );
     }
   }
@@ -34,11 +34,11 @@ final class Trainer extends NamedDirectoryEntry {
     return NamedDirectoryEntry.sortKeyForName(value);
   }
 
-  Trainer copyWith({
+  Assistant copyWith({
     String? id,
     String? name,
   }) {
-    return Trainer(
+    return Assistant(
       id: id ?? this.id,
       name: name ?? this.name,
     );

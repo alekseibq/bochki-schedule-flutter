@@ -12,7 +12,7 @@ void main() {
   testWidgets('desktop shell opens menu and participant dialog',
       (tester) async {
     final participantsRepository = _InMemoryParticipantsRepository();
-    final trainersRepository = _InMemoryTrainersRepository();
+    final assistantsRepository = _InMemoryAssistantsRepository();
     final procedureKindsRepository = _InMemoryProcedureKindsRepository();
     final workdaysRepository = _InMemoryWorkdaysRepository();
     final services = AppServices(
@@ -25,10 +25,10 @@ void main() {
           UpdateParticipantUseCase(participantsRepository),
       deleteParticipantUseCase:
           DeleteParticipantUseCase(participantsRepository),
-      listTrainersUseCase: ListTrainersUseCase(trainersRepository),
-      createTrainerUseCase: CreateTrainerUseCase(trainersRepository),
-      updateTrainerUseCase: UpdateTrainerUseCase(trainersRepository),
-      deleteTrainerUseCase: DeleteTrainerUseCase(trainersRepository),
+      listAssistantsUseCase: ListAssistantsUseCase(assistantsRepository),
+      createAssistantUseCase: CreateAssistantUseCase(assistantsRepository),
+      updateAssistantUseCase: UpdateAssistantUseCase(assistantsRepository),
+      deleteAssistantUseCase: DeleteAssistantUseCase(assistantsRepository),
       listProcedureKindsUseCase:
           ListProcedureKindsUseCase(procedureKindsRepository),
       createProcedureKindUseCase:
@@ -53,15 +53,15 @@ void main() {
 
     _openDirectoriesMenu(tester);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Тренеры').last);
+    await tester.tap(find.text('Ассистенты').last);
     await tester.pumpAndSettle();
 
     expect(
-      find.byKey(const Key('trainers_directory_dialog')),
+      find.byKey(const Key('assistants_directory_dialog')),
       findsOneWidget,
     );
-    expect(find.text('Список тренеров'), findsOneWidget);
-    expect(find.text('Тренеры (0)'), findsOneWidget);
+    expect(find.text('Список ассистентов'), findsOneWidget);
+    expect(find.text('Ассистенты (0)'), findsOneWidget);
 
     _openDirectoriesMenu(tester);
     await tester.pumpAndSettle();
@@ -146,41 +146,41 @@ final class _InMemoryParticipantsRepository implements ParticipantsRepository {
   }
 }
 
-final class _InMemoryTrainersRepository implements TrainersRepository {
-  final List<Trainer> _trainers = <Trainer>[];
+final class _InMemoryAssistantsRepository implements AssistantsRepository {
+  final List<Assistant> _assistants = <Assistant>[];
   int _nextId = 1;
 
   @override
-  Future<Trainer> create({
+  Future<Assistant> create({
     required String name,
   }) async {
-    final trainer = Trainer(
+    final assistant = Assistant(
       id: (_nextId++).toString(),
       name: name,
     );
-    _trainers.add(trainer);
-    return trainer;
+    _assistants.add(assistant);
+    return assistant;
   }
 
   @override
-  Future<void> delete(String trainerId) async {
-    _trainers.removeWhere((trainer) => trainer.id == trainerId);
+  Future<void> delete(String assistantId) async {
+    _assistants.removeWhere((assistant) => assistant.id == assistantId);
   }
 
   @override
-  Future<List<Trainer>> list() async {
-    return [..._trainers];
+  Future<List<Assistant>> list() async {
+    return [..._assistants];
   }
 
   @override
-  Future<Trainer> update(Trainer trainer) async {
-    final index = _trainers.indexWhere(
-      (candidate) => candidate.id == trainer.id,
+  Future<Assistant> update(Assistant assistant) async {
+    final index = _assistants.indexWhere(
+      (candidate) => candidate.id == assistant.id,
     );
     if (index != -1) {
-      _trainers[index] = trainer;
+      _assistants[index] = assistant;
     }
-    return trainer;
+    return assistant;
   }
 }
 

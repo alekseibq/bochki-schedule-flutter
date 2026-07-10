@@ -41,20 +41,20 @@ void main() {
     expect(find.text('Ok'), findsOneWidget);
   });
 
-  testWidgets('shell opens trainers dialog from menu', (tester) async {
+  testWidgets('shell opens assistants dialog from menu', (tester) async {
     final context = _buildTestContext();
 
     await tester.pumpWidget(BochkiScheduleApp(services: context.services));
     await tester.pumpAndSettle();
-    await _openTrainersDialog(tester);
+    await _openAssistantsDialog(tester);
 
     expect(
-      find.byKey(const Key('trainers_directory_dialog')),
+      find.byKey(const Key('assistants_directory_dialog')),
       findsOneWidget,
     );
-    expect(find.text('Список тренеров'), findsOneWidget);
-    expect(find.text('Тренеры (0)'), findsOneWidget);
-    expect(find.byKey(const Key('trainers_table_divider')), findsOneWidget);
+    expect(find.text('Список ассистентов'), findsOneWidget);
+    expect(find.text('Ассистенты (0)'), findsOneWidget);
+    expect(find.byKey(const Key('assistants_table_divider')), findsOneWidget);
   });
 
   testWidgets('shell opens procedure kinds dialog from menu', (tester) async {
@@ -187,51 +187,52 @@ void main() {
     expect(find.text('Участники (1)'), findsOneWidget);
   });
 
-  testWidgets('trainers dialog supports create edit and delete', (
+  testWidgets('assistants dialog supports create edit and delete', (
     tester,
   ) async {
     final context = _buildTestContext();
 
     await tester.pumpWidget(BochkiScheduleApp(services: context.services));
     await tester.pumpAndSettle();
-    await _openTrainersDialog(tester);
+    await _openAssistantsDialog(tester);
 
-    await tester.tap(find.byKey(const Key('trainer_add_row')));
+    await tester.tap(find.byKey(const Key('assistant_add_row')));
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('trainer_name_field')), findsOneWidget);
+    expect(find.byKey(const Key('assistant_name_field')), findsOneWidget);
 
     await tester.enterText(
-      find.byKey(const Key('trainer_name_field')),
-      '  Иван   Тренер  ',
+      find.byKey(const Key('assistant_name_field')),
+      '  Иван   Ассистент  ',
     );
-    await tester.tap(find.text('Тренеры (0)'));
+    await tester.tap(find.text('Ассистенты (0)'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Иван Тренер'), findsOneWidget);
-    expect(context.trainersRepository.trainers.single.name, 'Иван Тренер');
+    expect(find.text('Иван Ассистент'), findsOneWidget);
+    expect(
+        context.assistantsRepository.assistants.single.name, 'Иван Ассистент');
 
-    await tester.tap(find.byKey(const Key('trainer_add_row')));
+    await tester.tap(find.byKey(const Key('assistant_add_row')));
     await tester.pumpAndSettle();
     await tester.enterText(
-      find.byKey(const Key('trainer_name_field')),
+      find.byKey(const Key('assistant_name_field')),
       'Борис',
     );
-    await tester.tap(find.text('Тренеры (1)'));
+    await tester.tap(find.text('Ассистенты (1)'));
     await tester.pumpAndSettle();
 
-    final firstRow = find.byKey(const Key('trainer_row_1'));
+    final firstRow = find.byKey(const Key('assistant_row_1'));
     await _doubleMouseClick(tester, firstRow);
     await tester.enterText(
-      find.byKey(const Key('trainer_name_field')),
+      find.byKey(const Key('assistant_name_field')),
       'Иван Петров',
     );
-    await _mouseClick(tester, find.byKey(const Key('trainer_row_2')));
+    await _mouseClick(tester, find.byKey(const Key('assistant_row_2')));
     await tester.pumpAndSettle();
 
     expect(find.text('Иван Петров'), findsOneWidget);
-    expect(context.trainersRepository.trainers.first.name, 'Иван Петров');
+    expect(context.assistantsRepository.assistants.first.name, 'Иван Петров');
 
-    final secondRow = find.byKey(const Key('trainer_row_2'));
+    final secondRow = find.byKey(const Key('assistant_row_2'));
     await _mouseClick(tester, secondRow, buttons: kSecondaryMouseButton);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Delete'));
@@ -240,10 +241,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      context.trainersRepository.trainers.map((trainer) => trainer.name),
+      context.assistantsRepository.assistants
+          .map((assistant) => assistant.name),
       ['Иван Петров'],
     );
-    expect(find.text('Тренеры (1)'), findsOneWidget);
+    expect(find.text('Ассистенты (1)'), findsOneWidget);
   });
 
   testWidgets('procedure kinds dialog supports create edit and delete', (
@@ -732,10 +734,10 @@ Future<void> _openParticipantsDialog(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _openTrainersDialog(WidgetTester tester) async {
+Future<void> _openAssistantsDialog(WidgetTester tester) async {
   await tester.tap(find.byKey(const Key('directories_menu_button')));
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Тренеры').last);
+  await tester.tap(find.text('Ассистенты').last);
   await tester.pumpAndSettle();
 }
 
@@ -755,15 +757,15 @@ Future<void> _openWorkdaysDialog(WidgetTester tester) async {
 
 _TestContext _buildTestContext({
   List<Participant>? participants,
-  List<Trainer>? trainers,
+  List<Assistant>? assistants,
   List<ProcedureKind>? procedureKinds,
   List<Workday>? workdays,
 }) {
   final participantsRepository = _InMemoryParticipantsRepository(
     participants: participants,
   );
-  final trainersRepository = _InMemoryTrainersRepository(
-    trainers: trainers,
+  final assistantsRepository = _InMemoryAssistantsRepository(
+    assistants: assistants,
   );
   final procedureKindsRepository = _InMemoryProcedureKindsRepository(
     procedureKinds: procedureKinds,
@@ -783,10 +785,10 @@ _TestContext _buildTestContext({
           UpdateParticipantUseCase(participantsRepository),
       deleteParticipantUseCase:
           DeleteParticipantUseCase(participantsRepository),
-      listTrainersUseCase: ListTrainersUseCase(trainersRepository),
-      createTrainerUseCase: CreateTrainerUseCase(trainersRepository),
-      updateTrainerUseCase: UpdateTrainerUseCase(trainersRepository),
-      deleteTrainerUseCase: DeleteTrainerUseCase(trainersRepository),
+      listAssistantsUseCase: ListAssistantsUseCase(assistantsRepository),
+      createAssistantUseCase: CreateAssistantUseCase(assistantsRepository),
+      updateAssistantUseCase: UpdateAssistantUseCase(assistantsRepository),
+      deleteAssistantUseCase: DeleteAssistantUseCase(assistantsRepository),
       listProcedureKindsUseCase:
           ListProcedureKindsUseCase(procedureKindsRepository),
       createProcedureKindUseCase:
@@ -803,7 +805,7 @@ _TestContext _buildTestContext({
       shutdown: _noopAsync,
     ),
     repository: participantsRepository,
-    trainersRepository: trainersRepository,
+    assistantsRepository: assistantsRepository,
     procedureKindsRepository: procedureKindsRepository,
     workdaysRepository: workdaysRepository,
   );
@@ -815,14 +817,14 @@ final class _TestContext {
   const _TestContext({
     required this.services,
     required this.repository,
-    required this.trainersRepository,
+    required this.assistantsRepository,
     required this.procedureKindsRepository,
     required this.workdaysRepository,
   });
 
   final AppServices services;
   final _InMemoryParticipantsRepository repository;
-  final _InMemoryTrainersRepository trainersRepository;
+  final _InMemoryAssistantsRepository assistantsRepository;
   final _InMemoryProcedureKindsRepository procedureKindsRepository;
   final _InMemoryWorkdaysRepository workdaysRepository;
 }
@@ -893,54 +895,54 @@ final class _InMemoryParticipantsRepository implements ParticipantsRepository {
   }
 }
 
-final class _InMemoryTrainersRepository implements TrainersRepository {
-  _InMemoryTrainersRepository({
-    List<Trainer>? trainers,
-  }) : _trainers = [...?trainers] {
-    if (_trainers.isNotEmpty) {
-      final maxId = _trainers
-          .map((trainer) => int.parse(trainer.id))
+final class _InMemoryAssistantsRepository implements AssistantsRepository {
+  _InMemoryAssistantsRepository({
+    List<Assistant>? assistants,
+  }) : _assistants = [...?assistants] {
+    if (_assistants.isNotEmpty) {
+      final maxId = _assistants
+          .map((assistant) => int.parse(assistant.id))
           .reduce((left, right) => left > right ? left : right);
       _nextId = maxId + 1;
     }
   }
 
-  final List<Trainer> _trainers;
+  final List<Assistant> _assistants;
   int _nextId = 1;
 
   @override
-  Future<Trainer> create({
+  Future<Assistant> create({
     required String name,
   }) async {
-    final trainer = Trainer(
+    final assistant = Assistant(
       id: (_nextId++).toString(),
       name: name,
     );
-    _trainers.add(trainer);
-    return trainer;
+    _assistants.add(assistant);
+    return assistant;
   }
 
   @override
-  Future<void> delete(String trainerId) async {
-    _trainers.removeWhere((trainer) => trainer.id == trainerId);
+  Future<void> delete(String assistantId) async {
+    _assistants.removeWhere((assistant) => assistant.id == assistantId);
   }
 
   @override
-  Future<List<Trainer>> list() async {
-    return [..._trainers];
+  Future<List<Assistant>> list() async {
+    return [..._assistants];
   }
 
-  List<Trainer> get trainers => List<Trainer>.unmodifiable(_trainers);
+  List<Assistant> get assistants => List<Assistant>.unmodifiable(_assistants);
 
   @override
-  Future<Trainer> update(Trainer trainer) async {
-    final index = _trainers.indexWhere(
-      (candidate) => candidate.id == trainer.id,
+  Future<Assistant> update(Assistant assistant) async {
+    final index = _assistants.indexWhere(
+      (candidate) => candidate.id == assistant.id,
     );
     if (index != -1) {
-      _trainers[index] = trainer;
+      _assistants[index] = assistant;
     }
-    return trainer;
+    return assistant;
   }
 }
 

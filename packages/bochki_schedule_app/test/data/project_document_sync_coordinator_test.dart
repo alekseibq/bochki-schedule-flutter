@@ -49,8 +49,8 @@ void main() {
       repository: repository,
       initialDocument: const ProjectDocument(
         nextId: 4,
-        trainers: <Map<String, Object?>>[
-          <String, Object?>{'id': 7, 'name': 'Trainer One'},
+        assistants: <Map<String, Object?>>[
+          <String, Object?>{'id': 7, 'name': 'Assistant One'},
         ],
       ),
       logger: const _NoopLogger(),
@@ -69,8 +69,8 @@ void main() {
     await coordinator.flushPending();
 
     expect(repository.savedDocuments, hasLength(1));
-    expect(repository.savedDocuments.single.trainers.single['name'],
-        'Trainer One');
+    expect(repository.savedDocuments.single.assistants.single['name'],
+        'Assistant One');
     expect(
       repository.savedDocuments.single.participants.single['name'],
       'Participant',
