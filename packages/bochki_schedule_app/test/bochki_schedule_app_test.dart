@@ -72,6 +72,18 @@ void main() {
     );
   });
 
+  testWidgets('shell opens workdays dialog from menu', (tester) async {
+    final context = _buildTestContext();
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openWorkdaysDialog(tester);
+
+    expect(find.byKey(const Key('workdays_dialog')), findsOneWidget);
+    expect(find.text('Список дней'), findsOneWidget);
+    expect(find.byKey(const Key('workday_add_button')), findsOneWidget);
+  });
+
   testWidgets('procedure kinds dialog shows updated table headers', (
     tester,
   ) async {
@@ -384,6 +396,101 @@ void main() {
     );
   });
 
+  testWidgets('workdays dialog supports create edit delete and reorder stub', (
+    tester,
+  ) async {
+    final context = _buildTestContext(
+      workdays: [
+        Workday(
+          id: '1',
+          name: 'День 1',
+          calendarDate: DateTime(2026, 7, 11),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openWorkdaysDialog(tester);
+
+    await tester.tap(find.byKey(const Key('workday_add_button')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('workday_create_dialog')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('workday_name_field')),
+        matching: find.text('День 2'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('workday_date_field')),
+        matching: find.text('12.07.2026'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.enterText(
+      find.byKey(const Key('workday_name_field')),
+      '  День   22 ',
+    );
+    await tester.enterText(
+      find.byKey(const Key('workday_date_field')),
+      '15.07.2026',
+    );
+    await tester.tap(find.text('Создать').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('День 22'), findsOneWidget);
+    expect(find.text('15.07.2026'), findsOneWidget);
+    expect(context.workdaysRepository.workdays.last.name, 'День 22');
+
+    await tester.tap(find.byKey(const Key('workday_edit_2')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('workday_name_field')),
+      'День 3',
+    );
+    await tester.enterText(
+      find.byKey(const Key('workday_date_field')),
+      '16.07.2026',
+    );
+    await tester.tap(find.text('Сохранить'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('День 3'), findsOneWidget);
+    expect(find.text('16.07.2026'), findsOneWidget);
+    expect(context.workdaysRepository.workdays.last.name, 'День 3');
+
+    await tester.tap(find.byKey(const Key('workday_reorder_2')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('workday_reorder_dialog')), findsOneWidget);
+    await tester.tap(find.text('Закрыть'));
+    await tester.pumpAndSettle();
+
+    final row = find.byKey(const Key('workday_row_2'));
+    await _doubleMouseClick(tester, row);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('workday_edit_dialog')), findsNothing);
+    expect(find.descendant(of: row, matching: find.text('▶')), findsOneWidget);
+
+    await _mouseClick(tester, row, buttons: kSecondaryMouseButton);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('workday_reorder_dialog')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('workday_delete_2')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Удалить').last);
+    await tester.pumpAndSettle();
+
+    expect(
+      context.workdaysRepository.workdays.map((workday) => workday.name),
+      ['День 1'],
+    );
+  });
+
   testWidgets('single click selects row without opening inline edit', (
     tester,
   ) async {
@@ -639,10 +746,18 @@ Future<void> _openProcedureKindsDialog(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+Future<void> _openWorkdaysDialog(WidgetTester tester) async {
+  await tester.tap(find.byKey(const Key('directories_menu_button')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Дни').last);
+  await tester.pumpAndSettle();
+}
+
 _TestContext _buildTestContext({
   List<Participant>? participants,
   List<Trainer>? trainers,
   List<ProcedureKind>? procedureKinds,
+  List<Workday>? workdays,
 }) {
   final participantsRepository = _InMemoryParticipantsRepository(
     participants: participants,
@@ -652,6 +767,9 @@ _TestContext _buildTestContext({
   );
   final procedureKindsRepository = _InMemoryProcedureKindsRepository(
     procedureKinds: procedureKinds,
+  );
+  final workdaysRepository = _InMemoryWorkdaysRepository(
+    workdays: workdays,
   );
 
   return _TestContext(
@@ -677,12 +795,17 @@ _TestContext _buildTestContext({
           UpdateProcedureKindUseCase(procedureKindsRepository),
       deleteProcedureKindUseCase:
           DeleteProcedureKindUseCase(procedureKindsRepository),
+      listWorkdaysUseCase: ListWorkdaysUseCase(workdaysRepository),
+      createWorkdayUseCase: CreateWorkdayUseCase(workdaysRepository),
+      updateWorkdayUseCase: UpdateWorkdayUseCase(workdaysRepository),
+      deleteWorkdayUseCase: DeleteWorkdayUseCase(workdaysRepository),
       flushPending: _noopAsync,
       shutdown: _noopAsync,
     ),
     repository: participantsRepository,
     trainersRepository: trainersRepository,
     procedureKindsRepository: procedureKindsRepository,
+    workdaysRepository: workdaysRepository,
   );
 }
 
@@ -694,12 +817,14 @@ final class _TestContext {
     required this.repository,
     required this.trainersRepository,
     required this.procedureKindsRepository,
+    required this.workdaysRepository,
   });
 
   final AppServices services;
   final _InMemoryParticipantsRepository repository;
   final _InMemoryTrainersRepository trainersRepository;
   final _InMemoryProcedureKindsRepository procedureKindsRepository;
+  final _InMemoryWorkdaysRepository workdaysRepository;
 }
 
 final class _NoopLogger implements AppLogger {
@@ -870,5 +995,53 @@ final class _InMemoryProcedureKindsRepository
       _procedureKinds[index] = procedureKind.sanitizedForPersistence();
     }
     return procedureKind.sanitizedForPersistence();
+  }
+}
+
+final class _InMemoryWorkdaysRepository implements WorkdaysRepository {
+  _InMemoryWorkdaysRepository({
+    List<Workday>? workdays,
+  }) : _workdays = [...?workdays] {
+    if (_workdays.isNotEmpty) {
+      final maxId = _workdays
+          .map((workday) => int.parse(workday.id))
+          .reduce((left, right) => left > right ? left : right);
+      _nextId = maxId + 1;
+    }
+  }
+
+  final List<Workday> _workdays;
+  int _nextId = 1;
+
+  List<Workday> get workdays => List<Workday>.unmodifiable(_workdays);
+
+  @override
+  Future<Workday> create(Workday workday) async {
+    final createdWorkday = workday.copyWith(
+      id: (_nextId++).toString(),
+    );
+    _workdays.add(createdWorkday);
+    return createdWorkday;
+  }
+
+  @override
+  Future<void> delete(String workdayId) async {
+    _workdays.removeWhere((workday) => workday.id == workdayId);
+  }
+
+  @override
+  Future<List<Workday>> list() async {
+    return [..._workdays];
+  }
+
+  @override
+  Future<Workday> update(Workday workday) async {
+    final index = _workdays.indexWhere(
+      (candidate) => candidate.id == workday.id,
+    );
+    if (index != -1) {
+      _workdays[index] = workday;
+    }
+    return workday;
   }
 }

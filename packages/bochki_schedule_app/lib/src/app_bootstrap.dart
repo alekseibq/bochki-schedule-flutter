@@ -9,6 +9,7 @@ import 'data/project_document/project_document_id_allocator.dart';
 import 'data/project_document/project_document_sync_coordinator.dart';
 import 'data/procedure_kinds/project_document_procedure_kinds_repository.dart';
 import 'data/trainers/project_document_trainers_repository.dart';
+import 'data/workdays/project_document_workdays_repository.dart';
 import 'domain/participants/create_participant_use_case.dart';
 import 'domain/participants/delete_participant_use_case.dart';
 import 'domain/participants/list_participants_use_case.dart';
@@ -21,6 +22,10 @@ import 'domain/trainers/create_trainer_use_case.dart';
 import 'domain/trainers/delete_trainer_use_case.dart';
 import 'domain/trainers/list_trainers_use_case.dart';
 import 'domain/trainers/update_trainer_use_case.dart';
+import 'domain/workdays/create_workday_use_case.dart';
+import 'domain/workdays/delete_workday_use_case.dart';
+import 'domain/workdays/list_workdays_use_case.dart';
+import 'domain/workdays/update_workday_use_case.dart';
 
 final class AppBootstrap {
   static Future<AppServices> initialize({
@@ -60,10 +65,16 @@ final class AppBootstrap {
       idAllocator: idAllocator,
       onChanged: syncCoordinator.markChanged,
     );
+    final workdaysRepository = ProjectDocumentWorkdaysRepository(
+      initialDocument: initialDocument,
+      idAllocator: idAllocator,
+      onChanged: syncCoordinator.markChanged,
+    );
     syncCoordinator.registerPart(idAllocator);
     syncCoordinator.registerPart(participantsRepository);
     syncCoordinator.registerPart(trainersRepository);
     syncCoordinator.registerPart(procedureKindsRepository);
+    syncCoordinator.registerPart(workdaysRepository);
     final listParticipantsUseCase = ListParticipantsUseCase(
       participantsRepository,
     );
@@ -100,6 +111,18 @@ final class AppBootstrap {
     final deleteProcedureKindUseCase = DeleteProcedureKindUseCase(
       procedureKindsRepository,
     );
+    final listWorkdaysUseCase = ListWorkdaysUseCase(
+      workdaysRepository,
+    );
+    final createWorkdayUseCase = CreateWorkdayUseCase(
+      workdaysRepository,
+    );
+    final updateWorkdayUseCase = UpdateWorkdayUseCase(
+      workdaysRepository,
+    );
+    final deleteWorkdayUseCase = DeleteWorkdayUseCase(
+      workdaysRepository,
+    );
 
     await logger.info(
       'Bootstrap completed. appDataDirectory=${resolvedAppDataDirectory.path}',
@@ -120,6 +143,10 @@ final class AppBootstrap {
       createProcedureKindUseCase: createProcedureKindUseCase,
       updateProcedureKindUseCase: updateProcedureKindUseCase,
       deleteProcedureKindUseCase: deleteProcedureKindUseCase,
+      listWorkdaysUseCase: listWorkdaysUseCase,
+      createWorkdayUseCase: createWorkdayUseCase,
+      updateWorkdayUseCase: updateWorkdayUseCase,
+      deleteWorkdayUseCase: deleteWorkdayUseCase,
       flushPending: syncCoordinator.flushPending,
       shutdown: syncCoordinator.shutdown,
     );

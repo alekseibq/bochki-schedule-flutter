@@ -9,9 +9,12 @@ import '../../features/procedure_kinds/procedure_kinds_dialog.dart';
 import '../../features/procedure_kinds/procedure_kinds_view_model.dart';
 import '../../features/trainers/trainers_dialog.dart';
 import '../../features/trainers/trainers_view_model.dart';
+import '../../features/workdays/workdays_dialog.dart';
+import '../../features/workdays/workdays_view_model.dart';
 
 enum DirectorySection {
   procedureKinds('Процедуры'),
+  workdays('Дни'),
   trainers('Тренеры'),
   participants('Участники');
 
@@ -34,6 +37,7 @@ class BochkiShell extends StatefulWidget {
 
 class _BochkiShellState extends State<BochkiShell> {
   bool _procedureKindsDialogOpen = false;
+  bool _workdaysDialogOpen = false;
   bool _participantsDialogOpen = false;
   bool _trainersDialogOpen = false;
 
@@ -107,6 +111,41 @@ class _BochkiShellState extends State<BochkiShell> {
     }
   }
 
+  Future<void> _openWorkdaysDialog() async {
+    if (_workdaysDialogOpen) {
+      return;
+    }
+
+    setState(() {
+      _workdaysDialogOpen = true;
+    });
+
+    final viewModel = WorkdaysViewModel(
+      listWorkdaysUseCase: widget.services.listWorkdaysUseCase,
+      createWorkdayUseCase: widget.services.createWorkdayUseCase,
+      updateWorkdayUseCase: widget.services.updateWorkdayUseCase,
+      deleteWorkdayUseCase: widget.services.deleteWorkdayUseCase,
+    );
+
+    try {
+      unawaited(viewModel.loadWorkdays());
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return WorkdaysDialog(viewModel: viewModel);
+        },
+      );
+    } finally {
+      viewModel.dispose();
+      if (mounted) {
+        setState(() {
+          _workdaysDialogOpen = false;
+        });
+      }
+    }
+  }
+
   Future<void> _openTrainersDialog() async {
     if (_trainersDialogOpen) {
       return;
@@ -146,6 +185,9 @@ class _BochkiShellState extends State<BochkiShell> {
     switch (section) {
       case DirectorySection.procedureKinds:
         unawaited(_openProcedureKindsDialog());
+        return;
+      case DirectorySection.workdays:
+        unawaited(_openWorkdaysDialog());
         return;
       case DirectorySection.trainers:
         unawaited(_openTrainersDialog());
@@ -189,6 +231,10 @@ class _BochkiShellState extends State<BochkiShell> {
                     PopupMenuItem<DirectorySection>(
                       value: DirectorySection.procedureKinds,
                       child: Text('Процедуры'),
+                    ),
+                    PopupMenuItem<DirectorySection>(
+                      value: DirectorySection.workdays,
+                      child: Text('Дни'),
                     ),
                     PopupMenuItem<DirectorySection>(
                       value: DirectorySection.trainers,
