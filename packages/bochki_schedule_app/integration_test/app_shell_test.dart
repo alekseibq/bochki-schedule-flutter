@@ -14,6 +14,7 @@ void main() {
     final participantsRepository = _InMemoryParticipantsRepository();
     final trainersRepository = _InMemoryTrainersRepository();
     final procedureKindsRepository = _InMemoryProcedureKindsRepository();
+    final workdaysRepository = _InMemoryWorkdaysRepository();
     final services = AppServices(
       appDataDirectory: Directory('/tmp/bochki_schedule_test'),
       logger: const _NoopLogger(),
@@ -36,6 +37,10 @@ void main() {
           UpdateProcedureKindUseCase(procedureKindsRepository),
       deleteProcedureKindUseCase:
           DeleteProcedureKindUseCase(procedureKindsRepository),
+      listWorkdaysUseCase: ListWorkdaysUseCase(workdaysRepository),
+      createWorkdayUseCase: CreateWorkdayUseCase(workdaysRepository),
+      updateWorkdayUseCase: UpdateWorkdayUseCase(workdaysRepository),
+      deleteWorkdayUseCase: DeleteWorkdayUseCase(workdaysRepository),
       flushPending: _noopAsync,
       shutdown: _noopAsync,
     );
@@ -216,5 +221,40 @@ final class _InMemoryProcedureKindsRepository
       _procedureKinds[index] = procedureKind.sanitizedForPersistence();
     }
     return procedureKind.sanitizedForPersistence();
+  }
+}
+
+final class _InMemoryWorkdaysRepository implements WorkdaysRepository {
+  final List<Workday> _workdays = <Workday>[];
+  int _nextId = 1;
+
+  @override
+  Future<Workday> create(Workday workday) async {
+    final createdWorkday = workday.copyWith(
+      id: (_nextId++).toString(),
+    );
+    _workdays.add(createdWorkday);
+    return createdWorkday;
+  }
+
+  @override
+  Future<void> delete(String workdayId) async {
+    _workdays.removeWhere((workday) => workday.id == workdayId);
+  }
+
+  @override
+  Future<List<Workday>> list() async {
+    return [..._workdays];
+  }
+
+  @override
+  Future<Workday> update(Workday workday) async {
+    final index = _workdays.indexWhere(
+      (candidate) => candidate.id == workday.id,
+    );
+    if (index != -1) {
+      _workdays[index] = workday;
+    }
+    return workday;
   }
 }

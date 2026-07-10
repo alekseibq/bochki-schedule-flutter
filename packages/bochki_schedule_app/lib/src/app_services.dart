@@ -14,6 +14,10 @@ import 'domain/trainers/create_trainer_use_case.dart';
 import 'domain/trainers/delete_trainer_use_case.dart';
 import 'domain/trainers/list_trainers_use_case.dart';
 import 'domain/trainers/update_trainer_use_case.dart';
+import 'domain/workdays/create_workday_use_case.dart';
+import 'domain/workdays/delete_workday_use_case.dart';
+import 'domain/workdays/list_workdays_use_case.dart';
+import 'domain/workdays/update_workday_use_case.dart';
 
 final class AppServices {
   const AppServices({
@@ -31,6 +35,10 @@ final class AppServices {
     required this.createProcedureKindUseCase,
     required this.updateProcedureKindUseCase,
     required this.deleteProcedureKindUseCase,
+    required this.listWorkdaysUseCase,
+    required this.createWorkdayUseCase,
+    required this.updateWorkdayUseCase,
+    required this.deleteWorkdayUseCase,
     required this.flushPending,
     required this.shutdown,
   });
@@ -49,6 +57,10 @@ final class AppServices {
   final CreateProcedureKindUseCase createProcedureKindUseCase;
   final UpdateProcedureKindUseCase updateProcedureKindUseCase;
   final DeleteProcedureKindUseCase deleteProcedureKindUseCase;
+  final ListWorkdaysUseCase listWorkdaysUseCase;
+  final CreateWorkdayUseCase createWorkdayUseCase;
+  final UpdateWorkdayUseCase updateWorkdayUseCase;
+  final DeleteWorkdayUseCase deleteWorkdayUseCase;
   final Future<void> Function() flushPending;
   final Future<void> Function() shutdown;
 }
