@@ -15,9 +15,15 @@ void main() {
     final assistantsRepository = _InMemoryAssistantsRepository();
     final procedureKindsRepository = _InMemoryProcedureKindsRepository();
     final workdaysRepository = _InMemoryWorkdaysRepository();
+    final humansRepository = _InMemoryHumansRepository(
+      participants: participantsRepository.participants,
+      assistants: assistantsRepository.assistants,
+    );
+    final procedureSessionsRepository = _InMemoryProcedureSessionsRepository();
     final services = AppServices(
       appDataDirectory: Directory('/tmp/bochki_schedule_test'),
       logger: const _NoopLogger(),
+      listHumansUseCase: ListHumansUseCase(humansRepository),
       listParticipantsUseCase: ListParticipantsUseCase(participantsRepository),
       createParticipantUseCase:
           CreateParticipantUseCase(participantsRepository),
@@ -41,6 +47,33 @@ void main() {
       createWorkdayUseCase: CreateWorkdayUseCase(workdaysRepository),
       updateWorkdayUseCase: UpdateWorkdayUseCase(workdaysRepository),
       deleteWorkdayUseCase: DeleteWorkdayUseCase(workdaysRepository),
+      listProcedureSessionsUseCase:
+          ListProcedureSessionsUseCase(procedureSessionsRepository),
+      listRichProcedureSessionsUseCase: ListRichProcedureSessionsUseCase(
+        listProcedureSessionsUseCase:
+            ListProcedureSessionsUseCase(procedureSessionsRepository),
+        listWorkdaysUseCase: ListWorkdaysUseCase(workdaysRepository),
+        listHumansUseCase: ListHumansUseCase(humansRepository),
+        listProcedureKindsUseCase:
+            ListProcedureKindsUseCase(procedureKindsRepository),
+        listAssistantsUseCase: ListAssistantsUseCase(assistantsRepository),
+      ),
+      createProcedureSessionUseCase: CreateProcedureSessionUseCase(
+        procedureSessionsRepository,
+        workdaysRepository: workdaysRepository,
+        humansRepository: humansRepository,
+        procedureKindsRepository: procedureKindsRepository,
+        assistantsRepository: assistantsRepository,
+      ),
+      updateProcedureSessionUseCase: UpdateProcedureSessionUseCase(
+        procedureSessionsRepository,
+        workdaysRepository: workdaysRepository,
+        humansRepository: humansRepository,
+        procedureKindsRepository: procedureKindsRepository,
+        assistantsRepository: assistantsRepository,
+      ),
+      deleteProcedureSessionUseCase:
+          DeleteProcedureSessionUseCase(procedureSessionsRepository),
       flushPending: _noopAsync,
       shutdown: _noopAsync,
     );
@@ -112,6 +145,9 @@ final class _InMemoryParticipantsRepository implements ParticipantsRepository {
   final List<Participant> _participants = <Participant>[];
   int _nextId = 1;
 
+  List<Participant> get participants =>
+      List<Participant>.unmodifiable(_participants);
+
   @override
   Future<Participant> create({
     required String name,
@@ -149,6 +185,8 @@ final class _InMemoryParticipantsRepository implements ParticipantsRepository {
 final class _InMemoryAssistantsRepository implements AssistantsRepository {
   final List<Assistant> _assistants = <Assistant>[];
   int _nextId = 1;
+
+  List<Assistant> get assistants => List<Assistant>.unmodifiable(_assistants);
 
   @override
   Future<Assistant> create({
@@ -221,6 +259,85 @@ final class _InMemoryProcedureKindsRepository
       _procedureKinds[index] = procedureKind.sanitizedForPersistence();
     }
     return procedureKind.sanitizedForPersistence();
+  }
+}
+
+final class _InMemoryHumansRepository implements HumansRepository {
+  _InMemoryHumansRepository({
+    required List<Participant> participants,
+    required List<Assistant> assistants,
+  }) : _humans = [
+          for (final participant in participants)
+            Human(
+              id: participant.id,
+              name: participant.name,
+              isParticipant: true,
+              isAssistant: assistants.any(
+                (assistant) => assistant.id == participant.id,
+              ),
+            ),
+          for (final assistant in assistants)
+            if (!participants
+                .any((participant) => participant.id == assistant.id))
+              Human(
+                id: assistant.id,
+                name: assistant.name,
+                isParticipant: false,
+                isAssistant: true,
+              ),
+        ];
+
+  final List<Human> _humans;
+
+  @override
+  Future<Human> create({
+    required String name,
+    required bool isParticipant,
+    required bool isAssistant,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> delete(String humanId) async {}
+
+  @override
+  Future<List<Human>> list() async => [..._humans];
+
+  @override
+  Future<Human> update(Human human) async => human;
+}
+
+final class _InMemoryProcedureSessionsRepository
+    implements ProcedureSessionsRepository {
+  final List<ProcedureSessionRaw> _sessions = <ProcedureSessionRaw>[];
+
+  @override
+  Future<ProcedureSessionRaw> create(
+    ProcedureSessionRaw procedureSession,
+  ) async {
+    _sessions.add(procedureSession);
+    return procedureSession;
+  }
+
+  @override
+  Future<void> delete(String procedureSessionId) async {
+    _sessions.removeWhere((entry) => entry.id == procedureSessionId);
+  }
+
+  @override
+  Future<List<ProcedureSessionRaw>> list() async => [..._sessions];
+
+  @override
+  Future<ProcedureSessionRaw> update(
+    ProcedureSessionRaw procedureSession,
+  ) async {
+    final index =
+        _sessions.indexWhere((entry) => entry.id == procedureSession.id);
+    if (index != -1) {
+      _sessions[index] = procedureSession;
+    }
+    return procedureSession;
   }
 }
 
