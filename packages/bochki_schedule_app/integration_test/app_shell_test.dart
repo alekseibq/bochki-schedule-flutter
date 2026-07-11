@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:bochki_schedule_app/bochki_schedule_app.dart';
+import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,6 +21,7 @@ void main() {
       assistants: assistantsRepository.assistants,
     );
     final procedureSessionsRepository = _InMemoryProcedureSessionsRepository();
+    final programSettingsRepository = _InMemoryProgramSettingsRepository();
     final services = AppServices(
       appDataDirectory: Directory('/tmp/bochki_schedule_test'),
       logger: const _NoopLogger(),
@@ -47,6 +49,10 @@ void main() {
       createWorkdayUseCase: CreateWorkdayUseCase(workdaysRepository),
       updateWorkdayUseCase: UpdateWorkdayUseCase(workdaysRepository),
       deleteWorkdayUseCase: DeleteWorkdayUseCase(workdaysRepository),
+      getProgramSettingsUseCase:
+          GetProgramSettingsUseCase(programSettingsRepository),
+      updateProgramSettingsUseCase:
+          UpdateProgramSettingsUseCase(programSettingsRepository),
       listProcedureSessionsUseCase:
           ListProcedureSessionsUseCase(procedureSessionsRepository),
       listRichProcedureSessionsUseCase: ListRichProcedureSessionsUseCase(
@@ -259,6 +265,20 @@ final class _InMemoryProcedureKindsRepository
       _procedureKinds[index] = procedureKind.sanitizedForPersistence();
     }
     return procedureKind.sanitizedForPersistence();
+  }
+}
+
+final class _InMemoryProgramSettingsRepository
+    implements ProgramSettingsRepository {
+  ProgramSettings _settings = ProgramSettings.defaults;
+
+  @override
+  Future<ProgramSettings> get() async => _settings;
+
+  @override
+  Future<ProgramSettings> update(ProgramSettings settings) async {
+    _settings = settings;
+    return _settings;
   }
 }
 

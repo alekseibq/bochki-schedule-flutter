@@ -16,6 +16,8 @@ import 'domain/procedure_kinds/create_procedure_kind_use_case.dart';
 import 'domain/procedure_kinds/delete_procedure_kind_use_case.dart';
 import 'domain/procedure_kinds/list_procedure_kinds_use_case.dart';
 import 'domain/procedure_kinds/update_procedure_kind_use_case.dart';
+import 'domain/program_settings/get_program_settings_use_case.dart';
+import 'domain/program_settings/update_program_settings_use_case.dart';
 import 'domain/assistants/create_assistant_use_case.dart';
 import 'domain/assistants/delete_assistant_use_case.dart';
 import 'domain/assistants/list_assistants_use_case.dart';
@@ -46,6 +48,8 @@ final class AppServices {
     required this.createWorkdayUseCase,
     required this.updateWorkdayUseCase,
     required this.deleteWorkdayUseCase,
+    required this.getProgramSettingsUseCase,
+    required this.updateProgramSettingsUseCase,
     required this.listProcedureSessionsUseCase,
     required this.listRichProcedureSessionsUseCase,
     required this.createProcedureSessionUseCase,
@@ -74,6 +78,8 @@ final class AppServices {
   final CreateWorkdayUseCase createWorkdayUseCase;
   final UpdateWorkdayUseCase updateWorkdayUseCase;
   final DeleteWorkdayUseCase deleteWorkdayUseCase;
+  final GetProgramSettingsUseCase getProgramSettingsUseCase;
+  final UpdateProgramSettingsUseCase updateProgramSettingsUseCase;
   final ListProcedureSessionsUseCase listProcedureSessionsUseCase;
   final ListRichProcedureSessionsUseCase listRichProcedureSessionsUseCase;
   final CreateProcedureSessionUseCase createProcedureSessionUseCase;

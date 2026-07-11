@@ -10,6 +10,8 @@ import '../../features/procedure_sessions/procedure_session_dialog.dart';
 import '../../features/procedure_sessions/procedure_sessions_view_model.dart';
 import '../../features/procedure_kinds/procedure_kinds_dialog.dart';
 import '../../features/procedure_kinds/procedure_kinds_view_model.dart';
+import '../../features/program_settings/program_settings_dialog.dart';
+import '../../features/program_settings/program_settings_view_model.dart';
 import '../../features/assistants/assistants_dialog.dart';
 import '../../features/assistants/assistants_view_model.dart';
 import '../../features/workdays/workdays_dialog.dart';
@@ -19,7 +21,8 @@ enum DirectorySection {
   procedureKinds('Процедуры'),
   workdays('Дни'),
   assistants('Ассистенты'),
-  participants('Участники');
+  participants('Участники'),
+  settings('Настройки');
 
   const DirectorySection(this.title);
 
@@ -43,6 +46,7 @@ class _BochkiShellState extends State<BochkiShell> {
   bool _workdaysDialogOpen = false;
   bool _participantsDialogOpen = false;
   bool _assistantsDialogOpen = false;
+  bool _programSettingsDialogOpen = false;
   late final ProcedureSessionsViewModel _procedureSessionsViewModel;
 
   @override
@@ -211,6 +215,43 @@ class _BochkiShellState extends State<BochkiShell> {
     }
   }
 
+  Future<void> _openProgramSettingsDialog() async {
+    if (_programSettingsDialogOpen) {
+      return;
+    }
+
+    setState(() {
+      _programSettingsDialogOpen = true;
+    });
+
+    final viewModel = ProgramSettingsViewModel(
+      getProgramSettingsUseCase: widget.services.getProgramSettingsUseCase,
+      updateProgramSettingsUseCase:
+          widget.services.updateProgramSettingsUseCase,
+    );
+
+    try {
+      await viewModel.loadProgramSettings();
+      if (!mounted) {
+        return;
+      }
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return ProgramSettingsDialog(viewModel: viewModel);
+        },
+      );
+    } finally {
+      viewModel.dispose();
+      if (mounted) {
+        setState(() {
+          _programSettingsDialogOpen = false;
+        });
+      }
+    }
+  }
+
   void _selectDirectorySection(DirectorySection section) {
     switch (section) {
       case DirectorySection.procedureKinds:
@@ -224,6 +265,9 @@ class _BochkiShellState extends State<BochkiShell> {
         return;
       case DirectorySection.participants:
         unawaited(_openParticipantsDialog());
+        return;
+      case DirectorySection.settings:
+        unawaited(_openProgramSettingsDialog());
         return;
     }
   }
@@ -369,6 +413,10 @@ class _BochkiShellState extends State<BochkiShell> {
                       PopupMenuItem<DirectorySection>(
                         value: DirectorySection.participants,
                         child: Text('Участники'),
+                      ),
+                      PopupMenuItem<DirectorySection>(
+                        value: DirectorySection.settings,
+                        child: Text('Настройки'),
                       ),
                     ],
                     child: Container(
