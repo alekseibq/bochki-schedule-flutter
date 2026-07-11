@@ -7,6 +7,7 @@ final class ProjectDocument {
     this.humans = const [],
     this.procedureKinds = const [],
     this.workdays = const [],
+    this.procedureSessions = const [],
   })  : assert(schemaVersion > 0, 'schemaVersion must be positive'),
         assert(nextId > 0, 'nextId must be positive');
 
@@ -15,6 +16,7 @@ final class ProjectDocument {
   final List<Map<String, Object?>> humans;
   final List<Map<String, Object?>> procedureKinds;
   final List<Map<String, Object?>> workdays;
+  final List<Map<String, Object?>> procedureSessions;
 
   factory ProjectDocument.initial() {
     return const ProjectDocument();
@@ -36,6 +38,7 @@ final class ProjectDocument {
             ),
       procedureKinds: _decodeCollection(json['procedureKinds']),
       workdays: _decodeCollection(json['workdays']),
+      procedureSessions: _decodeCollection(json['procedureSessions']),
     );
   }
 
@@ -46,6 +49,7 @@ final class ProjectDocument {
       'humans': humans,
       'procedureKinds': procedureKinds,
       'workdays': workdays,
+      'procedureSessions': procedureSessions,
     };
   }
 
@@ -55,6 +59,7 @@ final class ProjectDocument {
     List<Map<String, Object?>>? humans,
     List<Map<String, Object?>>? procedureKinds,
     List<Map<String, Object?>>? workdays,
+    List<Map<String, Object?>>? procedureSessions,
   }) {
     return ProjectDocument(
       schemaVersion: schemaVersion ?? this.schemaVersion,
@@ -62,6 +67,7 @@ final class ProjectDocument {
       humans: humans ?? this.humans,
       procedureKinds: procedureKinds ?? this.procedureKinds,
       workdays: workdays ?? this.workdays,
+      procedureSessions: procedureSessions ?? this.procedureSessions,
     );
   }
 

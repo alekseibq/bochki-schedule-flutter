@@ -12,7 +12,9 @@ void main() {
     expect(BochkiScheduleApp, isNotNull);
   });
 
-  testWidgets('shell shows top menu and default placeholder', (tester) async {
+  testWidgets('shell shows top menu and procedure sessions workspace', (
+    tester,
+  ) async {
     final context = _buildTestContext();
 
     await tester.pumpWidget(BochkiScheduleApp(services: context.services));
@@ -20,7 +22,8 @@ void main() {
 
     expect(find.text('ПО Расписание Бочки'), findsOneWidget);
     expect(find.text('Справочники'), findsOneWidget);
-    expect(find.text('В разработке'), findsOneWidget);
+    expect(find.text('Добавить запись...'), findsOneWidget);
+    expect(find.text('Список назначенных процедур пуст.'), findsOneWidget);
   });
 
   testWidgets('shell opens participants dialog from menu', (tester) async {
@@ -82,6 +85,198 @@ void main() {
     expect(find.byKey(const Key('workdays_dialog')), findsOneWidget);
     expect(find.text('Список дней'), findsOneWidget);
     expect(find.byKey(const Key('workday_add_button')), findsOneWidget);
+  });
+
+  testWidgets('procedure sessions screen supports create', (
+    tester,
+  ) async {
+    final context = _buildTestContext(
+      participants: [
+        Participant(id: '1', name: 'Иван'),
+      ],
+      assistants: [
+        Assistant(id: '2', name: 'Петр'),
+      ],
+      procedureKinds: [
+        ProcedureKind(
+          id: '1',
+          patternId: ProcedureKindPatterns.curated.patternId,
+          name: 'Бочка',
+          capacity: 6,
+          participantBusyTime: 30,
+          assistantBusyTime: 10,
+          resourceBusyTime: 5,
+        ),
+      ],
+      workdays: [
+        Workday(
+          id: '1',
+          name: 'День А',
+          calendarDate: DateTime(2026, 7, 11),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(
+      find.byKey(const Key('add_procedure_session_button')),
+    );
+    await tester.tap(find.byKey(const Key('add_procedure_session_button')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('procedure_session_create_dialog')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('procedure_session_save_button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Иван'), findsOneWidget);
+    expect(find.text('Бочка'), findsOneWidget);
+    expect(context.procedureSessionsRepository.sessions, hasLength(1));
+  });
+
+  testWidgets('procedure sessions filters by part of day', (tester) async {
+    final context = _buildTestContext(
+      participants: [
+        Participant(id: '1', name: 'Иван'),
+      ],
+      assistants: [
+        Assistant(id: '2', name: 'Петр'),
+      ],
+      procedureKinds: [
+        ProcedureKind(
+          id: '1',
+          patternId: ProcedureKindPatterns.curated.patternId,
+          name: 'Бочка',
+          capacity: 6,
+          participantBusyTime: 30,
+          assistantBusyTime: 10,
+          resourceBusyTime: 5,
+        ),
+      ],
+      workdays: [
+        Workday(
+          id: '1',
+          name: 'День А',
+          calendarDate: DateTime(2026, 7, 11),
+        ),
+      ],
+      procedureSessions: [
+        ProcedureSessionRaw(
+          id: '1',
+          dayId: '1',
+          participantId: '1',
+          startTime: '09:00',
+          procedureKindId: '1',
+          assistantId: '2',
+        ),
+        ProcedureSessionRaw(
+          id: '2',
+          dayId: '1',
+          participantId: '1',
+          startTime: '13:00',
+          procedureKindId: '1',
+          assistantId: '2',
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('procedure_session_row_1')), findsOneWidget);
+    expect(find.byKey(const Key('procedure_session_row_2')), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const Key('procedure_sessions_part_of_day_filter')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('До обеда').last);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('procedure_session_row_1')), findsOneWidget);
+    expect(find.byKey(const Key('procedure_session_row_2')), findsNothing);
+  });
+
+  testWidgets('procedure sessions screen supports edit existing record', (
+    tester,
+  ) async {
+    final context = _buildTestContext(
+      participants: [
+        Participant(id: '1', name: 'Иван'),
+      ],
+      assistants: [
+        Assistant(id: '2', name: 'Петр'),
+      ],
+      procedureKinds: [
+        ProcedureKind(
+          id: '1',
+          patternId: ProcedureKindPatterns.curated.patternId,
+          name: 'Бочка',
+          capacity: 6,
+          participantBusyTime: 30,
+          assistantBusyTime: 10,
+          resourceBusyTime: 5,
+        ),
+      ],
+      workdays: [
+        Workday(
+          id: '1',
+          name: 'День А',
+          calendarDate: DateTime(2026, 7, 11),
+        ),
+      ],
+      procedureSessions: [
+        ProcedureSessionRaw(
+          id: '1',
+          dayId: '1',
+          participantId: '1',
+          startTime: '09:00',
+          procedureKindId: '1',
+          assistantId: '2',
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+
+    expect(find.text('09:00'), findsOneWidget);
+    expect(find.text('09:30'), findsOneWidget);
+
+    await _doubleMouseClick(
+      tester,
+      find.byKey(const Key('procedure_session_row_1')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('procedure_session_edit_dialog')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('procedure_session_hour_field')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('10').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('procedure_session_minute_field')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('30').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('procedure_session_save_button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('10:30'), findsOneWidget);
+    expect(find.text('11:00'), findsOneWidget);
+    expect(
+      context.procedureSessionsRepository.sessions.single.startTime,
+      '10:30',
+    );
   });
 
   testWidgets('procedure kinds dialog shows updated table headers', (
@@ -760,6 +955,7 @@ _TestContext _buildTestContext({
   List<Assistant>? assistants,
   List<ProcedureKind>? procedureKinds,
   List<Workday>? workdays,
+  List<ProcedureSessionRaw>? procedureSessions,
 }) {
   final participantsRepository = _InMemoryParticipantsRepository(
     participants: participants,
@@ -773,11 +969,19 @@ _TestContext _buildTestContext({
   final workdaysRepository = _InMemoryWorkdaysRepository(
     workdays: workdays,
   );
+  final humansRepository = _InMemoryHumansRepository(
+    participants: participantsRepository.participants,
+    assistants: assistantsRepository.assistants,
+  );
+  final procedureSessionsRepository = _InMemoryProcedureSessionsRepository(
+    sessions: procedureSessions,
+  );
 
   return _TestContext(
     services: AppServices(
       appDataDirectory: Directory('/tmp/bochki_schedule_test'),
       logger: const _NoopLogger(),
+      listHumansUseCase: ListHumansUseCase(humansRepository),
       listParticipantsUseCase: ListParticipantsUseCase(participantsRepository),
       createParticipantUseCase:
           CreateParticipantUseCase(participantsRepository),
@@ -801,6 +1005,33 @@ _TestContext _buildTestContext({
       createWorkdayUseCase: CreateWorkdayUseCase(workdaysRepository),
       updateWorkdayUseCase: UpdateWorkdayUseCase(workdaysRepository),
       deleteWorkdayUseCase: DeleteWorkdayUseCase(workdaysRepository),
+      listProcedureSessionsUseCase:
+          ListProcedureSessionsUseCase(procedureSessionsRepository),
+      listRichProcedureSessionsUseCase: ListRichProcedureSessionsUseCase(
+        listProcedureSessionsUseCase:
+            ListProcedureSessionsUseCase(procedureSessionsRepository),
+        listWorkdaysUseCase: ListWorkdaysUseCase(workdaysRepository),
+        listHumansUseCase: ListHumansUseCase(humansRepository),
+        listProcedureKindsUseCase:
+            ListProcedureKindsUseCase(procedureKindsRepository),
+        listAssistantsUseCase: ListAssistantsUseCase(assistantsRepository),
+      ),
+      createProcedureSessionUseCase: CreateProcedureSessionUseCase(
+        procedureSessionsRepository,
+        workdaysRepository: workdaysRepository,
+        humansRepository: humansRepository,
+        procedureKindsRepository: procedureKindsRepository,
+        assistantsRepository: assistantsRepository,
+      ),
+      updateProcedureSessionUseCase: UpdateProcedureSessionUseCase(
+        procedureSessionsRepository,
+        workdaysRepository: workdaysRepository,
+        humansRepository: humansRepository,
+        procedureKindsRepository: procedureKindsRepository,
+        assistantsRepository: assistantsRepository,
+      ),
+      deleteProcedureSessionUseCase:
+          DeleteProcedureSessionUseCase(procedureSessionsRepository),
       flushPending: _noopAsync,
       shutdown: _noopAsync,
     ),
@@ -808,6 +1039,7 @@ _TestContext _buildTestContext({
     assistantsRepository: assistantsRepository,
     procedureKindsRepository: procedureKindsRepository,
     workdaysRepository: workdaysRepository,
+    procedureSessionsRepository: procedureSessionsRepository,
   );
 }
 
@@ -820,6 +1052,7 @@ final class _TestContext {
     required this.assistantsRepository,
     required this.procedureKindsRepository,
     required this.workdaysRepository,
+    required this.procedureSessionsRepository,
   });
 
   final AppServices services;
@@ -827,6 +1060,7 @@ final class _TestContext {
   final _InMemoryAssistantsRepository assistantsRepository;
   final _InMemoryProcedureKindsRepository procedureKindsRepository;
   final _InMemoryWorkdaysRepository workdaysRepository;
+  final _InMemoryProcedureSessionsRepository procedureSessionsRepository;
 }
 
 final class _NoopLogger implements AppLogger {
@@ -841,6 +1075,98 @@ final class _NoopLogger implements AppLogger {
 
   @override
   Future<void> info(String message) async {}
+}
+
+final class _InMemoryHumansRepository implements HumansRepository {
+  _InMemoryHumansRepository({
+    required List<Participant> participants,
+    required List<Assistant> assistants,
+  }) : _humans = [
+          for (final participant in participants)
+            Human(
+              id: participant.id,
+              name: participant.name,
+              isParticipant: true,
+              isAssistant: assistants.any(
+                (assistant) => assistant.id == participant.id,
+              ),
+            ),
+          for (final assistant in assistants)
+            if (!participants
+                .any((participant) => participant.id == assistant.id))
+              Human(
+                id: assistant.id,
+                name: assistant.name,
+                isParticipant: false,
+                isAssistant: true,
+              ),
+        ];
+
+  final List<Human> _humans;
+
+  @override
+  Future<Human> create({
+    required String name,
+    required bool isParticipant,
+    required bool isAssistant,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> delete(String humanId) async {}
+
+  @override
+  Future<List<Human>> list() async => [..._humans];
+
+  @override
+  Future<Human> update(Human human) async => human;
+}
+
+final class _InMemoryProcedureSessionsRepository
+    implements ProcedureSessionsRepository {
+  _InMemoryProcedureSessionsRepository({
+    List<ProcedureSessionRaw>? sessions,
+  }) : _sessions = [...?sessions] {
+    if (_sessions.isNotEmpty) {
+      final maxId = _sessions
+          .map((entry) => int.parse(entry.id))
+          .reduce((left, right) => left > right ? left : right);
+      _nextId = maxId + 1;
+    }
+  }
+
+  final List<ProcedureSessionRaw> _sessions;
+  int _nextId = 1;
+
+  List<ProcedureSessionRaw> get sessions => List.unmodifiable(_sessions);
+
+  @override
+  Future<ProcedureSessionRaw> create(
+      ProcedureSessionRaw procedureSession) async {
+    final created = procedureSession.copyWith(id: (_nextId++).toString());
+    _sessions.add(created);
+    return created;
+  }
+
+  @override
+  Future<void> delete(String procedureSessionId) async {
+    _sessions.removeWhere((entry) => entry.id == procedureSessionId);
+  }
+
+  @override
+  Future<List<ProcedureSessionRaw>> list() async => [..._sessions];
+
+  @override
+  Future<ProcedureSessionRaw> update(
+      ProcedureSessionRaw procedureSession) async {
+    final index =
+        _sessions.indexWhere((entry) => entry.id == procedureSession.id);
+    if (index != -1) {
+      _sessions[index] = procedureSession;
+    }
+    return procedureSession;
+  }
 }
 
 final class _InMemoryParticipantsRepository implements ParticipantsRepository {
