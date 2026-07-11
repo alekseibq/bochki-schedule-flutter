@@ -8,13 +8,20 @@ import 'data/humans/project_document_humans_repository.dart';
 import 'data/participants/project_document_participants_repository.dart';
 import 'data/project_document/project_document_id_allocator.dart';
 import 'data/project_document/project_document_sync_coordinator.dart';
+import 'data/procedure_sessions/project_document_procedure_sessions_repository.dart';
 import 'data/procedure_kinds/project_document_procedure_kinds_repository.dart';
 import 'data/assistants/project_document_assistants_repository.dart';
 import 'data/workdays/project_document_workdays_repository.dart';
+import 'domain/humans/list_humans_use_case.dart';
 import 'domain/participants/create_participant_use_case.dart';
 import 'domain/participants/delete_participant_use_case.dart';
 import 'domain/participants/list_participants_use_case.dart';
 import 'domain/participants/update_participant_use_case.dart';
+import 'domain/procedure_sessions/create_procedure_session_use_case.dart';
+import 'domain/procedure_sessions/delete_procedure_session_use_case.dart';
+import 'domain/procedure_sessions/list_procedure_sessions_use_case.dart';
+import 'domain/procedure_sessions/list_rich_procedure_sessions_use_case.dart';
+import 'domain/procedure_sessions/update_procedure_session_use_case.dart';
 import 'domain/procedure_kinds/create_procedure_kind_use_case.dart';
 import 'domain/procedure_kinds/delete_procedure_kind_use_case.dart';
 import 'domain/procedure_kinds/list_procedure_kinds_use_case.dart';
@@ -72,10 +79,18 @@ final class AppBootstrap {
       idAllocator: idAllocator,
       onChanged: syncCoordinator.markChanged,
     );
+    final procedureSessionsRepository =
+        ProjectDocumentProcedureSessionsRepository(
+      initialDocument: initialDocument,
+      idAllocator: idAllocator,
+      onChanged: syncCoordinator.markChanged,
+    );
     syncCoordinator.registerPart(idAllocator);
     syncCoordinator.registerPart(humansRepository);
     syncCoordinator.registerPart(procedureKindsRepository);
     syncCoordinator.registerPart(workdaysRepository);
+    syncCoordinator.registerPart(procedureSessionsRepository);
+    final listHumansUseCase = ListHumansUseCase(humansRepository);
     final listParticipantsUseCase = ListParticipantsUseCase(
       participantsRepository,
     );
@@ -124,6 +139,33 @@ final class AppBootstrap {
     final deleteWorkdayUseCase = DeleteWorkdayUseCase(
       workdaysRepository,
     );
+    final listProcedureSessionsUseCase = ListProcedureSessionsUseCase(
+      procedureSessionsRepository,
+    );
+    final listRichProcedureSessionsUseCase = ListRichProcedureSessionsUseCase(
+      listProcedureSessionsUseCase: listProcedureSessionsUseCase,
+      listWorkdaysUseCase: listWorkdaysUseCase,
+      listHumansUseCase: listHumansUseCase,
+      listProcedureKindsUseCase: listProcedureKindsUseCase,
+      listAssistantsUseCase: listAssistantsUseCase,
+    );
+    final createProcedureSessionUseCase = CreateProcedureSessionUseCase(
+      procedureSessionsRepository,
+      workdaysRepository: workdaysRepository,
+      humansRepository: humansRepository,
+      procedureKindsRepository: procedureKindsRepository,
+      assistantsRepository: assistantsRepository,
+    );
+    final updateProcedureSessionUseCase = UpdateProcedureSessionUseCase(
+      procedureSessionsRepository,
+      workdaysRepository: workdaysRepository,
+      humansRepository: humansRepository,
+      procedureKindsRepository: procedureKindsRepository,
+      assistantsRepository: assistantsRepository,
+    );
+    final deleteProcedureSessionUseCase = DeleteProcedureSessionUseCase(
+      procedureSessionsRepository,
+    );
 
     await logger.info(
       'Bootstrap completed. appDataDirectory=${resolvedAppDataDirectory.path}',
@@ -132,6 +174,7 @@ final class AppBootstrap {
     return AppServices(
       appDataDirectory: resolvedAppDataDirectory,
       logger: logger,
+      listHumansUseCase: listHumansUseCase,
       listParticipantsUseCase: listParticipantsUseCase,
       createParticipantUseCase: createParticipantUseCase,
       updateParticipantUseCase: updateParticipantUseCase,
@@ -148,6 +191,11 @@ final class AppBootstrap {
       createWorkdayUseCase: createWorkdayUseCase,
       updateWorkdayUseCase: updateWorkdayUseCase,
       deleteWorkdayUseCase: deleteWorkdayUseCase,
+      listProcedureSessionsUseCase: listProcedureSessionsUseCase,
+      listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,
+      createProcedureSessionUseCase: createProcedureSessionUseCase,
+      updateProcedureSessionUseCase: updateProcedureSessionUseCase,
+      deleteProcedureSessionUseCase: deleteProcedureSessionUseCase,
       flushPending: syncCoordinator.flushPending,
       shutdown: syncCoordinator.shutdown,
     );

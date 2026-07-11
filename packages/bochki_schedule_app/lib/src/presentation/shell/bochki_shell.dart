@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../app_services.dart';
+import '../../domain/procedure_sessions/procedure_session_raw.dart';
 import '../../features/participants/participants_dialog.dart';
 import '../../features/participants/participants_view_model.dart';
+import '../../features/procedure_sessions/procedure_session_dialog.dart';
+import '../../features/procedure_sessions/procedure_sessions_view_model.dart';
 import '../../features/procedure_kinds/procedure_kinds_dialog.dart';
 import '../../features/procedure_kinds/procedure_kinds_view_model.dart';
 import '../../features/assistants/assistants_dialog.dart';
@@ -40,6 +43,33 @@ class _BochkiShellState extends State<BochkiShell> {
   bool _workdaysDialogOpen = false;
   bool _participantsDialogOpen = false;
   bool _assistantsDialogOpen = false;
+  late final ProcedureSessionsViewModel _procedureSessionsViewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    _procedureSessionsViewModel = ProcedureSessionsViewModel(
+      listRichProcedureSessionsUseCase:
+          widget.services.listRichProcedureSessionsUseCase,
+      createProcedureSessionUseCase:
+          widget.services.createProcedureSessionUseCase,
+      updateProcedureSessionUseCase:
+          widget.services.updateProcedureSessionUseCase,
+      deleteProcedureSessionUseCase:
+          widget.services.deleteProcedureSessionUseCase,
+      listWorkdaysUseCase: widget.services.listWorkdaysUseCase,
+      listHumansUseCase: widget.services.listHumansUseCase,
+      listProcedureKindsUseCase: widget.services.listProcedureKindsUseCase,
+      listAssistantsUseCase: widget.services.listAssistantsUseCase,
+    );
+    unawaited(_procedureSessionsViewModel.load());
+  }
+
+  @override
+  void dispose() {
+    _procedureSessionsViewModel.dispose();
+    super.dispose();
+  }
 
   Future<void> _openProcedureKindsDialog() async {
     if (_procedureKindsDialogOpen) {
@@ -198,6 +228,93 @@ class _BochkiShellState extends State<BochkiShell> {
     }
   }
 
+  Future<void> _openProcedureSessionDialog({
+    required bool isEditing,
+    String? procedureSessionId,
+  }) async {
+    final initialValue = isEditing
+        ? _procedureSessionsViewModel.entries
+            .firstWhere((entry) => entry.id == procedureSessionId!)
+            .raw
+        : _procedureSessionsViewModel.createDraft();
+    final submitted = await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return ProcedureSessionDialog(
+          initialValue: initialValue,
+          workdays: _procedureSessionsViewModel.workdays,
+          participants: _procedureSessionsViewModel.participants,
+          procedureKinds: _procedureSessionsViewModel.procedureKinds,
+          assistants: _procedureSessionsViewModel.assistants,
+          isSaving: _procedureSessionsViewModel.isSaving,
+        );
+      },
+    );
+    if (submitted is! ProcedureSessionRaw || !mounted) {
+      return;
+    }
+
+    final isSuccess = isEditing
+        ? await _procedureSessionsViewModel.updateProcedureSession(submitted)
+        : await _procedureSessionsViewModel.createProcedureSession(submitted);
+    if (!mounted) {
+      return;
+    }
+    if (!isSuccess) {
+      final message = _procedureSessionsViewModel.actionErrorMessage;
+      if (message != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+        _procedureSessionsViewModel.clearActionError();
+      }
+      return;
+    }
+    _procedureSessionsViewModel.selectEntry(
+      isEditing ? submitted.id : _procedureSessionsViewModel.selectedEntryId,
+    );
+  }
+
+  Future<void> _confirmDeleteProcedureSession(String procedureSessionId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Удалить запись?'),
+          content: const Text('Назначенная процедура будет удалена из списка.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Отмена'),
+            ),
+            FilledButton(
+              key: const Key('confirm_delete_procedure_session_button'),
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Удалить'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true) {
+      return;
+    }
+    final isSuccess = await _procedureSessionsViewModel.deleteProcedureSession(
+      procedureSessionId,
+    );
+    if (!mounted || isSuccess) {
+      return;
+    }
+    final message = _procedureSessionsViewModel.actionErrorMessage;
+    if (message != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+      _procedureSessionsViewModel.clearActionError();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -214,64 +331,87 @@ class _BochkiShellState extends State<BochkiShell> {
                 bottom: BorderSide(color: Color(0xFFD0D7DE)),
               ),
             ),
-            child: Row(
-              children: [
-                Text(
-                  'ПО Расписание Бочки',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(width: 20),
-                PopupMenuButton<DirectorySection>(
-                  key: const Key('directories_menu_button'),
-                  tooltip: 'Справочники',
-                  onSelected: _selectDirectorySection,
-                  itemBuilder: (context) => const [
-                    PopupMenuItem<DirectorySection>(
-                      value: DirectorySection.procedureKinds,
-                      child: Text('Процедуры'),
-                    ),
-                    PopupMenuItem<DirectorySection>(
-                      value: DirectorySection.workdays,
-                      child: Text('Дни'),
-                    ),
-                    PopupMenuItem<DirectorySection>(
-                      value: DirectorySection.assistants,
-                      child: Text('Ассистенты'),
-                    ),
-                    PopupMenuItem<DirectorySection>(
-                      value: DirectorySection.participants,
-                      child: Text('Участники'),
-                    ),
-                  ],
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(6),
-                      color: Colors.white.withOpacity(0.72),
-                      border: Border.all(color: const Color(0xFFD0D7DE)),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('Справочники'),
-                        SizedBox(width: 6),
-                        Icon(Icons.arrow_drop_down, size: 18),
-                      ],
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  Text(
+                    'ПО Расписание Бочки',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 20),
+                  FilledButton.tonal(
+                    key: const Key('add_procedure_session_button'),
+                    onPressed: () =>
+                        _openProcedureSessionDialog(isEditing: false),
+                    child: const Text('Добавить запись...'),
+                  ),
+                  const SizedBox(width: 12),
+                  PopupMenuButton<DirectorySection>(
+                    key: const Key('directories_menu_button'),
+                    tooltip: 'Справочники',
+                    onSelected: _selectDirectorySection,
+                    itemBuilder: (context) => const [
+                      PopupMenuItem<DirectorySection>(
+                        value: DirectorySection.procedureKinds,
+                        child: Text('Процедуры'),
+                      ),
+                      PopupMenuItem<DirectorySection>(
+                        value: DirectorySection.workdays,
+                        child: Text('Дни'),
+                      ),
+                      PopupMenuItem<DirectorySection>(
+                        value: DirectorySection.assistants,
+                        child: Text('Ассистенты'),
+                      ),
+                      PopupMenuItem<DirectorySection>(
+                        value: DirectorySection.participants,
+                        child: Text('Участники'),
+                      ),
+                    ],
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(6),
+                        color: Colors.white.withOpacity(0.72),
+                        border: Border.all(color: const Color(0xFFD0D7DE)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('Справочники'),
+                          SizedBox(width: 6),
+                          Icon(Icons.arrow_drop_down, size: 18),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          const Expanded(
+          Expanded(
             child: Padding(
-              padding: EdgeInsets.all(24),
-              child: _HomePlaceholder(),
+              padding: const EdgeInsets.all(24),
+              child: _ProcedureSessionsHome(
+                viewModel: _procedureSessionsViewModel,
+                onEdit: (entryId) {
+                  unawaited(
+                    _openProcedureSessionDialog(
+                      isEditing: true,
+                      procedureSessionId: entryId,
+                    ),
+                  );
+                },
+                onDelete: (entryId) {
+                  unawaited(_confirmDeleteProcedureSession(entryId));
+                },
+              ),
             ),
           ),
         ],
@@ -280,39 +420,330 @@ class _BochkiShellState extends State<BochkiShell> {
   }
 }
 
-class _HomePlaceholder extends StatelessWidget {
-  const _HomePlaceholder();
+class _ProcedureSessionsHome extends StatelessWidget {
+  const _ProcedureSessionsHome({
+    required this.viewModel,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final ProcedureSessionsViewModel viewModel;
+  final void Function(String entryId) onEdit;
+  final void Function(String entryId) onDelete;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFD0D7DE)),
-      ),
-      child: const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'В разработке',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
+    return AnimatedBuilder(
+      animation: viewModel,
+      builder: (context, _) {
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFD0D7DE)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ProcedureSessionFilters(viewModel: viewModel),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: viewModel.isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : viewModel.loadErrorMessage != null
+                          ? Center(child: Text(viewModel.loadErrorMessage!))
+                          : _ProcedureSessionsTable(
+                              viewModel: viewModel,
+                              onEdit: onEdit,
+                              onDelete: onDelete,
+                            ),
                 ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ProcedureSessionFilters extends StatelessWidget {
+  const _ProcedureSessionFilters({
+    required this.viewModel,
+  });
+
+  final ProcedureSessionsViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<String?>(
+                key: const Key('procedure_sessions_day_filter'),
+                value: viewModel.selectedDayId,
+                decoration: const InputDecoration(labelText: 'День'),
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('Все'),
+                  ),
+                  for (final workday in viewModel.workdays)
+                    DropdownMenuItem<String?>(
+                      value: workday.id,
+                      child: Text(workday.name),
+                    ),
+                ],
+                onChanged: (value) => viewModel.setDayFilter(value),
               ),
-              SizedBox(height: 12),
-              Text(
-                'Выберите раздел из меню "Справочники", чтобы открыть нужный справочник.',
-                textAlign: TextAlign.center,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: DropdownButtonFormField<ProcedureSessionsPartOfDayFilter>(
+                key: const Key('procedure_sessions_part_of_day_filter'),
+                value: viewModel.partOfDayFilter,
+                decoration: const InputDecoration(labelText: 'Часть дня'),
+                items: [
+                  for (final filter in ProcedureSessionsPartOfDayFilter.values)
+                    DropdownMenuItem<ProcedureSessionsPartOfDayFilter>(
+                      value: filter,
+                      child: Text(filter.label),
+                    ),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    viewModel.setPartOfDayFilter(value);
+                  }
+                },
               ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: DropdownButtonFormField<String?>(
+                key: const Key('procedure_sessions_procedure_filter'),
+                value: viewModel.selectedProcedureKindId,
+                decoration: const InputDecoration(labelText: 'Процедура'),
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('Все'),
+                  ),
+                  for (final procedureKind in viewModel.procedureKinds)
+                    DropdownMenuItem<String?>(
+                      value: procedureKind.id,
+                      child: Text(procedureKind.name),
+                    ),
+                ],
+                onChanged: (value) => viewModel.setProcedureKindFilter(value),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<String?>(
+                key: const Key('procedure_sessions_participant_filter'),
+                value: viewModel.selectedParticipantId,
+                decoration: const InputDecoration(labelText: 'Участник'),
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('Все'),
+                  ),
+                  for (final participant in viewModel.participants)
+                    DropdownMenuItem<String?>(
+                      value: participant.id,
+                      child: Text(participant.name),
+                    ),
+                ],
+                onChanged: (value) => viewModel.setParticipantFilter(value),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Checkbox(
+              key: const Key('procedure_sessions_conflicts_checkbox'),
+              value: viewModel.showConflictsOnly,
+              onChanged: (value) =>
+                  viewModel.setShowConflictsOnly(value ?? false),
+            ),
+            const Text('Показать только конфликты'),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ProcedureSessionsTable extends StatelessWidget {
+  const _ProcedureSessionsTable({
+    required this.viewModel,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final ProcedureSessionsViewModel viewModel;
+  final void Function(String entryId) onEdit;
+  final void Function(String entryId) onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = viewModel.entries;
+    if (entries.isEmpty) {
+      return const Center(
+        child: Text('Список назначенных процедур пуст.'),
+      );
+    }
+
+    return Column(
+      children: [
+        Container(
+          key: const Key('procedure_sessions_table_header'),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF2F5F8),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFD0D7DE)),
+          ),
+          child: const Row(
+            children: [
+              _HeaderCell(flex: 2, text: 'День'),
+              _HeaderCell(flex: 2, text: 'Участник'),
+              _HeaderCell(flex: 1, text: 'Начало'),
+              _HeaderCell(flex: 1, text: 'Конец'),
+              _HeaderCell(flex: 2, text: 'Процедура'),
+              _HeaderCell(flex: 2, text: 'Ассистент/Напарник'),
+              _HeaderCell(flex: 1, text: ''),
+              _HeaderCell(flex: 1, text: ''),
             ],
           ),
         ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: ListView.separated(
+            itemCount: entries.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 6),
+            itemBuilder: (context, index) {
+              final entry = entries[index];
+              final isSelected = viewModel.selectedEntryId == entry.id;
+              return GestureDetector(
+                key: Key('procedure_session_row_${entry.id}'),
+                onTap: () => viewModel.selectEntry(entry.id),
+                onDoubleTap: () => onEdit(entry.id),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? const Color(0xFFE7F1FB)
+                        : const Color(0xFFFBFCFD),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: isSelected
+                          ? const Color(0xFF7AA7D9)
+                          : const Color(0xFFDCE3EA),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      _ValueCell(flex: 2, text: _dayText(entry)),
+                      _ValueCell(flex: 2, text: _participantText(entry)),
+                      _ValueCell(flex: 1, text: entry.startTime),
+                      _ValueCell(flex: 1, text: entry.finishTime ?? ''),
+                      _ValueCell(
+                        flex: 2,
+                        text: _procedureText(entry),
+                      ),
+                      _ValueCell(
+                        flex: 2,
+                        text: _assistantText(entry),
+                      ),
+                      Expanded(
+                        child: TextButton(
+                          key: Key('procedure_session_edit_${entry.id}'),
+                          onPressed: () => onEdit(entry.id),
+                          child: const Text('Изм.'),
+                        ),
+                      ),
+                      Expanded(
+                        child: TextButton(
+                          key: Key('procedure_session_delete_${entry.id}'),
+                          onPressed: () => onDelete(entry.id),
+                          child: const Text('Удл.'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _dayText(dynamic entry) {
+    return entry.day?.name ?? 'Ошибка: день не найден';
+  }
+
+  String _participantText(dynamic entry) {
+    return entry.participant?.name ?? 'Ошибка: участник не найден';
+  }
+
+  String _procedureText(dynamic entry) {
+    return entry.procedureKind?.name ?? 'Ошибка: процедура не найдена';
+  }
+
+  String _assistantText(dynamic entry) {
+    if (!entry.requiresAssistant) {
+      return '';
+    }
+    return entry.assistant?.name ?? 'Ошибка: ассистент не найден';
+  }
+}
+
+class _HeaderCell extends StatelessWidget {
+  const _HeaderCell({
+    required this.flex,
+    required this.text,
+  });
+
+  final int flex;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      flex: flex,
+      child: Text(
+        text,
+        style: const TextStyle(fontWeight: FontWeight.w700),
       ),
+    );
+  }
+}
+
+class _ValueCell extends StatelessWidget {
+  const _ValueCell({
+    required this.flex,
+    required this.text,
+  });
+
+  final int flex;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      flex: flex,
+      child: Text(text),
     );
   }
 }
