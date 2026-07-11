@@ -1,4 +1,5 @@
 import 'package:bochki_schedule_app/bochki_schedule_app.dart';
+import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -9,6 +10,7 @@ void main() {
       final humansRepository = _InMemoryHumansRepository();
       final procedureKindsRepository = _InMemoryProcedureKindsRepository();
       final assistantsRepository = _InMemoryAssistantsRepository();
+      final programSettingsRepository = _InMemoryProgramSettingsRepository();
 
       final created = await CreateProcedureSessionUseCase(
         repository,
@@ -16,6 +18,7 @@ void main() {
         humansRepository: humansRepository,
         procedureKindsRepository: procedureKindsRepository,
         assistantsRepository: assistantsRepository,
+        programSettingsRepository: programSettingsRepository,
       ).execute(
         ProcedureSessionRaw(
           id: 'draft',
@@ -36,6 +39,7 @@ void main() {
       final humansRepository = _InMemoryHumansRepository();
       final procedureKindsRepository = _InMemoryProcedureKindsRepository();
       final assistantsRepository = _InMemoryAssistantsRepository();
+      final programSettingsRepository = _InMemoryProgramSettingsRepository();
 
       expect(
         () => CreateProcedureSessionUseCase(
@@ -44,6 +48,7 @@ void main() {
           humansRepository: humansRepository,
           procedureKindsRepository: procedureKindsRepository,
           assistantsRepository: assistantsRepository,
+          programSettingsRepository: programSettingsRepository,
         ).execute(
           ProcedureSessionRaw(
             id: 'draft',
@@ -95,6 +100,59 @@ void main() {
       final sorted = await ListProcedureSessionsUseCase(repository).execute();
 
       expect(sorted.map((entry) => entry.id), ['1', '2', '3']);
+    });
+
+    test('create rejects start time before minimum hour', () async {
+      final repository = _InMemoryProcedureSessionsRepository();
+
+      expect(
+        () => CreateProcedureSessionUseCase(
+          repository,
+          workdaysRepository: _InMemoryWorkdaysRepository(),
+          humansRepository: _InMemoryHumansRepository(),
+          procedureKindsRepository: _InMemoryProcedureKindsRepository(),
+          assistantsRepository: _InMemoryAssistantsRepository(),
+          programSettingsRepository: _InMemoryProgramSettingsRepository(),
+        ).execute(
+          ProcedureSessionRaw(
+            id: 'draft',
+            dayId: '1',
+            participantId: '1',
+            startTime: '07:55',
+            procedureKindId: '2',
+          ),
+        ),
+        throwsA(
+          isA<ProcedureSessionsValidationException>().having(
+            (error) => error.message,
+            'message',
+            'Время начала должно быть в диапазоне 08:00-20:55.',
+          ),
+        ),
+      );
+    });
+
+    test('create allows start time at maximum hour minute 55', () async {
+      final repository = _InMemoryProcedureSessionsRepository();
+
+      final created = await CreateProcedureSessionUseCase(
+        repository,
+        workdaysRepository: _InMemoryWorkdaysRepository(),
+        humansRepository: _InMemoryHumansRepository(),
+        procedureKindsRepository: _InMemoryProcedureKindsRepository(),
+        assistantsRepository: _InMemoryAssistantsRepository(),
+        programSettingsRepository: _InMemoryProgramSettingsRepository(),
+      ).execute(
+        ProcedureSessionRaw(
+          id: 'draft',
+          dayId: '1',
+          participantId: '1',
+          startTime: '20:55',
+          procedureKindId: '2',
+        ),
+      );
+
+      expect(created.startTime, '20:55');
     });
 
     test('rich model computes finish time', () {
@@ -346,4 +404,13 @@ final class _InMemoryAssistantsRepository implements AssistantsRepository {
 
   @override
   Future<Assistant> update(Assistant entry) async => entry;
+}
+
+final class _InMemoryProgramSettingsRepository
+    implements ProgramSettingsRepository {
+  @override
+  Future<ProgramSettings> get() async => ProgramSettings.defaults;
+
+  @override
+  Future<ProgramSettings> update(ProgramSettings settings) async => settings;
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 
 import '../../domain/assistants/assistant.dart';
 import '../../domain/assistants/list_assistants_use_case.dart';
@@ -6,6 +7,7 @@ import '../../domain/humans/human.dart';
 import '../../domain/humans/list_humans_use_case.dart';
 import '../../domain/procedure_kinds/list_procedure_kinds_use_case.dart';
 import '../../domain/procedure_kinds/procedure_kind.dart';
+import '../../domain/program_settings/get_program_settings_use_case.dart';
 import '../../domain/procedure_sessions/create_procedure_session_use_case.dart';
 import '../../domain/procedure_sessions/delete_procedure_session_use_case.dart';
 import '../../domain/procedure_sessions/list_rich_procedure_sessions_use_case.dart';
@@ -37,6 +39,7 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
     required ListHumansUseCase listHumansUseCase,
     required ListProcedureKindsUseCase listProcedureKindsUseCase,
     required ListAssistantsUseCase listAssistantsUseCase,
+    required GetProgramSettingsUseCase getProgramSettingsUseCase,
   })  : _listRichProcedureSessionsUseCase = listRichProcedureSessionsUseCase,
         _createProcedureSessionUseCase = createProcedureSessionUseCase,
         _updateProcedureSessionUseCase = updateProcedureSessionUseCase,
@@ -44,7 +47,8 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
         _listWorkdaysUseCase = listWorkdaysUseCase,
         _listHumansUseCase = listHumansUseCase,
         _listProcedureKindsUseCase = listProcedureKindsUseCase,
-        _listAssistantsUseCase = listAssistantsUseCase;
+        _listAssistantsUseCase = listAssistantsUseCase,
+        _getProgramSettingsUseCase = getProgramSettingsUseCase;
 
   final ListRichProcedureSessionsUseCase _listRichProcedureSessionsUseCase;
   final CreateProcedureSessionUseCase _createProcedureSessionUseCase;
@@ -54,12 +58,14 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
   final ListHumansUseCase _listHumansUseCase;
   final ListProcedureKindsUseCase _listProcedureKindsUseCase;
   final ListAssistantsUseCase _listAssistantsUseCase;
+  final GetProgramSettingsUseCase _getProgramSettingsUseCase;
 
   List<ProcedureSessionRich> _allEntries = const [];
   List<Workday> _workdays = const [];
   List<Human> _participants = const [];
   List<ProcedureKind> _procedureKinds = const [];
   List<Assistant> _assistants = const [];
+  ProgramSettings _programSettings = ProgramSettings.defaults;
   bool _isLoading = false;
   bool _isSaving = false;
   String? _loadErrorMessage;
@@ -77,6 +83,7 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
   List<Human> get participants => _participants;
   List<ProcedureKind> get procedureKinds => _procedureKinds;
   List<Assistant> get assistants => _assistants;
+  ProgramSettings get programSettings => _programSettings;
   bool get isLoading => _isLoading;
   bool get isSaving => _isSaving;
   String? get loadErrorMessage => _loadErrorMessage;
@@ -94,6 +101,7 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
+      _programSettings = await _getProgramSettingsUseCase.execute();
       _workdays = await _listWorkdaysUseCase.execute();
       _participants = (await _listHumansUseCase.execute())
           .where((human) => human.isParticipant)
@@ -193,7 +201,8 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
       participantId: _participants.isEmpty
           ? 'missing-participant'
           : _participants.first.id,
-      startTime: '08:00',
+      startTime:
+          '${_programSettings.minimumHour.toString().padLeft(2, '0')}:00',
       procedureKindId: firstProcedureKind == null
           ? 'missing-procedure'
           : firstProcedureKind.id,
@@ -206,6 +215,7 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
   }
 
   Future<void> _reloadEntries() async {
+    _programSettings = await _getProgramSettingsUseCase.execute();
     _allEntries = await _listRichProcedureSessionsUseCase.execute();
     _workdays = await _listWorkdaysUseCase.execute();
     _participants = (await _listHumansUseCase.execute())
@@ -250,16 +260,18 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
         return false;
       }
       final startMinutes = ProcedureSessionTime.toMinutes(entry.startTime);
+      final lunchStartMinutes = _programSettings.lunchStart.hour * 60 +
+          _programSettings.lunchStart.minute;
       switch (_partOfDayFilter) {
         case ProcedureSessionsPartOfDayFilter.fullDay:
           break;
         case ProcedureSessionsPartOfDayFilter.beforeLunch:
-          if (startMinutes >= 13 * 60) {
+          if (startMinutes >= lunchStartMinutes) {
             return false;
           }
           break;
         case ProcedureSessionsPartOfDayFilter.afterLunch:
-          if (startMinutes < 13 * 60) {
+          if (startMinutes < lunchStartMinutes) {
             return false;
           }
           break;

@@ -169,6 +169,7 @@ final class AppBootstrap {
       humansRepository: humansRepository,
       procedureKindsRepository: procedureKindsRepository,
       assistantsRepository: assistantsRepository,
+      programSettingsRepository: programSettingsRepository,
     );
     final updateProcedureSessionUseCase = UpdateProcedureSessionUseCase(
       procedureSessionsRepository,
@@ -176,6 +177,7 @@ final class AppBootstrap {
       humansRepository: humansRepository,
       procedureKindsRepository: procedureKindsRepository,
       assistantsRepository: assistantsRepository,
+      programSettingsRepository: programSettingsRepository,
     );
     final deleteProcedureSessionUseCase = DeleteProcedureSessionUseCase(
       procedureSessionsRepository,

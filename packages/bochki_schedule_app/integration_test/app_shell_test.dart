@@ -70,6 +70,7 @@ void main() {
         humansRepository: humansRepository,
         procedureKindsRepository: procedureKindsRepository,
         assistantsRepository: assistantsRepository,
+        programSettingsRepository: programSettingsRepository,
       ),
       updateProcedureSessionUseCase: UpdateProcedureSessionUseCase(
         procedureSessionsRepository,
@@ -77,6 +78,7 @@ void main() {
         humansRepository: humansRepository,
         procedureKindsRepository: procedureKindsRepository,
         assistantsRepository: assistantsRepository,
+        programSettingsRepository: programSettingsRepository,
       ),
       deleteProcedureSessionUseCase:
           DeleteProcedureSessionUseCase(procedureSessionsRepository),

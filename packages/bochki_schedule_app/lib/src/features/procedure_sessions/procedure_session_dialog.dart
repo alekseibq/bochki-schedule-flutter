@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 
 import '../../domain/assistants/assistant.dart';
 import '../../domain/humans/human.dart';
@@ -14,6 +15,7 @@ class ProcedureSessionDialog extends StatefulWidget {
     required this.participants,
     required this.procedureKinds,
     required this.assistants,
+    required this.programSettings,
     this.isSaving = false,
     super.key,
   });
@@ -23,6 +25,7 @@ class ProcedureSessionDialog extends StatefulWidget {
   final List<Human> participants;
   final List<ProcedureKind> procedureKinds;
   final List<Assistant> assistants;
+  final ProgramSettings programSettings;
   final bool isSaving;
 
   bool get isEditing => initialValue.id != 'draft';
@@ -40,9 +43,6 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
   late String _minute;
   String? _formErrorText;
 
-  static final List<String> _hours = [
-    for (int hour = 8; hour <= 20; hour++) hour.toString().padLeft(2, '0'),
-  ];
   static final List<String> _minutes = [
     for (int minute = 0; minute <= 55; minute += 5) '$minute'.padLeft(2, '0'),
   ];
@@ -72,6 +72,28 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
 
   bool get requiresAssistant => _selectedProcedureKind?.isCurated ?? false;
 
+  List<String> get _hours {
+    final hours = [
+      for (int hour = widget.programSettings.minimumHour;
+          hour <= widget.programSettings.maximumHour;
+          hour++)
+        hour.toString().padLeft(2, '0'),
+    ];
+    if (!hours.contains(_hour)) {
+      hours.add(_hour);
+      hours.sort();
+    }
+    return hours;
+  }
+
+  List<String> get _availableMinutes {
+    if (_minutes.contains(_minute)) {
+      return _minutes;
+    }
+    final minutes = [..._minutes, _minute]..sort();
+    return minutes;
+  }
+
   String get _finishTime {
     final procedureKind = _selectedProcedureKind;
     if (procedureKind == null) {
@@ -81,6 +103,16 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
       ProcedureSessionTime.toMinutes('$_hour:$_minute') +
           procedureKind.participantBusyTime,
     );
+  }
+
+  String get _scheduleHint {
+    final minimumHour =
+        widget.programSettings.minimumHour.toString().padLeft(2, '0');
+    final maximumHour =
+        widget.programSettings.maximumHour.toString().padLeft(2, '0');
+    return 'Допустимое время начала: $minimumHour:00-$maximumHour:55. '
+        'Обед: с ${_formatSettingsTime(widget.programSettings.lunchStart)} '
+        'до ${_formatSettingsTime(widget.programSettings.lunchEnd)}.';
   }
 
   List<DropdownMenuItem<String>> _buildWorkdayItems() {
@@ -308,6 +340,12 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
                 ),
               ),
               const SizedBox(height: 12),
+              Text(
+                _scheduleHint,
+                key: const Key('procedure_session_schedule_hint'),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 12),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -349,7 +387,7 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
                               value: _minute,
                               isExpanded: true,
                               items: [
-                                for (final minute in _minutes)
+                                for (final minute in _availableMinutes)
                                   DropdownMenuItem<String>(
                                     value: minute,
                                     child: Text(minute),
@@ -456,6 +494,12 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
         ),
       ],
     );
+  }
+
+  String _formatSettingsTime(ProgramSettingsTime value) {
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
   }
 }
 
