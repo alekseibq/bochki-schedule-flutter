@@ -65,6 +65,7 @@ class _BochkiShellState extends State<BochkiShell> {
       listHumansUseCase: widget.services.listHumansUseCase,
       listProcedureKindsUseCase: widget.services.listProcedureKindsUseCase,
       listAssistantsUseCase: widget.services.listAssistantsUseCase,
+      getProgramSettingsUseCase: widget.services.getProgramSettingsUseCase,
     );
     unawaited(_procedureSessionsViewModel.load());
   }
@@ -244,6 +245,7 @@ class _BochkiShellState extends State<BochkiShell> {
       );
     } finally {
       viewModel.dispose();
+      unawaited(_procedureSessionsViewModel.load());
       if (mounted) {
         setState(() {
           _programSettingsDialogOpen = false;
@@ -291,6 +293,7 @@ class _BochkiShellState extends State<BochkiShell> {
           participants: _procedureSessionsViewModel.participants,
           procedureKinds: _procedureSessionsViewModel.procedureKinds,
           assistants: _procedureSessionsViewModel.assistants,
+          programSettings: _procedureSessionsViewModel.programSettings,
           isSaving: _procedureSessionsViewModel.isSaving,
         );
       },

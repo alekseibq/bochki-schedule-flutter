@@ -228,7 +228,7 @@ void main() {
           id: '1',
           dayId: '1',
           participantId: '1',
-          startTime: '09:00',
+          startTime: '12:55',
           procedureKindId: '1',
           assistantId: '2',
         ),
@@ -241,6 +241,12 @@ void main() {
           assistantId: '2',
         ),
       ],
+      programSettings: const ProgramSettings(
+        lunchStart: ProgramSettingsTime(hour: 13, minute: 0),
+        lunchEnd: ProgramSettingsTime(hour: 14, minute: 0),
+        minimumHour: 8,
+        maximumHour: 20,
+      ),
     );
 
     await tester.pumpWidget(BochkiScheduleApp(services: context.services));
@@ -248,6 +254,74 @@ void main() {
 
     expect(find.byKey(const Key('procedure_session_row_1')), findsOneWidget);
     expect(find.byKey(const Key('procedure_session_row_2')), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const Key('procedure_sessions_part_of_day_filter')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('До обеда').last);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('procedure_session_row_1')), findsOneWidget);
+    expect(find.byKey(const Key('procedure_session_row_2')), findsNothing);
+  });
+
+  testWidgets(
+      'procedure sessions uses custom lunch start for part of day filter',
+      (tester) async {
+    final context = _buildTestContext(
+      participants: [
+        Participant(id: '1', name: 'Иван'),
+      ],
+      assistants: [
+        Assistant(id: '2', name: 'Петр'),
+      ],
+      procedureKinds: [
+        ProcedureKind(
+          id: '1',
+          patternId: ProcedureKindPatterns.curated.patternId,
+          name: 'Бочка',
+          capacity: 6,
+          participantBusyTime: 30,
+          assistantBusyTime: 10,
+          resourceBusyTime: 5,
+        ),
+      ],
+      workdays: [
+        Workday(
+          id: '1',
+          name: 'День А',
+          calendarDate: DateTime(2026, 7, 11),
+        ),
+      ],
+      procedureSessions: [
+        ProcedureSessionRaw(
+          id: '1',
+          dayId: '1',
+          participantId: '1',
+          startTime: '13:55',
+          procedureKindId: '1',
+          assistantId: '2',
+        ),
+        ProcedureSessionRaw(
+          id: '2',
+          dayId: '1',
+          participantId: '1',
+          startTime: '14:00',
+          procedureKindId: '1',
+          assistantId: '2',
+        ),
+      ],
+      programSettings: const ProgramSettings(
+        lunchStart: ProgramSettingsTime(hour: 14, minute: 0),
+        lunchEnd: ProgramSettingsTime(hour: 15, minute: 0),
+        minimumHour: 8,
+        maximumHour: 20,
+      ),
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
 
     await tester.tap(
       find.byKey(const Key('procedure_sessions_part_of_day_filter')),
@@ -336,6 +410,83 @@ void main() {
       context.procedureSessionsRepository.sessions.single.startTime,
       '10:30',
     );
+  });
+
+  testWidgets(
+      'procedure sessions blocks saving existing record outside configured start range',
+      (tester) async {
+    final context = _buildTestContext(
+      participants: [
+        Participant(id: '1', name: 'Иван'),
+      ],
+      assistants: [
+        Assistant(id: '2', name: 'Петр'),
+      ],
+      procedureKinds: [
+        ProcedureKind(
+          id: '1',
+          patternId: ProcedureKindPatterns.curated.patternId,
+          name: 'Бочка',
+          capacity: 6,
+          participantBusyTime: 30,
+          assistantBusyTime: 10,
+          resourceBusyTime: 5,
+        ),
+      ],
+      workdays: [
+        Workday(
+          id: '1',
+          name: 'День А',
+          calendarDate: DateTime(2026, 7, 11),
+        ),
+      ],
+      procedureSessions: [
+        ProcedureSessionRaw(
+          id: '1',
+          dayId: '1',
+          participantId: '1',
+          startTime: '09:00',
+          procedureKindId: '1',
+          assistantId: '2',
+        ),
+      ],
+      programSettings: const ProgramSettings(
+        lunchStart: ProgramSettingsTime(hour: 14, minute: 0),
+        lunchEnd: ProgramSettingsTime(hour: 15, minute: 0),
+        minimumHour: 10,
+        maximumHour: 18,
+      ),
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+
+    await _doubleMouseClick(
+      tester,
+      find.byKey(const Key('procedure_session_row_1')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('procedure_session_schedule_hint')),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Допустимое время начала: 10:00-18:55. Обед: с 14:00 до 15:00.',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('procedure_session_save_button')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Время начала должно быть в диапазоне 10:00-18:55.'),
+      findsOneWidget,
+    );
+    expect(
+        context.procedureSessionsRepository.sessions.single.startTime, '09:00');
   });
 
   testWidgets('procedure kinds dialog shows updated table headers', (
@@ -1096,6 +1247,7 @@ _TestContext _buildTestContext({
         humansRepository: humansRepository,
         procedureKindsRepository: procedureKindsRepository,
         assistantsRepository: assistantsRepository,
+        programSettingsRepository: programSettingsRepository,
       ),
       updateProcedureSessionUseCase: UpdateProcedureSessionUseCase(
         procedureSessionsRepository,
@@ -1103,6 +1255,7 @@ _TestContext _buildTestContext({
         humansRepository: humansRepository,
         procedureKindsRepository: procedureKindsRepository,
         assistantsRepository: assistantsRepository,
+        programSettingsRepository: programSettingsRepository,
       ),
       deleteProcedureSessionUseCase:
           DeleteProcedureSessionUseCase(procedureSessionsRepository),
