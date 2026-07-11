@@ -1,4 +1,5 @@
 import 'schema_version.dart';
+import 'program_settings.dart';
 
 final class ProjectDocument {
   const ProjectDocument({
@@ -8,6 +9,7 @@ final class ProjectDocument {
     this.procedureKinds = const [],
     this.workdays = const [],
     this.procedureSessions = const [],
+    this.programSettings = ProgramSettings.defaults,
   })  : assert(schemaVersion > 0, 'schemaVersion must be positive'),
         assert(nextId > 0, 'nextId must be positive');
 
@@ -17,6 +19,7 @@ final class ProjectDocument {
   final List<Map<String, Object?>> procedureKinds;
   final List<Map<String, Object?>> workdays;
   final List<Map<String, Object?>> procedureSessions;
+  final ProgramSettings programSettings;
 
   factory ProjectDocument.initial() {
     return const ProjectDocument();
@@ -39,6 +42,9 @@ final class ProjectDocument {
       procedureKinds: _decodeCollection(json['procedureKinds']),
       workdays: _decodeCollection(json['workdays']),
       procedureSessions: _decodeCollection(json['procedureSessions']),
+      programSettings: json.containsKey('programSettings')
+          ? ProgramSettings.fromJson(json['programSettings'])
+          : ProgramSettings.defaults,
     );
   }
 
@@ -50,6 +56,7 @@ final class ProjectDocument {
       'procedureKinds': procedureKinds,
       'workdays': workdays,
       'procedureSessions': procedureSessions,
+      'programSettings': programSettings.toJson(),
     };
   }
 
@@ -60,6 +67,7 @@ final class ProjectDocument {
     List<Map<String, Object?>>? procedureKinds,
     List<Map<String, Object?>>? workdays,
     List<Map<String, Object?>>? procedureSessions,
+    ProgramSettings? programSettings,
   }) {
     return ProjectDocument(
       schemaVersion: schemaVersion ?? this.schemaVersion,
@@ -68,6 +76,7 @@ final class ProjectDocument {
       procedureKinds: procedureKinds ?? this.procedureKinds,
       workdays: workdays ?? this.workdays,
       procedureSessions: procedureSessions ?? this.procedureSessions,
+      programSettings: programSettings ?? this.programSettings,
     );
   }
 

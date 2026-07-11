@@ -10,6 +10,7 @@ import 'data/project_document/project_document_id_allocator.dart';
 import 'data/project_document/project_document_sync_coordinator.dart';
 import 'data/procedure_sessions/project_document_procedure_sessions_repository.dart';
 import 'data/procedure_kinds/project_document_procedure_kinds_repository.dart';
+import 'data/program_settings/project_document_program_settings_repository.dart';
 import 'data/assistants/project_document_assistants_repository.dart';
 import 'data/workdays/project_document_workdays_repository.dart';
 import 'domain/humans/list_humans_use_case.dart';
@@ -26,6 +27,8 @@ import 'domain/procedure_kinds/create_procedure_kind_use_case.dart';
 import 'domain/procedure_kinds/delete_procedure_kind_use_case.dart';
 import 'domain/procedure_kinds/list_procedure_kinds_use_case.dart';
 import 'domain/procedure_kinds/update_procedure_kind_use_case.dart';
+import 'domain/program_settings/get_program_settings_use_case.dart';
+import 'domain/program_settings/update_program_settings_use_case.dart';
 import 'domain/assistants/create_assistant_use_case.dart';
 import 'domain/assistants/delete_assistant_use_case.dart';
 import 'domain/assistants/list_assistants_use_case.dart';
@@ -79,6 +82,10 @@ final class AppBootstrap {
       idAllocator: idAllocator,
       onChanged: syncCoordinator.markChanged,
     );
+    final programSettingsRepository = ProjectDocumentProgramSettingsRepository(
+      initialDocument: initialDocument,
+      onChanged: syncCoordinator.markChanged,
+    );
     final procedureSessionsRepository =
         ProjectDocumentProcedureSessionsRepository(
       initialDocument: initialDocument,
@@ -89,6 +96,7 @@ final class AppBootstrap {
     syncCoordinator.registerPart(humansRepository);
     syncCoordinator.registerPart(procedureKindsRepository);
     syncCoordinator.registerPart(workdaysRepository);
+    syncCoordinator.registerPart(programSettingsRepository);
     syncCoordinator.registerPart(procedureSessionsRepository);
     final listHumansUseCase = ListHumansUseCase(humansRepository);
     final listParticipantsUseCase = ListParticipantsUseCase(
@@ -138,6 +146,12 @@ final class AppBootstrap {
     );
     final deleteWorkdayUseCase = DeleteWorkdayUseCase(
       workdaysRepository,
+    );
+    final getProgramSettingsUseCase = GetProgramSettingsUseCase(
+      programSettingsRepository,
+    );
+    final updateProgramSettingsUseCase = UpdateProgramSettingsUseCase(
+      programSettingsRepository,
     );
     final listProcedureSessionsUseCase = ListProcedureSessionsUseCase(
       procedureSessionsRepository,
@@ -191,6 +205,8 @@ final class AppBootstrap {
       createWorkdayUseCase: createWorkdayUseCase,
       updateWorkdayUseCase: updateWorkdayUseCase,
       deleteWorkdayUseCase: deleteWorkdayUseCase,
+      getProgramSettingsUseCase: getProgramSettingsUseCase,
+      updateProgramSettingsUseCase: updateProgramSettingsUseCase,
       listProcedureSessionsUseCase: listProcedureSessionsUseCase,
       listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,
       createProcedureSessionUseCase: createProcedureSessionUseCase,

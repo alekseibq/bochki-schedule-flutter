@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:bochki_schedule_app/bochki_schedule_app.dart';
+import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
@@ -85,6 +86,64 @@ void main() {
     expect(find.byKey(const Key('workdays_dialog')), findsOneWidget);
     expect(find.text('Список дней'), findsOneWidget);
     expect(find.byKey(const Key('workday_add_button')), findsOneWidget);
+  });
+
+  testWidgets('shell opens program settings dialog from menu', (tester) async {
+    final context = _buildTestContext();
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openProgramSettingsDialog(tester);
+
+    expect(find.byKey(const Key('program_settings_dialog')), findsOneWidget);
+    expect(find.text('Настройки'), findsOneWidget);
+    expect(find.text('Отмена'), findsOneWidget);
+    expect(find.text('Сохранить'), findsOneWidget);
+  });
+
+  testWidgets('program settings dialog validates and saves singleton object',
+      (tester) async {
+    final context = _buildTestContext();
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openProgramSettingsDialog(tester);
+
+    await tester.tap(
+      find.byKey(const Key('program_settings_lunch_end_hour_field')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('13').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('program_settings_save_button')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Конец обеда должен быть позже начала обеда.'),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const Key('program_settings_lunch_end_hour_field')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('15').last);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Конец обеда должен быть позже начала обеда.'),
+      findsNothing,
+    );
+
+    await tester.tap(find.byKey(const Key('program_settings_save_button')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('program_settings_dialog')), findsNothing);
+    expect(
+      context.programSettingsRepository.settings.toJson(),
+      ProgramSettings.defaults.toJson(),
+    );
   });
 
   testWidgets('procedure sessions screen supports create', (
@@ -950,12 +1009,20 @@ Future<void> _openWorkdaysDialog(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+Future<void> _openProgramSettingsDialog(WidgetTester tester) async {
+  await tester.tap(find.byKey(const Key('directories_menu_button')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Настройки').last);
+  await tester.pumpAndSettle();
+}
+
 _TestContext _buildTestContext({
   List<Participant>? participants,
   List<Assistant>? assistants,
   List<ProcedureKind>? procedureKinds,
   List<Workday>? workdays,
   List<ProcedureSessionRaw>? procedureSessions,
+  ProgramSettings? programSettings,
 }) {
   final participantsRepository = _InMemoryParticipantsRepository(
     participants: participants,
@@ -975,6 +1042,9 @@ _TestContext _buildTestContext({
   );
   final procedureSessionsRepository = _InMemoryProcedureSessionsRepository(
     sessions: procedureSessions,
+  );
+  final programSettingsRepository = _InMemoryProgramSettingsRepository(
+    settings: programSettings ?? ProgramSettings.defaults,
   );
 
   return _TestContext(
@@ -1005,6 +1075,10 @@ _TestContext _buildTestContext({
       createWorkdayUseCase: CreateWorkdayUseCase(workdaysRepository),
       updateWorkdayUseCase: UpdateWorkdayUseCase(workdaysRepository),
       deleteWorkdayUseCase: DeleteWorkdayUseCase(workdaysRepository),
+      getProgramSettingsUseCase:
+          GetProgramSettingsUseCase(programSettingsRepository),
+      updateProgramSettingsUseCase:
+          UpdateProgramSettingsUseCase(programSettingsRepository),
       listProcedureSessionsUseCase:
           ListProcedureSessionsUseCase(procedureSessionsRepository),
       listRichProcedureSessionsUseCase: ListRichProcedureSessionsUseCase(
@@ -1039,6 +1113,7 @@ _TestContext _buildTestContext({
     assistantsRepository: assistantsRepository,
     procedureKindsRepository: procedureKindsRepository,
     workdaysRepository: workdaysRepository,
+    programSettingsRepository: programSettingsRepository,
     procedureSessionsRepository: procedureSessionsRepository,
   );
 }
@@ -1052,6 +1127,7 @@ final class _TestContext {
     required this.assistantsRepository,
     required this.procedureKindsRepository,
     required this.workdaysRepository,
+    required this.programSettingsRepository,
     required this.procedureSessionsRepository,
   });
 
@@ -1060,7 +1136,28 @@ final class _TestContext {
   final _InMemoryAssistantsRepository assistantsRepository;
   final _InMemoryProcedureKindsRepository procedureKindsRepository;
   final _InMemoryWorkdaysRepository workdaysRepository;
+  final _InMemoryProgramSettingsRepository programSettingsRepository;
   final _InMemoryProcedureSessionsRepository procedureSessionsRepository;
+}
+
+final class _InMemoryProgramSettingsRepository
+    implements ProgramSettingsRepository {
+  _InMemoryProgramSettingsRepository({
+    required ProgramSettings settings,
+  }) : _settings = settings;
+
+  ProgramSettings _settings;
+
+  ProgramSettings get settings => _settings;
+
+  @override
+  Future<ProgramSettings> get() async => _settings;
+
+  @override
+  Future<ProgramSettings> update(ProgramSettings settings) async {
+    _settings = settings;
+    return _settings;
+  }
 }
 
 final class _NoopLogger implements AppLogger {
