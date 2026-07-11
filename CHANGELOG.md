@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.5.0
+
+Release date: 2026-07-11
+
+### Highlights
+
+- Added the procedure sessions workflow in the desktop app, including create, edit, and filtering flows.
+- Unified assistants and participants under shared human storage in the project document.
+- Renamed the trainer terminology to assistants across the product and tests.
+
+### Details
+
+- `feat(app): add procedure sessions workflow`
+- `feat(app): unify participant and assistant storage`
+- `refactor: rename trainers to assistants`
+
 ## v0.4.0
 
 Release date: 2026-07-10
