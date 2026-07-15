@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.6.0
+
+Release date: 2026-07-15
+
+### Highlights
+
+- Added editable program settings in the desktop app.
+- Applied program settings to procedure session scheduling logic.
+- Added procedure session conflict detection and improved row selection responsiveness.
+
+### Details
+
+- `feat(app): add editable program settings`
+- `fix(procedure-sessions): apply program settings to schedule logic`
+- `fix(app): make procedure session row selection instant`
+- `feat: add procedure session conflict detection (#62)`
+
 ## v0.5.0
 
 Release date: 2026-07-11

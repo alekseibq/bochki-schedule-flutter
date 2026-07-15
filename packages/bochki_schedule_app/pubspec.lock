@@ -15,14 +15,14 @@ packages:
       path: "../bochki_schedule_domain"
       relative: true
     source: path
-    version: "0.5.0"
+    version: "0.6.0"
   bochki_schedule_infra:
     dependency: "direct main"
     description:
       path: "../bochki_schedule_infra"
       relative: true
     source: path
-    version: "0.5.0"
+    version: "0.6.0"
   boolean_selector:
     dependency: transitive
     description:

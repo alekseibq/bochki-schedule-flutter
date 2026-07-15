@@ -1,7 +1,7 @@
 name: bochki_schedule_domain
 description: Domain package for Bochki Schedule.
 publish_to: none
-version: 0.5.0
+version: 0.6.0
 
 environment:
   sdk: ^3.5.0
