@@ -22,6 +22,7 @@ import 'domain/procedure_sessions/create_procedure_session_use_case.dart';
 import 'domain/procedure_sessions/delete_procedure_session_use_case.dart';
 import 'domain/procedure_sessions/list_procedure_sessions_use_case.dart';
 import 'domain/procedure_sessions/list_rich_procedure_sessions_use_case.dart';
+import 'domain/procedure_sessions/list_procedure_sessions_with_conflicts_use_case.dart';
 import 'domain/procedure_sessions/update_procedure_session_use_case.dart';
 import 'domain/procedure_kinds/create_procedure_kind_use_case.dart';
 import 'domain/procedure_kinds/delete_procedure_kind_use_case.dart';
@@ -98,6 +99,14 @@ final class AppBootstrap {
     syncCoordinator.registerPart(workdaysRepository);
     syncCoordinator.registerPart(programSettingsRepository);
     syncCoordinator.registerPart(procedureSessionsRepository);
+    final didNormalizeLegacyProcedureKinds =
+        await procedureKindsRepository.normalizeLegacyResourceBusyTimes();
+    if (didNormalizeLegacyProcedureKinds) {
+      await logger.info(
+        'Normalized legacy procedure kinds resourceBusyTime values.',
+      );
+      await syncCoordinator.flushPending();
+    }
     final listHumansUseCase = ListHumansUseCase(humansRepository);
     final listParticipantsUseCase = ListParticipantsUseCase(
       participantsRepository,
@@ -163,6 +172,10 @@ final class AppBootstrap {
       listProcedureKindsUseCase: listProcedureKindsUseCase,
       listAssistantsUseCase: listAssistantsUseCase,
     );
+    final listProcedureSessionsWithConflictsUseCase =
+        ListProcedureSessionsWithConflictsUseCase(
+      listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,
+    );
     final createProcedureSessionUseCase = CreateProcedureSessionUseCase(
       procedureSessionsRepository,
       workdaysRepository: workdaysRepository,
@@ -211,6 +224,8 @@ final class AppBootstrap {
       updateProgramSettingsUseCase: updateProgramSettingsUseCase,
       listProcedureSessionsUseCase: listProcedureSessionsUseCase,
       listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,
+      listProcedureSessionsWithConflictsUseCase:
+          listProcedureSessionsWithConflictsUseCase,
       createProcedureSessionUseCase: createProcedureSessionUseCase,
       updateProcedureSessionUseCase: updateProcedureSessionUseCase,
       deleteProcedureSessionUseCase: deleteProcedureSessionUseCase,

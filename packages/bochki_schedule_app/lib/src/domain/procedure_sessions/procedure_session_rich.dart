@@ -40,4 +40,28 @@ final class ProcedureSessionRich {
       ProcedureSessionTime.toMinutes(startTime) + kind.participantBusyTime,
     );
   }
+
+  String? get assistantFinishTime {
+    final kind = procedureKind;
+    final assistantBusyTime = kind?.assistantBusyTime;
+    if (assistantBusyTime == null) {
+      return null;
+    }
+
+    return ProcedureSessionTime.fromMinutes(
+      ProcedureSessionTime.toMinutes(startTime) + assistantBusyTime,
+    );
+  }
+
+  String? get resourceFinishTime {
+    final kind = procedureKind;
+    final resourceBusyTime = kind?.resourceBusyTime;
+    if (resourceBusyTime == null) {
+      return null;
+    }
+
+    return ProcedureSessionTime.fromMinutes(
+      ProcedureSessionTime.toMinutes(startTime) + resourceBusyTime,
+    );
+  }
 }

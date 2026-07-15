@@ -1,0 +1,4 @@
+enum ConflictResourceType {
+  human,
+  item,
+}

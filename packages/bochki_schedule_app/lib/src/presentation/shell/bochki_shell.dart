@@ -4,7 +4,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../app_services.dart';
-import '../../domain/procedure_sessions/procedure_session_raw.dart';
 import '../../features/participants/participants_dialog.dart';
 import '../../features/participants/participants_view_model.dart';
 import '../../features/procedure_sessions/procedure_session_dialog.dart';
@@ -54,8 +53,8 @@ class _BochkiShellState extends State<BochkiShell> {
   void initState() {
     super.initState();
     _procedureSessionsViewModel = ProcedureSessionsViewModel(
-      listRichProcedureSessionsUseCase:
-          widget.services.listRichProcedureSessionsUseCase,
+      listProcedureSessionsWithConflictsUseCase:
+          widget.services.listProcedureSessionsWithConflictsUseCase,
       createProcedureSessionUseCase:
           widget.services.createProcedureSessionUseCase,
       updateProcedureSessionUseCase:
@@ -284,7 +283,7 @@ class _BochkiShellState extends State<BochkiShell> {
             .firstWhere((entry) => entry.id == procedureSessionId!)
             .raw
         : _procedureSessionsViewModel.createDraft();
-    final submitted = await showDialog(
+    await showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) {
@@ -295,32 +294,15 @@ class _BochkiShellState extends State<BochkiShell> {
           procedureKinds: _procedureSessionsViewModel.procedureKinds,
           assistants: _procedureSessionsViewModel.assistants,
           programSettings: _procedureSessionsViewModel.programSettings,
+          onSubmit: (procedureSession, allowConflicts) {
+            return _procedureSessionsViewModel.submitProcedureSession(
+              procedureSession,
+              allowConflicts: allowConflicts,
+            );
+          },
           isSaving: _procedureSessionsViewModel.isSaving,
         );
       },
-    );
-    if (submitted is! ProcedureSessionRaw || !mounted) {
-      return;
-    }
-
-    final isSuccess = isEditing
-        ? await _procedureSessionsViewModel.updateProcedureSession(submitted)
-        : await _procedureSessionsViewModel.createProcedureSession(submitted);
-    if (!mounted) {
-      return;
-    }
-    if (!isSuccess) {
-      final message = _procedureSessionsViewModel.actionErrorMessage;
-      if (message != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
-        _procedureSessionsViewModel.clearActionError();
-      }
-      return;
-    }
-    _procedureSessionsViewModel.selectEntry(
-      isEditing ? submitted.id : _procedureSessionsViewModel.selectedEntryId,
     );
   }
 
@@ -655,8 +637,12 @@ class _ProcedureSessionsTable extends StatelessWidget {
   Widget build(BuildContext context) {
     final entries = viewModel.entries;
     if (entries.isEmpty) {
-      return const Center(
-        child: Text('Список назначенных процедур пуст.'),
+      return Center(
+        child: Text(
+          viewModel.showConflictsOnly
+              ? 'Конфликтов по текущим фильтрам нет.'
+              : 'Список назначенных процедур пуст.',
+        ),
       );
     }
 
@@ -691,6 +677,7 @@ class _ProcedureSessionsTable extends StatelessWidget {
             itemBuilder: (context, index) {
               final entry = entries[index];
               final isSelected = viewModel.selectedEntryId == entry.id;
+              final hasConflicts = entry.hasConflicts;
               return Listener(
                 onPointerDown: (event) =>
                     _handleRowPointerDown(entry.id, event),
@@ -706,13 +693,19 @@ class _ProcedureSessionsTable extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? const Color(0xFFE7F1FB)
-                          : const Color(0xFFFBFCFD),
+                          ? (hasConflicts
+                              ? const Color(0xFFFFE6E2)
+                              : const Color(0xFFE7F1FB))
+                          : (hasConflicts
+                              ? const Color(0xFFFFF4F2)
+                              : const Color(0xFFFBFCFD)),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: isSelected
-                            ? const Color(0xFF7AA7D9)
-                            : const Color(0xFFDCE3EA),
+                        color: hasConflicts
+                            ? const Color(0xFFD66A57)
+                            : (isSelected
+                                ? const Color(0xFF7AA7D9)
+                                : const Color(0xFFDCE3EA)),
                       ),
                     ),
                     child: Row(
@@ -728,6 +721,19 @@ class _ProcedureSessionsTable extends StatelessWidget {
                         _ValueCell(
                           flex: 2,
                           text: _assistantText(entry),
+                        ),
+                        SizedBox(
+                          width: 28,
+                          child: hasConflicts
+                              ? const Tooltip(
+                                  message: 'Есть конфликты',
+                                  child: Icon(
+                                    Icons.warning_amber_rounded,
+                                    color: Color(0xFFD66A57),
+                                    size: 18,
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
                         ),
                         Expanded(
                           child: TextButton(

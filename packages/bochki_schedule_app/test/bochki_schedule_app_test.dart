@@ -1269,6 +1269,17 @@ _TestContext _buildTestContext({
   final programSettingsRepository = _InMemoryProgramSettingsRepository(
     settings: programSettings ?? ProgramSettings.defaults,
   );
+  final listProcedureSessionsUseCase = ListProcedureSessionsUseCase(
+    procedureSessionsRepository,
+  );
+  final listRichProcedureSessionsUseCase = ListRichProcedureSessionsUseCase(
+    listProcedureSessionsUseCase: listProcedureSessionsUseCase,
+    listWorkdaysUseCase: ListWorkdaysUseCase(workdaysRepository),
+    listHumansUseCase: ListHumansUseCase(humansRepository),
+    listProcedureKindsUseCase:
+        ListProcedureKindsUseCase(procedureKindsRepository),
+    listAssistantsUseCase: ListAssistantsUseCase(assistantsRepository),
+  );
 
   return _TestContext(
     services: AppServices(
@@ -1302,16 +1313,11 @@ _TestContext _buildTestContext({
           GetProgramSettingsUseCase(programSettingsRepository),
       updateProgramSettingsUseCase:
           UpdateProgramSettingsUseCase(programSettingsRepository),
-      listProcedureSessionsUseCase:
-          ListProcedureSessionsUseCase(procedureSessionsRepository),
-      listRichProcedureSessionsUseCase: ListRichProcedureSessionsUseCase(
-        listProcedureSessionsUseCase:
-            ListProcedureSessionsUseCase(procedureSessionsRepository),
-        listWorkdaysUseCase: ListWorkdaysUseCase(workdaysRepository),
-        listHumansUseCase: ListHumansUseCase(humansRepository),
-        listProcedureKindsUseCase:
-            ListProcedureKindsUseCase(procedureKindsRepository),
-        listAssistantsUseCase: ListAssistantsUseCase(assistantsRepository),
+      listProcedureSessionsUseCase: listProcedureSessionsUseCase,
+      listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,
+      listProcedureSessionsWithConflictsUseCase:
+          ListProcedureSessionsWithConflictsUseCase(
+        listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,
       ),
       createProcedureSessionUseCase: CreateProcedureSessionUseCase(
         procedureSessionsRepository,

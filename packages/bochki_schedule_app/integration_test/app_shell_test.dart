@@ -22,6 +22,17 @@ void main() {
     );
     final procedureSessionsRepository = _InMemoryProcedureSessionsRepository();
     final programSettingsRepository = _InMemoryProgramSettingsRepository();
+    final listProcedureSessionsUseCase = ListProcedureSessionsUseCase(
+      procedureSessionsRepository,
+    );
+    final listRichProcedureSessionsUseCase = ListRichProcedureSessionsUseCase(
+      listProcedureSessionsUseCase: listProcedureSessionsUseCase,
+      listWorkdaysUseCase: ListWorkdaysUseCase(workdaysRepository),
+      listHumansUseCase: ListHumansUseCase(humansRepository),
+      listProcedureKindsUseCase:
+          ListProcedureKindsUseCase(procedureKindsRepository),
+      listAssistantsUseCase: ListAssistantsUseCase(assistantsRepository),
+    );
     final services = AppServices(
       appDataDirectory: Directory('/tmp/bochki_schedule_test'),
       logger: const _NoopLogger(),
@@ -53,16 +64,11 @@ void main() {
           GetProgramSettingsUseCase(programSettingsRepository),
       updateProgramSettingsUseCase:
           UpdateProgramSettingsUseCase(programSettingsRepository),
-      listProcedureSessionsUseCase:
-          ListProcedureSessionsUseCase(procedureSessionsRepository),
-      listRichProcedureSessionsUseCase: ListRichProcedureSessionsUseCase(
-        listProcedureSessionsUseCase:
-            ListProcedureSessionsUseCase(procedureSessionsRepository),
-        listWorkdaysUseCase: ListWorkdaysUseCase(workdaysRepository),
-        listHumansUseCase: ListHumansUseCase(humansRepository),
-        listProcedureKindsUseCase:
-            ListProcedureKindsUseCase(procedureKindsRepository),
-        listAssistantsUseCase: ListAssistantsUseCase(assistantsRepository),
+      listProcedureSessionsUseCase: listProcedureSessionsUseCase,
+      listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,
+      listProcedureSessionsWithConflictsUseCase:
+          ListProcedureSessionsWithConflictsUseCase(
+        listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,
       ),
       createProcedureSessionUseCase: CreateProcedureSessionUseCase(
         procedureSessionsRepository,

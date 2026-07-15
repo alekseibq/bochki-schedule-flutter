@@ -44,6 +44,8 @@ final class ProcedureKind {
 
   bool get isCurated => patternId == ProcedureKindPatterns.curated.patternId;
 
+  bool get usesAssistant => assistantBusyTime != null;
+
   static String normalizeName(String value) {
     return NamedDirectoryEntry.normalizeName(value);
   }
@@ -58,8 +60,8 @@ final class ProcedureKind {
     }
 
     return copyWith(
+      resourceBusyTime: participantBusyTime,
       clearAssistantBusyTime: true,
-      clearResourceBusyTime: true,
     );
   }
 

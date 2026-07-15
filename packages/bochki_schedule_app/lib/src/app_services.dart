@@ -11,6 +11,7 @@ import 'domain/procedure_sessions/create_procedure_session_use_case.dart';
 import 'domain/procedure_sessions/delete_procedure_session_use_case.dart';
 import 'domain/procedure_sessions/list_procedure_sessions_use_case.dart';
 import 'domain/procedure_sessions/list_rich_procedure_sessions_use_case.dart';
+import 'domain/procedure_sessions/list_procedure_sessions_with_conflicts_use_case.dart';
 import 'domain/procedure_sessions/update_procedure_session_use_case.dart';
 import 'domain/procedure_kinds/create_procedure_kind_use_case.dart';
 import 'domain/procedure_kinds/delete_procedure_kind_use_case.dart';
@@ -52,6 +53,7 @@ final class AppServices {
     required this.updateProgramSettingsUseCase,
     required this.listProcedureSessionsUseCase,
     required this.listRichProcedureSessionsUseCase,
+    required this.listProcedureSessionsWithConflictsUseCase,
     required this.createProcedureSessionUseCase,
     required this.updateProcedureSessionUseCase,
     required this.deleteProcedureSessionUseCase,
@@ -82,6 +84,8 @@ final class AppServices {
   final UpdateProgramSettingsUseCase updateProgramSettingsUseCase;
   final ListProcedureSessionsUseCase listProcedureSessionsUseCase;
   final ListRichProcedureSessionsUseCase listRichProcedureSessionsUseCase;
+  final ListProcedureSessionsWithConflictsUseCase
+      listProcedureSessionsWithConflictsUseCase;
   final CreateProcedureSessionUseCase createProcedureSessionUseCase;
   final UpdateProcedureSessionUseCase updateProcedureSessionUseCase;
   final DeleteProcedureSessionUseCase deleteProcedureSessionUseCase;

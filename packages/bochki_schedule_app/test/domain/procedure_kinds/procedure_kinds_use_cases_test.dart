@@ -50,7 +50,7 @@ void main() {
       );
 
       expect(createdProcedureKind.assistantBusyTime, isNull);
-      expect(createdProcedureKind.resourceBusyTime, isNull);
+      expect(createdProcedureKind.resourceBusyTime, 20);
     });
 
     test('duplicate name does not pass validation', () async {
