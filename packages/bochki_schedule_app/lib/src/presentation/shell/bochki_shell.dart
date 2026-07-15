@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../app_services.dart';
@@ -643,6 +644,13 @@ class _ProcedureSessionsTable extends StatelessWidget {
   final void Function(String entryId) onEdit;
   final void Function(String entryId) onDelete;
 
+  void _handleRowPointerDown(String entryId, PointerDownEvent event) {
+    if (event.buttons != kPrimaryMouseButton) {
+      return;
+    }
+    viewModel.selectEntry(entryId);
+  }
+
   @override
   Widget build(BuildContext context) {
     final entries = viewModel.entries;
@@ -683,53 +691,60 @@ class _ProcedureSessionsTable extends StatelessWidget {
             itemBuilder: (context, index) {
               final entry = entries[index];
               final isSelected = viewModel.selectedEntryId == entry.id;
-              return GestureDetector(
-                key: Key('procedure_session_row_${entry.id}'),
-                onTap: () => viewModel.selectEntry(entry.id),
-                onDoubleTap: () => onEdit(entry.id),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? const Color(0xFFE7F1FB)
-                        : const Color(0xFFFBFCFD),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: isSelected
-                          ? const Color(0xFF7AA7D9)
-                          : const Color(0xFFDCE3EA),
+              return Listener(
+                onPointerDown: (event) =>
+                    _handleRowPointerDown(entry.id, event),
+                child: GestureDetector(
+                  key: Key('procedure_session_row_${entry.id}'),
+                  onTap: () => viewModel.selectEntry(entry.id),
+                  onDoubleTap: () => onEdit(entry.id),
+                  child: Container(
+                    key: Key('procedure_session_row_content_${entry.id}'),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      _ValueCell(flex: 2, text: _dayText(entry)),
-                      _ValueCell(flex: 2, text: _participantText(entry)),
-                      _ValueCell(flex: 1, text: entry.startTime),
-                      _ValueCell(flex: 1, text: entry.finishTime ?? ''),
-                      _ValueCell(
-                        flex: 2,
-                        text: _procedureText(entry),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? const Color(0xFFE7F1FB)
+                          : const Color(0xFFFBFCFD),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isSelected
+                            ? const Color(0xFF7AA7D9)
+                            : const Color(0xFFDCE3EA),
                       ),
-                      _ValueCell(
-                        flex: 2,
-                        text: _assistantText(entry),
-                      ),
-                      Expanded(
-                        child: TextButton(
-                          key: Key('procedure_session_edit_${entry.id}'),
-                          onPressed: () => onEdit(entry.id),
-                          child: const Text('Изм.'),
+                    ),
+                    child: Row(
+                      children: [
+                        _ValueCell(flex: 2, text: _dayText(entry)),
+                        _ValueCell(flex: 2, text: _participantText(entry)),
+                        _ValueCell(flex: 1, text: entry.startTime),
+                        _ValueCell(flex: 1, text: entry.finishTime ?? ''),
+                        _ValueCell(
+                          flex: 2,
+                          text: _procedureText(entry),
                         ),
-                      ),
-                      Expanded(
-                        child: TextButton(
-                          key: Key('procedure_session_delete_${entry.id}'),
-                          onPressed: () => onDelete(entry.id),
-                          child: const Text('Удл.'),
+                        _ValueCell(
+                          flex: 2,
+                          text: _assistantText(entry),
                         ),
-                      ),
-                    ],
+                        Expanded(
+                          child: TextButton(
+                            key: Key('procedure_session_edit_${entry.id}'),
+                            onPressed: () => onEdit(entry.id),
+                            child: const Text('Изм.'),
+                          ),
+                        ),
+                        Expanded(
+                          child: TextButton(
+                            key: Key('procedure_session_delete_${entry.id}'),
+                            onPressed: () => onDelete(entry.id),
+                            child: const Text('Удл.'),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );
