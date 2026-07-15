@@ -14,7 +14,6 @@ import '../../domain/procedure_sessions/list_procedure_sessions_with_conflicts_u
 import '../../domain/procedure_sessions/procedure_session_conflict_calculator.dart';
 import '../../domain/procedure_sessions/procedure_session_conflict_message_formatter.dart';
 import '../../domain/procedure_sessions/procedure_session_raw.dart';
-import '../../domain/procedure_sessions/procedure_session_rich.dart';
 import '../../domain/procedure_sessions/procedure_session_rich_factory.dart';
 import '../../domain/procedure_sessions/procedure_session_time.dart';
 import '../../domain/procedure_sessions/procedure_session_with_conflicts.dart';
