@@ -53,6 +53,8 @@ void main() {
               minimumHour: 10,
               maximumHour: 12,
             ),
+            onSubmit: (_, __) async =>
+                const ProcedureSessionSubmitResult.saved(),
           ),
         ),
       ),

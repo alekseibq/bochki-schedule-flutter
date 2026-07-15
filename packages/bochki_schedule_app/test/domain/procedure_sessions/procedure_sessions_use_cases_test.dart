@@ -188,7 +188,103 @@ void main() {
       );
 
       expect(rich.finishTime, '10:15');
+      expect(rich.assistantFinishTime, '09:55');
+      expect(rich.resourceFinishTime, isNull);
       expect(rich.requiresAssistant, isTrue);
+    });
+
+    test('conflict calculator detects participant and equipment conflicts', () {
+      const calculator = ProcedureSessionConflictCalculator();
+      final conflicts = calculator.calculate([
+        _buildRichSession(
+          id: '1',
+          participantId: '10',
+          startTime: '10:00',
+          procedureKind: ProcedureKind(
+            id: '100',
+            patternId: ProcedureKindPatterns.single.patternId,
+            name: 'Бочка',
+            capacity: 1,
+            participantBusyTime: 30,
+            resourceBusyTime: 30,
+          ),
+        ),
+        _buildRichSession(
+          id: '2',
+          participantId: '10',
+          startTime: '10:10',
+          procedureKind: ProcedureKind(
+            id: '100',
+            patternId: ProcedureKindPatterns.single.patternId,
+            name: 'Бочка',
+            capacity: 1,
+            participantBusyTime: 30,
+            resourceBusyTime: 30,
+          ),
+        ),
+      ]);
+
+      expect(conflicts, hasLength(4));
+      expect(
+        conflicts.where(
+            (conflict) => conflict.resourceType == ConflictResourceType.human),
+        hasLength(2),
+      );
+      expect(
+        conflicts.where(
+            (conflict) => conflict.resourceType == ConflictResourceType.item),
+        hasLength(2),
+      );
+      expect(conflicts.first.timeStart, '10:10');
+      expect(conflicts.first.timeFinish, '10:30');
+    });
+
+    test('conflict calculator ignores boundary touch and respects capacity',
+        () {
+      const calculator = ProcedureSessionConflictCalculator();
+      final noConflicts = calculator.calculate([
+        _buildRichSession(
+          id: '1',
+          participantId: '10',
+          startTime: '10:00',
+          procedureKind: ProcedureKind(
+            id: '100',
+            patternId: ProcedureKindPatterns.single.patternId,
+            name: 'Бочка',
+            capacity: 2,
+            participantBusyTime: 30,
+            resourceBusyTime: 30,
+          ),
+        ),
+        _buildRichSession(
+          id: '2',
+          participantId: '11',
+          startTime: '10:30',
+          procedureKind: ProcedureKind(
+            id: '100',
+            patternId: ProcedureKindPatterns.single.patternId,
+            name: 'Бочка',
+            capacity: 2,
+            participantBusyTime: 30,
+            resourceBusyTime: 30,
+          ),
+        ),
+        _buildRichSession(
+          id: '3',
+          participantId: '12',
+          startTime: '10:00',
+          procedureKind: ProcedureKind(
+            id: '100',
+            patternId: ProcedureKindPatterns.single.patternId,
+            name: 'Бочка',
+            capacity: 2,
+            participantBusyTime: 30,
+            resourceBusyTime: 30,
+          ),
+        ),
+      ]);
+
+      expect(noConflicts, isEmpty);
     });
 
     test('list rich sorts by workday name then time then procedure name',
@@ -249,6 +345,41 @@ void main() {
       expect(richSessions.map((entry) => entry.id), ['3', '2', '1']);
     });
   });
+}
+
+ProcedureSessionRich _buildRichSession({
+  required String id,
+  required String participantId,
+  required String startTime,
+  required ProcedureKind procedureKind,
+  String dayId = '1',
+  String? assistantId,
+}) {
+  return ProcedureSessionRich(
+    raw: ProcedureSessionRaw(
+      id: id,
+      dayId: dayId,
+      participantId: participantId,
+      startTime: startTime,
+      procedureKindId: procedureKind.id,
+      assistantId: assistantId,
+    ),
+    day: Workday(
+      id: dayId,
+      name: 'День 1',
+      calendarDate: DateTime(2026, 7, 11),
+    ),
+    participant: Human(
+      id: participantId,
+      name: 'Участник $participantId',
+      isParticipant: true,
+      isAssistant: false,
+    ),
+    procedureKind: procedureKind,
+    assistant: assistantId == null
+        ? null
+        : Assistant(id: assistantId, name: 'Ассистент $assistantId'),
+  );
 }
 
 final class _InMemoryProcedureSessionsRepository

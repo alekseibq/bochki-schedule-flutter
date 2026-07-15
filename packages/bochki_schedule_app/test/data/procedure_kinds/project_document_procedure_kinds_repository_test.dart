@@ -56,6 +56,7 @@ void main() {
         'capacity': 2,
         'participantBusyTime': 20,
         'deleted': true,
+        'resourceBusyTime': 20,
       },
       <String, Object?>{
         'id': 1,
@@ -119,6 +120,7 @@ void main() {
         repository.applyToDocument(const ProjectDocument(nextId: 3));
 
     expect(createdProcedureKind.assistantBusyTime, isNull);
+    expect(createdProcedureKind.resourceBusyTime, 20);
     expect(
       procedureKinds.map((procedureKind) => procedureKind.name),
       ['Бег дорожка'],
@@ -131,6 +133,7 @@ void main() {
         'capacity': 2,
         'participantBusyTime': 20,
         'deleted': false,
+        'resourceBusyTime': 20,
       },
       <String, Object?>{
         'id': 1,

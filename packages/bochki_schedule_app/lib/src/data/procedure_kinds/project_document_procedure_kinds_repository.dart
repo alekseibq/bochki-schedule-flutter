@@ -31,6 +31,34 @@ final class ProjectDocumentProcedureKindsRepository
         .toList(growable: false);
   }
 
+  Future<bool> normalizeLegacyResourceBusyTimes() async {
+    var changed = false;
+
+    for (var index = 0; index < _entries.length; index++) {
+      final entry = _entries[index];
+      if (entry.deleted) {
+        continue;
+      }
+
+      final normalized = ProcedureKindDto.fromDomain(
+        entry.toDomain(),
+        deleted: false,
+      );
+      if (entry.toJson().toString() == normalized.toJson().toString()) {
+        continue;
+      }
+
+      _entries[index] = normalized;
+      changed = true;
+    }
+
+    if (changed) {
+      _markRepositoryChanged();
+    }
+
+    return changed;
+  }
+
   @override
   Future<ProcedureKind> create(ProcedureKind procedureKind) async {
     final createdProcedureKind = procedureKind

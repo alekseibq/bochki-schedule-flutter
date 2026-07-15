@@ -41,4 +41,39 @@ void main() {
     final projectContents = await projectFile.readAsString();
     expect(projectContents, contains('"procedureKinds"'));
   });
+
+  test('bootstrap normalizes legacy resourceBusyTime for non-curated kinds',
+      () async {
+    final tempRoot = await Directory.systemTemp.createTemp(
+      'bochki_bootstrap_legacy_test',
+    );
+    final projectFile = File(p.join(tempRoot.path, 'project.json'));
+    await projectFile.create(recursive: true);
+    await projectFile.writeAsString('''
+{
+  "nextId": 3,
+  "procedureKinds": [
+    {
+      "id": 1,
+      "patternId": "single",
+      "name": "Бег",
+      "capacity": 2,
+      "participantBusyTime": 20,
+      "deleted": false
+    }
+  ]
+}
+''');
+
+    final services = await AppBootstrap.initialize(
+      appDataDirectory: tempRoot,
+    );
+    addTearDown(() async {
+      await services.shutdown();
+      await tempRoot.delete(recursive: true);
+    });
+
+    final projectContents = await projectFile.readAsString();
+    expect(projectContents, contains('"resourceBusyTime": 20'));
+  });
 }

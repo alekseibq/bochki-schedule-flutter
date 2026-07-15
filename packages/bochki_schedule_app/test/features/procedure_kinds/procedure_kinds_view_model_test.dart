@@ -75,7 +75,7 @@ void main() {
 
       expect(createdProcedureKind, isNotNull);
       expect(createdProcedureKind!.assistantBusyTime, isNull);
-      expect(createdProcedureKind.resourceBusyTime, isNull);
+      expect(createdProcedureKind.resourceBusyTime, 40);
     });
   });
 }

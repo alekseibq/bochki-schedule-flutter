@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 
@@ -7,6 +9,7 @@ import '../../domain/procedure_kinds/procedure_kind.dart';
 import '../../domain/procedure_sessions/procedure_session_raw.dart';
 import '../../domain/procedure_sessions/procedure_session_time.dart';
 import '../../domain/workdays/workday.dart';
+import 'procedure_session_submit_result.dart';
 
 class ProcedureSessionDialog extends StatefulWidget {
   const ProcedureSessionDialog({
@@ -16,6 +19,7 @@ class ProcedureSessionDialog extends StatefulWidget {
     required this.procedureKinds,
     required this.assistants,
     required this.programSettings,
+    required this.onSubmit,
     this.isSaving = false,
     super.key,
   });
@@ -26,6 +30,10 @@ class ProcedureSessionDialog extends StatefulWidget {
   final List<ProcedureKind> procedureKinds;
   final List<Assistant> assistants;
   final ProgramSettings programSettings;
+  final Future<ProcedureSessionSubmitResult> Function(
+    ProcedureSessionRaw procedureSession,
+    bool allowConflicts,
+  ) onSubmit;
   final bool isSaving;
 
   bool get isEditing => initialValue.id != 'draft';
@@ -42,6 +50,9 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
   late String _hour;
   late String _minute;
   String? _formErrorText;
+  List<String> _conflictMessages = const [];
+  String? _confirmedSnapshot;
+  bool _isSubmitting = false;
 
   static final List<String> _minutes = [
     for (int minute = 0; minute <= 55; minute += 5) '$minute'.padLeft(2, '0'),
@@ -71,6 +82,7 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
   }
 
   bool get requiresAssistant => _selectedProcedureKind?.isCurated ?? false;
+  bool get _isBusy => widget.isSaving || _isSubmitting;
 
   List<String> get _hours {
     final hours = [
@@ -212,6 +224,10 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
   }
 
   void _submit() {
+    unawaited(_submitAsync());
+  }
+
+  Future<void> _submitAsync() async {
     final procedureSession = ProcedureSessionRaw(
       id: widget.initialValue.id,
       dayId: _dayId,
@@ -228,16 +244,61 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
       return;
     }
 
-    Navigator.of(context).pop(procedureSession);
+    final snapshot = _buildSnapshot(procedureSession);
+    final allowConflicts = _confirmedSnapshot == snapshot;
+    setState(() {
+      _isSubmitting = true;
+      _formErrorText = null;
+    });
+
+    final result = await widget.onSubmit(procedureSession, allowConflicts);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = false;
+      if (result.didSave) {
+        _conflictMessages = const [];
+        _confirmedSnapshot = null;
+        return;
+      }
+      if (result.hasConflicts) {
+        _conflictMessages = result.conflictMessages;
+        _confirmedSnapshot = snapshot;
+      } else {
+        _conflictMessages = const [];
+        _confirmedSnapshot = null;
+      }
+      _formErrorText = result.errorMessage;
+    });
+
+    if (result.didSave) {
+      Navigator.of(context).pop();
+    }
   }
 
   void _clearError() {
-    if (_formErrorText == null) {
+    if (_formErrorText == null &&
+        _conflictMessages.isEmpty &&
+        _confirmedSnapshot == null) {
       return;
     }
     setState(() {
       _formErrorText = null;
+      _conflictMessages = const [];
+      _confirmedSnapshot = null;
     });
+  }
+
+  String _buildSnapshot(ProcedureSessionRaw procedureSession) {
+    return [
+      procedureSession.dayId,
+      procedureSession.participantId,
+      procedureSession.startTime,
+      procedureSession.procedureKindId,
+      procedureSession.assistantId ?? '',
+    ].join('|');
   }
 
   @override
@@ -264,8 +325,7 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
                 alignment: Alignment.centerLeft,
                 child: OutlinedButton(
                   key: const Key('procedure_statistics_button'),
-                  onPressed:
-                      widget.isSaving ? null : _openStatisticsPlaceholder,
+                  onPressed: _isBusy ? null : _openStatisticsPlaceholder,
                   child: const Text('Открыть статистику процедур'),
                 ),
               ),
@@ -281,7 +341,7 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
                         value: _procedureKindId,
                         isExpanded: true,
                         items: _buildProcedureKindItems(),
-                        onChanged: widget.isSaving
+                        onChanged: _isBusy
                             ? null
                             : (value) {
                                 if (value == null) {
@@ -317,7 +377,7 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
                         value: _participantId,
                         isExpanded: true,
                         items: _buildParticipantItems(),
-                        onChanged: widget.isSaving
+                        onChanged: _isBusy
                             ? null
                             : (value) {
                                 if (value == null) {
@@ -367,7 +427,7 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
                                     child: Text(hour),
                                   ),
                               ],
-                              onChanged: widget.isSaving
+                              onChanged: _isBusy
                                   ? null
                                   : (value) {
                                       if (value == null) {
@@ -375,6 +435,7 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
                                       }
                                       setState(() {
                                         _hour = value;
+                                        _clearError();
                                       });
                                     },
                             ),
@@ -393,7 +454,7 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
                                     child: Text(minute),
                                   ),
                               ],
-                              onChanged: widget.isSaving
+                              onChanged: _isBusy
                                   ? null
                                   : (value) {
                                       if (value == null) {
@@ -401,6 +462,7 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
                                       }
                                       setState(() {
                                         _minute = value;
+                                        _clearError();
                                       });
                                     },
                             ),
@@ -418,7 +480,7 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
                         value: _dayId,
                         isExpanded: true,
                         items: _buildWorkdayItems(),
-                        onChanged: widget.isSaving
+                        onChanged: _isBusy
                             ? null
                             : (value) {
                                 if (value == null) {
@@ -445,7 +507,7 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
                       ? 'Выберите ассистента'
                       : 'Не требуется'),
                   items: _buildAssistantItems(),
-                  onChanged: !requiresAssistant || widget.isSaving
+                  onChanged: !requiresAssistant || _isBusy
                       ? null
                       : (value) {
                           setState(() {
@@ -471,6 +533,32 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
                 ),
                 child: Text('Время окончания процедуры: $_finishTime'),
               ),
+              if (_conflictMessages.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFD08A26)),
+                    color: const Color(0xFFFFF7E8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Обнаружены конфликты. Повторное сохранение выполнит запись.',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 8),
+                      for (final message in _conflictMessages) ...[
+                        Text(message),
+                        const SizedBox(height: 6),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
               if (_formErrorText != null) ...[
                 const SizedBox(height: 12),
                 Text(
@@ -484,12 +572,12 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: widget.isSaving ? null : () => Navigator.of(context).pop(),
+          onPressed: _isBusy ? null : () => Navigator.of(context).pop(),
           child: const Text('Отмена'),
         ),
         FilledButton(
           key: const Key('procedure_session_save_button'),
-          onPressed: widget.isSaving ? null : _submit,
+          onPressed: _isBusy ? null : _submit,
           child: const Text('Сохранить'),
         ),
       ],
