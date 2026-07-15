@@ -489,6 +489,78 @@ void main() {
         context.procedureSessionsRepository.sessions.single.startTime, '09:00');
   });
 
+  testWidgets(
+    'procedure sessions row becomes selected on mouse down before tap completes',
+    (tester) async {
+      final context = _buildTestContext(
+        participants: [
+          Participant(id: '1', name: 'Иван'),
+        ],
+        assistants: [
+          Assistant(id: '2', name: 'Петр'),
+        ],
+        procedureKinds: [
+          ProcedureKind(
+            id: '1',
+            patternId: ProcedureKindPatterns.curated.patternId,
+            name: 'Бочка',
+            capacity: 6,
+            participantBusyTime: 30,
+            assistantBusyTime: 10,
+            resourceBusyTime: 5,
+          ),
+        ],
+        workdays: [
+          Workday(
+            id: '1',
+            name: 'День А',
+            calendarDate: DateTime(2026, 7, 11),
+          ),
+        ],
+        procedureSessions: [
+          ProcedureSessionRaw(
+            id: '1',
+            dayId: '1',
+            participantId: '1',
+            startTime: '09:00',
+            procedureKindId: '1',
+            assistantId: '2',
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+      await tester.pumpAndSettle();
+
+      final row = find.byKey(const Key('procedure_session_row_1'));
+      final rowContent =
+          find.byKey(const Key('procedure_session_row_content_1'));
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kPrimaryMouseButton,
+      );
+      final center = tester.getCenter(row);
+
+      await gesture.addPointer(location: center);
+      await gesture.moveTo(center);
+      await tester.pump();
+      await gesture.down(center);
+      await tester.pump();
+
+      final container = tester.widget<Container>(rowContent);
+      final decoration = container.decoration as BoxDecoration;
+      expect(decoration.color, const Color(0xFFE7F1FB));
+      expect(
+        find.byKey(const Key('procedure_session_edit_dialog')),
+        findsNothing,
+      );
+
+      await gesture.up();
+      await gesture.removePointer();
+      await tester.pump(const Duration(milliseconds: 50));
+    },
+  );
+
   testWidgets('procedure kinds dialog shows updated table headers', (
     tester,
   ) async {
