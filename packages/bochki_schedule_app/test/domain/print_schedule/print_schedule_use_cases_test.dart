@@ -355,7 +355,8 @@ final class _InMemoryHumansRepository implements HumansRepository {
   }
 }
 
-final class _InMemoryProcedureKindsRepository implements ProcedureKindsRepository {
+final class _InMemoryProcedureKindsRepository
+    implements ProcedureKindsRepository {
   _InMemoryProcedureKindsRepository(this._procedureKinds);
 
   final List<ProcedureKind> _procedureKinds;

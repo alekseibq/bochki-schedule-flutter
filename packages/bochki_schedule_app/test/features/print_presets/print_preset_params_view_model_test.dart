@@ -126,8 +126,7 @@ PrintPresetParamsViewModel _buildViewModel({
             ),
           ]),
         ),
-        listProcedureKindsUseCase:
-            ListProcedureKindsUseCase(
+        listProcedureKindsUseCase: ListProcedureKindsUseCase(
           _ProcedureKindsRepository([
             ProcedureKind(
               id: '1',

@@ -187,7 +187,8 @@ void main() {
     );
   });
 
-  testWidgets('print preset params open generates and opens file', (tester) async {
+  testWidgets('print preset params open generates and opens file',
+      (tester) async {
     final context = _buildTestContext(
       participants: [
         Participant(id: '1', name: 'Иванов Иван'),
