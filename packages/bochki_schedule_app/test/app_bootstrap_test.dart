@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:bochki_schedule_app/bochki_schedule_app.dart';
+import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
@@ -30,6 +31,13 @@ void main() {
         resourceBusyTime: 15,
       ),
     );
+    await services.updatePrintPresetParamsUseCase.execute(
+      const PrintPresetParams(
+        workdayId: '1',
+        textBefore: 'Текст в начале',
+        textAfter: 'Текст в конце',
+      ),
+    );
     await services.flushPending();
 
     final logFile = File(p.join(tempRoot.path, 'logs', 'app.log'));
@@ -40,6 +48,7 @@ void main() {
     expect(services.appDataDirectory.path, tempRoot.path);
     final projectContents = await projectFile.readAsString();
     expect(projectContents, contains('"procedureKinds"'));
+    expect(projectContents, contains('"printPresetParams"'));
   });
 
   test('bootstrap normalizes legacy resourceBusyTime for non-curated kinds',

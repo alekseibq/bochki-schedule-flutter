@@ -4,6 +4,7 @@ import 'package:bochki_schedule_app/bochki_schedule_app.dart';
 import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/widgets.dart';
@@ -23,8 +24,165 @@ void main() {
 
     expect(find.text('ПО Расписание Бочки'), findsOneWidget);
     expect(find.text('Справочники'), findsOneWidget);
+    expect(find.text('Распечатки'), findsOneWidget);
     expect(find.text('Добавить запись...'), findsOneWidget);
     expect(find.text('Список назначенных процедур пуст.'), findsOneWidget);
+  });
+
+  testWidgets('shell opens print preset params dialog from toolbar', (
+    tester,
+  ) async {
+    final context = _buildTestContext(
+      workdays: [
+        Workday(
+          id: '1',
+          name: 'Пятница',
+          calendarDate: DateTime(2026, 7, 17),
+        ),
+      ],
+      printPresetParams: const PrintPresetParams(
+        workdayId: '1',
+        textBefore: 'Начало',
+        textAfter: 'Конец',
+      ),
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const Key('print_preset_params_button')),
+    );
+    await tester.tap(find.byKey(const Key('print_preset_params_button')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('print_preset_params_dialog')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('print_preset_params_dialog')),
+        matching: find.text('Распечатки'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('По фамилиям'), findsOneWidget);
+    expect(find.text('Начало'), findsOneWidget);
+    expect(find.text('Конец'), findsOneWidget);
+  });
+
+  testWidgets('print preset params cancel discards edits', (tester) async {
+    final context = _buildTestContext(
+      workdays: [
+        Workday(
+          id: '1',
+          name: 'Пятница',
+          calendarDate: DateTime(2026, 7, 17),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const Key('print_preset_params_button')),
+    );
+    await tester.tap(find.byKey(const Key('print_preset_params_button')));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('print_preset_text_before_field')),
+      'Черновик',
+    );
+    await tester
+        .tap(find.byKey(const Key('print_preset_params_cancel_button')));
+    await tester.pumpAndSettle();
+
+    expect(
+      context.printPresetParamsRepository.params,
+      PrintPresetParams.defaults,
+    );
+  });
+
+  testWidgets('print preset params save persists edits and closes dialog', (
+    tester,
+  ) async {
+    final context = _buildTestContext(
+      workdays: [
+        Workday(
+          id: '1',
+          name: 'Пятница',
+          calendarDate: DateTime(2026, 7, 17),
+        ),
+        Workday(
+          id: '2',
+          name: 'Суббота',
+          calendarDate: DateTime(2026, 7, 18),
+        ),
+      ],
+      printPresetParams: const PrintPresetParams(
+        workdayId: '1',
+        textBefore: '',
+        textAfter: '',
+      ),
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const Key('print_preset_params_button')),
+    );
+    await tester.tap(find.byKey(const Key('print_preset_params_button')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('print_preset_workday_field')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Суббота (18.07.2026)').last);
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('print_preset_text_before_field')),
+      'Начало дня',
+    );
+    await tester.enterText(
+      find.byKey(const Key('print_preset_text_after_field')),
+      'Конец дня',
+    );
+
+    await tester.tap(find.byKey(const Key('print_preset_params_save_button')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('print_preset_params_dialog')), findsNothing);
+    expect(
+      context.printPresetParamsRepository.params.toJson(),
+      const PrintPresetParams(
+        workdayId: '2',
+        textBefore: 'Начало дня',
+        textAfter: 'Конец дня',
+      ).toJson(),
+    );
+  });
+
+  testWidgets('print preset params actions are disabled without workdays', (
+    tester,
+  ) async {
+    final context = _buildTestContext();
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const Key('print_preset_params_button')),
+    );
+    await tester.tap(find.byKey(const Key('print_preset_params_button')));
+    await tester.pumpAndSettle();
+
+    final openButton = tester.widget<FilledButton>(
+      find.byKey(const Key('print_preset_params_open_button')),
+    );
+    final saveButton = tester.widget<FilledButton>(
+      find.byKey(const Key('print_preset_params_save_button')),
+    );
+
+    expect(openButton.onPressed, isNull);
+    expect(saveButton.onPressed, isNull);
+    expect(find.text('Нет доступных дней'), findsOneWidget);
   });
 
   testWidgets('shell opens participants dialog from menu', (tester) async {
@@ -1246,6 +1404,7 @@ _TestContext _buildTestContext({
   List<Workday>? workdays,
   List<ProcedureSessionRaw>? procedureSessions,
   ProgramSettings? programSettings,
+  PrintPresetParams? printPresetParams,
 }) {
   final participantsRepository = _InMemoryParticipantsRepository(
     participants: participants,
@@ -1268,6 +1427,9 @@ _TestContext _buildTestContext({
   );
   final programSettingsRepository = _InMemoryProgramSettingsRepository(
     settings: programSettings ?? ProgramSettings.defaults,
+  );
+  final printPresetParamsRepository = _InMemoryPrintPresetParamsRepository(
+    params: printPresetParams ?? PrintPresetParams.defaults,
   );
   final listProcedureSessionsUseCase = ListProcedureSessionsUseCase(
     procedureSessionsRepository,
@@ -1309,6 +1471,10 @@ _TestContext _buildTestContext({
       createWorkdayUseCase: CreateWorkdayUseCase(workdaysRepository),
       updateWorkdayUseCase: UpdateWorkdayUseCase(workdaysRepository),
       deleteWorkdayUseCase: DeleteWorkdayUseCase(workdaysRepository),
+      getPrintPresetParamsUseCase:
+          GetPrintPresetParamsUseCase(printPresetParamsRepository),
+      updatePrintPresetParamsUseCase:
+          UpdatePrintPresetParamsUseCase(printPresetParamsRepository),
       getProgramSettingsUseCase:
           GetProgramSettingsUseCase(programSettingsRepository),
       updateProgramSettingsUseCase:
@@ -1345,6 +1511,7 @@ _TestContext _buildTestContext({
     procedureKindsRepository: procedureKindsRepository,
     workdaysRepository: workdaysRepository,
     programSettingsRepository: programSettingsRepository,
+    printPresetParamsRepository: printPresetParamsRepository,
     procedureSessionsRepository: procedureSessionsRepository,
   );
 }
@@ -1359,6 +1526,7 @@ final class _TestContext {
     required this.procedureKindsRepository,
     required this.workdaysRepository,
     required this.programSettingsRepository,
+    required this.printPresetParamsRepository,
     required this.procedureSessionsRepository,
   });
 
@@ -1368,6 +1536,7 @@ final class _TestContext {
   final _InMemoryProcedureKindsRepository procedureKindsRepository;
   final _InMemoryWorkdaysRepository workdaysRepository;
   final _InMemoryProgramSettingsRepository programSettingsRepository;
+  final _InMemoryPrintPresetParamsRepository printPresetParamsRepository;
   final _InMemoryProcedureSessionsRepository procedureSessionsRepository;
 }
 
@@ -1388,6 +1557,26 @@ final class _InMemoryProgramSettingsRepository
   Future<ProgramSettings> update(ProgramSettings settings) async {
     _settings = settings;
     return _settings;
+  }
+}
+
+final class _InMemoryPrintPresetParamsRepository
+    implements PrintPresetParamsRepository {
+  _InMemoryPrintPresetParamsRepository({
+    required PrintPresetParams params,
+  }) : _params = params;
+
+  PrintPresetParams _params;
+
+  PrintPresetParams get params => _params;
+
+  @override
+  Future<PrintPresetParams> get() async => _params;
+
+  @override
+  Future<PrintPresetParams> update(PrintPresetParams params) async {
+    _params = params;
+    return _params;
   }
 }
 

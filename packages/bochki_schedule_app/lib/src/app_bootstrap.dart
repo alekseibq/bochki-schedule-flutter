@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 
 import 'app_services.dart';
 import 'data/humans/project_document_humans_repository.dart';
+import 'data/print_preset_params/project_document_print_preset_params_repository.dart';
 import 'data/participants/project_document_participants_repository.dart';
 import 'data/project_document/project_document_id_allocator.dart';
 import 'data/project_document/project_document_sync_coordinator.dart';
@@ -28,6 +29,8 @@ import 'domain/procedure_kinds/create_procedure_kind_use_case.dart';
 import 'domain/procedure_kinds/delete_procedure_kind_use_case.dart';
 import 'domain/procedure_kinds/list_procedure_kinds_use_case.dart';
 import 'domain/procedure_kinds/update_procedure_kind_use_case.dart';
+import 'domain/print_preset_params/get_print_preset_params_use_case.dart';
+import 'domain/print_preset_params/update_print_preset_params_use_case.dart';
 import 'domain/program_settings/get_program_settings_use_case.dart';
 import 'domain/program_settings/update_program_settings_use_case.dart';
 import 'domain/assistants/create_assistant_use_case.dart';
@@ -83,6 +86,11 @@ final class AppBootstrap {
       idAllocator: idAllocator,
       onChanged: syncCoordinator.markChanged,
     );
+    final printPresetParamsRepository =
+        ProjectDocumentPrintPresetParamsRepository(
+      initialDocument: initialDocument,
+      onChanged: syncCoordinator.markChanged,
+    );
     final programSettingsRepository = ProjectDocumentProgramSettingsRepository(
       initialDocument: initialDocument,
       onChanged: syncCoordinator.markChanged,
@@ -97,6 +105,7 @@ final class AppBootstrap {
     syncCoordinator.registerPart(humansRepository);
     syncCoordinator.registerPart(procedureKindsRepository);
     syncCoordinator.registerPart(workdaysRepository);
+    syncCoordinator.registerPart(printPresetParamsRepository);
     syncCoordinator.registerPart(programSettingsRepository);
     syncCoordinator.registerPart(procedureSessionsRepository);
     final didNormalizeLegacyProcedureKinds =
@@ -159,8 +168,14 @@ final class AppBootstrap {
     final getProgramSettingsUseCase = GetProgramSettingsUseCase(
       programSettingsRepository,
     );
+    final getPrintPresetParamsUseCase = GetPrintPresetParamsUseCase(
+      printPresetParamsRepository,
+    );
     final updateProgramSettingsUseCase = UpdateProgramSettingsUseCase(
       programSettingsRepository,
+    );
+    final updatePrintPresetParamsUseCase = UpdatePrintPresetParamsUseCase(
+      printPresetParamsRepository,
     );
     final listProcedureSessionsUseCase = ListProcedureSessionsUseCase(
       procedureSessionsRepository,
@@ -220,6 +235,8 @@ final class AppBootstrap {
       createWorkdayUseCase: createWorkdayUseCase,
       updateWorkdayUseCase: updateWorkdayUseCase,
       deleteWorkdayUseCase: deleteWorkdayUseCase,
+      getPrintPresetParamsUseCase: getPrintPresetParamsUseCase,
+      updatePrintPresetParamsUseCase: updatePrintPresetParamsUseCase,
       getProgramSettingsUseCase: getProgramSettingsUseCase,
       updateProgramSettingsUseCase: updateProgramSettingsUseCase,
       listProcedureSessionsUseCase: listProcedureSessionsUseCase,

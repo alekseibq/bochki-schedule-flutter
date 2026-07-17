@@ -11,6 +11,7 @@ void main() {
     );
 
     expect(document.programSettings, ProgramSettings.defaults);
+    expect(document.printPresetParams, PrintPresetParams.defaults);
   });
 
   test('throws when stored program settings are incomplete', () {
@@ -37,5 +38,31 @@ void main() {
     final json = const ProjectDocument(programSettings: settings).toJson();
 
     expect(json['programSettings'], settings.toJson());
+  });
+
+  test('throws when stored print preset params are incomplete', () {
+    expect(
+      () => ProjectDocument.fromJson(
+        <String, Object?>{
+          'printPresetParams': <String, Object?>{
+            'workdayId': '1',
+            'textBefore': '',
+          },
+        },
+      ),
+      throwsFormatException,
+    );
+  });
+
+  test('serializes print preset params into project document json', () {
+    const params = PrintPresetParams(
+      workdayId: '2',
+      textBefore: 'Начало',
+      textAfter: 'Конец',
+    );
+
+    final json = const ProjectDocument(printPresetParams: params).toJson();
+
+    expect(json['printPresetParams'], params.toJson());
   });
 }
