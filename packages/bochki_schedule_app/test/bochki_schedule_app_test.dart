@@ -7,7 +7,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/widgets.dart';
 
 void main() {
   test('package exports compile', () {
@@ -101,10 +100,23 @@ void main() {
     );
   });
 
-  testWidgets('print preset params save persists edits and closes dialog', (
+  testWidgets('print preset params save generates file and closes dialog', (
     tester,
   ) async {
     final context = _buildTestContext(
+      participants: [
+        Participant(id: '1', name: 'Иванов Иван'),
+      ],
+      procedureKinds: [
+        ProcedureKind(
+          id: '1',
+          patternId: ProcedureKindPatterns.single.patternId,
+          name: 'Бочка',
+          capacity: 1,
+          participantBusyTime: 30,
+          resourceBusyTime: 30,
+        ),
+      ],
       workdays: [
         Workday(
           id: '1',
@@ -115,6 +127,15 @@ void main() {
           id: '2',
           name: 'Суббота',
           calendarDate: DateTime(2026, 7, 18),
+        ),
+      ],
+      procedureSessions: [
+        ProcedureSessionRaw(
+          id: '1',
+          dayId: '2',
+          participantId: '1',
+          startTime: '10:00',
+          procedureKindId: '1',
         ),
       ],
       printPresetParams: const PrintPresetParams(
@@ -158,6 +179,66 @@ void main() {
         textAfter: 'Конец дня',
       ).toJson(),
     );
+    expect(context.printScheduleExporter.callCount, 1);
+    expect(context.documentOpener.callCount, 0);
+    expect(
+      context.printScheduleExporter.lastDocument?.title,
+      'Дата расписания 18.07.2026',
+    );
+  });
+
+  testWidgets('print preset params open generates and opens file', (tester) async {
+    final context = _buildTestContext(
+      participants: [
+        Participant(id: '1', name: 'Иванов Иван'),
+      ],
+      procedureKinds: [
+        ProcedureKind(
+          id: '1',
+          patternId: ProcedureKindPatterns.single.patternId,
+          name: 'Бочка',
+          capacity: 1,
+          participantBusyTime: 30,
+          resourceBusyTime: 30,
+        ),
+      ],
+      workdays: [
+        Workday(
+          id: '1',
+          name: 'Пятница',
+          calendarDate: DateTime(2026, 7, 17),
+        ),
+      ],
+      procedureSessions: [
+        ProcedureSessionRaw(
+          id: '1',
+          dayId: '1',
+          participantId: '1',
+          startTime: '09:30',
+          procedureKindId: '1',
+        ),
+      ],
+      printPresetParams: const PrintPresetParams(
+        workdayId: '1',
+        textBefore: 'Начало',
+        textAfter: 'Конец',
+      ),
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const Key('print_preset_params_button')),
+    );
+    await tester.tap(find.byKey(const Key('print_preset_params_button')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('print_preset_params_open_button')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('print_preset_params_dialog')), findsNothing);
+    expect(context.printScheduleExporter.callCount, 1);
+    expect(context.documentOpener.callCount, 1);
   });
 
   testWidgets('print preset params actions are disabled without workdays', (
@@ -1442,10 +1523,28 @@ _TestContext _buildTestContext({
         ListProcedureKindsUseCase(procedureKindsRepository),
     listAssistantsUseCase: ListAssistantsUseCase(assistantsRepository),
   );
+  final appDataDirectory = Directory('/tmp/bochki_schedule_test');
+  final printScheduleExporter = _FakePrintScheduleExporter();
+  final documentOpener = _FakeDocumentOpener();
+  final buildPrintScheduleDocumentUseCase = BuildPrintScheduleDocumentUseCase(
+    listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,
+    listWorkdaysUseCase: ListWorkdaysUseCase(workdaysRepository),
+  );
+  final savePrintScheduleFileUseCase = SavePrintScheduleFileUseCase(
+    updatePrintPresetParamsUseCase:
+        UpdatePrintPresetParamsUseCase(printPresetParamsRepository),
+    buildPrintScheduleDocumentUseCase: buildPrintScheduleDocumentUseCase,
+    printScheduleExporter: printScheduleExporter,
+    appDataDirectory: appDataDirectory,
+  );
+  final openPrintScheduleFileUseCase = OpenPrintScheduleFileUseCase(
+    savePrintScheduleFileUseCase: savePrintScheduleFileUseCase,
+    documentOpener: documentOpener,
+  );
 
   return _TestContext(
     services: AppServices(
-      appDataDirectory: Directory('/tmp/bochki_schedule_test'),
+      appDataDirectory: appDataDirectory,
       logger: const _NoopLogger(),
       listHumansUseCase: ListHumansUseCase(humansRepository),
       listParticipantsUseCase: ListParticipantsUseCase(participantsRepository),
@@ -1475,6 +1574,8 @@ _TestContext _buildTestContext({
           GetPrintPresetParamsUseCase(printPresetParamsRepository),
       updatePrintPresetParamsUseCase:
           UpdatePrintPresetParamsUseCase(printPresetParamsRepository),
+      savePrintScheduleFileUseCase: savePrintScheduleFileUseCase,
+      openPrintScheduleFileUseCase: openPrintScheduleFileUseCase,
       getProgramSettingsUseCase:
           GetProgramSettingsUseCase(programSettingsRepository),
       updateProgramSettingsUseCase:
@@ -1513,6 +1614,8 @@ _TestContext _buildTestContext({
     programSettingsRepository: programSettingsRepository,
     printPresetParamsRepository: printPresetParamsRepository,
     procedureSessionsRepository: procedureSessionsRepository,
+    printScheduleExporter: printScheduleExporter,
+    documentOpener: documentOpener,
   );
 }
 
@@ -1528,6 +1631,8 @@ final class _TestContext {
     required this.programSettingsRepository,
     required this.printPresetParamsRepository,
     required this.procedureSessionsRepository,
+    required this.printScheduleExporter,
+    required this.documentOpener,
   });
 
   final AppServices services;
@@ -1538,6 +1643,8 @@ final class _TestContext {
   final _InMemoryProgramSettingsRepository programSettingsRepository;
   final _InMemoryPrintPresetParamsRepository printPresetParamsRepository;
   final _InMemoryProcedureSessionsRepository procedureSessionsRepository;
+  final _FakePrintScheduleExporter printScheduleExporter;
+  final _FakeDocumentOpener documentOpener;
 }
 
 final class _InMemoryProgramSettingsRepository
@@ -1592,6 +1699,34 @@ final class _NoopLogger implements AppLogger {
 
   @override
   Future<void> info(String message) async {}
+}
+
+final class _FakePrintScheduleExporter implements PrintScheduleExporter {
+  int callCount = 0;
+  PrintScheduleDocument? lastDocument;
+  Directory? lastOutputDirectory;
+
+  @override
+  Future<File> export({
+    required PrintScheduleDocument document,
+    required Directory outputDirectory,
+  }) async {
+    callCount += 1;
+    lastDocument = document;
+    lastOutputDirectory = outputDirectory;
+    return File('${outputDirectory.path}/test.docx');
+  }
+}
+
+final class _FakeDocumentOpener implements DocumentOpener {
+  int callCount = 0;
+  File? lastFile;
+
+  @override
+  Future<void> open(File file) async {
+    callCount += 1;
+    lastFile = file;
+  }
 }
 
 final class _InMemoryHumansRepository implements HumansRepository {

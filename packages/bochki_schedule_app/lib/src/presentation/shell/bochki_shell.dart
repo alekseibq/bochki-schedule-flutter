@@ -270,6 +270,8 @@ class _BochkiShellState extends State<BochkiShell> {
       getPrintPresetParamsUseCase: widget.services.getPrintPresetParamsUseCase,
       updatePrintPresetParamsUseCase:
           widget.services.updatePrintPresetParamsUseCase,
+      savePrintScheduleFileUseCase: widget.services.savePrintScheduleFileUseCase,
+      openPrintScheduleFileUseCase: widget.services.openPrintScheduleFileUseCase,
       listWorkdaysUseCase: widget.services.listWorkdaysUseCase,
     );
 
