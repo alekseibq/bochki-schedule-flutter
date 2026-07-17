@@ -19,6 +19,8 @@ import 'domain/procedure_kinds/list_procedure_kinds_use_case.dart';
 import 'domain/procedure_kinds/update_procedure_kind_use_case.dart';
 import 'domain/print_preset_params/get_print_preset_params_use_case.dart';
 import 'domain/print_preset_params/update_print_preset_params_use_case.dart';
+import 'domain/print_schedule/open_print_schedule_file_use_case.dart';
+import 'domain/print_schedule/save_print_schedule_file_use_case.dart';
 import 'domain/program_settings/get_program_settings_use_case.dart';
 import 'domain/program_settings/update_program_settings_use_case.dart';
 import 'domain/assistants/create_assistant_use_case.dart';
@@ -53,6 +55,8 @@ final class AppServices {
     required this.deleteWorkdayUseCase,
     required this.getPrintPresetParamsUseCase,
     required this.updatePrintPresetParamsUseCase,
+    required this.savePrintScheduleFileUseCase,
+    required this.openPrintScheduleFileUseCase,
     required this.getProgramSettingsUseCase,
     required this.updateProgramSettingsUseCase,
     required this.listProcedureSessionsUseCase,
@@ -86,6 +90,8 @@ final class AppServices {
   final DeleteWorkdayUseCase deleteWorkdayUseCase;
   final GetPrintPresetParamsUseCase getPrintPresetParamsUseCase;
   final UpdatePrintPresetParamsUseCase updatePrintPresetParamsUseCase;
+  final SavePrintScheduleFileUseCase savePrintScheduleFileUseCase;
+  final OpenPrintScheduleFileUseCase openPrintScheduleFileUseCase;
   final GetProgramSettingsUseCase getProgramSettingsUseCase;
   final UpdateProgramSettingsUseCase updateProgramSettingsUseCase;
   final ListProcedureSessionsUseCase listProcedureSessionsUseCase;

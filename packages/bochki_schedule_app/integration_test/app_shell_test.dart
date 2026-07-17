@@ -34,6 +34,17 @@ void main() {
           ListProcedureKindsUseCase(procedureKindsRepository),
       listAssistantsUseCase: ListAssistantsUseCase(assistantsRepository),
     );
+    final buildPrintScheduleDocumentUseCase = BuildPrintScheduleDocumentUseCase(
+      listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,
+      listWorkdaysUseCase: ListWorkdaysUseCase(workdaysRepository),
+    );
+    final savePrintScheduleFileUseCase = SavePrintScheduleFileUseCase(
+      updatePrintPresetParamsUseCase:
+          UpdatePrintPresetParamsUseCase(printPresetParamsRepository),
+      buildPrintScheduleDocumentUseCase: buildPrintScheduleDocumentUseCase,
+      printScheduleExporter: _FakePrintScheduleExporter(),
+      appDataDirectory: Directory('/tmp/bochki_schedule_test'),
+    );
     final services = AppServices(
       appDataDirectory: Directory('/tmp/bochki_schedule_test'),
       logger: const _NoopLogger(),
@@ -65,6 +76,11 @@ void main() {
           GetPrintPresetParamsUseCase(printPresetParamsRepository),
       updatePrintPresetParamsUseCase:
           UpdatePrintPresetParamsUseCase(printPresetParamsRepository),
+      savePrintScheduleFileUseCase: savePrintScheduleFileUseCase,
+      openPrintScheduleFileUseCase: OpenPrintScheduleFileUseCase(
+        savePrintScheduleFileUseCase: savePrintScheduleFileUseCase,
+        documentOpener: _FakeDocumentOpener(),
+      ),
       getProgramSettingsUseCase:
           GetProgramSettingsUseCase(programSettingsRepository),
       updateProgramSettingsUseCase:
@@ -158,6 +174,21 @@ final class _NoopLogger implements AppLogger {
 
   @override
   Future<void> info(String message) async {}
+}
+
+final class _FakePrintScheduleExporter implements PrintScheduleExporter {
+  @override
+  Future<File> export({
+    required PrintScheduleDocument document,
+    required Directory outputDirectory,
+  }) async {
+    return File('${outputDirectory.path}/test.docx');
+  }
+}
+
+final class _FakeDocumentOpener implements DocumentOpener {
+  @override
+  Future<void> open(File file) async {}
 }
 
 final class _InMemoryParticipantsRepository implements ParticipantsRepository {

@@ -7,6 +7,7 @@ environment:
   sdk: ^3.5.0
 
 dependencies:
+  archive: ^4.0.7
   bochki_schedule_domain:
     path: ../bochki_schedule_domain
   bochki_schedule_infra:

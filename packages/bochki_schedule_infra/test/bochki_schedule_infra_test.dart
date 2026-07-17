@@ -96,6 +96,20 @@ void main() {
     expect(tempFiles, isEmpty);
   });
 
+  test('atomic file writer replaces existing binary file contents', () async {
+    final tempDirectory =
+        await Directory.systemTemp.createTemp('bochki_writer_bytes_test');
+    addTearDown(() => tempDirectory.delete(recursive: true));
+
+    final destination = File('${tempDirectory.path}/document.docx');
+    final writer = AtomicFileWriter();
+
+    await writer.writeBytes(destination, const [1, 2, 3]);
+    await writer.writeBytes(destination, const [4, 5]);
+
+    expect(await destination.readAsBytes(), const [4, 5]);
+  });
+
   test('json project document repository reads and writes document', () async {
     final tempDirectory =
         await Directory.systemTemp.createTemp('bochki_store_test');

@@ -6,6 +6,8 @@ import 'package:path/path.dart' as p;
 import 'app_services.dart';
 import 'data/humans/project_document_humans_repository.dart';
 import 'data/print_preset_params/project_document_print_preset_params_repository.dart';
+import 'data/print_schedule/docx_print_schedule_exporter.dart';
+import 'data/print_schedule/process_document_opener.dart';
 import 'data/participants/project_document_participants_repository.dart';
 import 'data/project_document/project_document_id_allocator.dart';
 import 'data/project_document/project_document_sync_coordinator.dart';
@@ -31,6 +33,9 @@ import 'domain/procedure_kinds/list_procedure_kinds_use_case.dart';
 import 'domain/procedure_kinds/update_procedure_kind_use_case.dart';
 import 'domain/print_preset_params/get_print_preset_params_use_case.dart';
 import 'domain/print_preset_params/update_print_preset_params_use_case.dart';
+import 'domain/print_schedule/build_print_schedule_document_use_case.dart';
+import 'domain/print_schedule/open_print_schedule_file_use_case.dart';
+import 'domain/print_schedule/save_print_schedule_file_use_case.dart';
 import 'domain/program_settings/get_program_settings_use_case.dart';
 import 'domain/program_settings/update_program_settings_use_case.dart';
 import 'domain/assistants/create_assistant_use_case.dart';
@@ -187,6 +192,23 @@ final class AppBootstrap {
       listProcedureKindsUseCase: listProcedureKindsUseCase,
       listAssistantsUseCase: listAssistantsUseCase,
     );
+    final buildPrintScheduleDocumentUseCase = BuildPrintScheduleDocumentUseCase(
+      listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,
+      listWorkdaysUseCase: listWorkdaysUseCase,
+    );
+    final printScheduleExporter = DocxPrintScheduleExporter(
+      safeFileWriter: const AtomicFileWriter(),
+    );
+    final savePrintScheduleFileUseCase = SavePrintScheduleFileUseCase(
+      updatePrintPresetParamsUseCase: updatePrintPresetParamsUseCase,
+      buildPrintScheduleDocumentUseCase: buildPrintScheduleDocumentUseCase,
+      printScheduleExporter: printScheduleExporter,
+      appDataDirectory: resolvedAppDataDirectory,
+    );
+    final openPrintScheduleFileUseCase = OpenPrintScheduleFileUseCase(
+      savePrintScheduleFileUseCase: savePrintScheduleFileUseCase,
+      documentOpener: const ProcessDocumentOpener(),
+    );
     final listProcedureSessionsWithConflictsUseCase =
         ListProcedureSessionsWithConflictsUseCase(
       listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,
@@ -237,6 +259,8 @@ final class AppBootstrap {
       deleteWorkdayUseCase: deleteWorkdayUseCase,
       getPrintPresetParamsUseCase: getPrintPresetParamsUseCase,
       updatePrintPresetParamsUseCase: updatePrintPresetParamsUseCase,
+      savePrintScheduleFileUseCase: savePrintScheduleFileUseCase,
+      openPrintScheduleFileUseCase: openPrintScheduleFileUseCase,
       getProgramSettingsUseCase: getProgramSettingsUseCase,
       updateProgramSettingsUseCase: updateProgramSettingsUseCase,
       listProcedureSessionsUseCase: listProcedureSessionsUseCase,

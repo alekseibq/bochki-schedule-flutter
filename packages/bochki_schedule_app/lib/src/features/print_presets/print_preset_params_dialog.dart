@@ -1,17 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../domain/print_schedule/print_schedule_group_by.dart';
 import '../../domain/workdays/workday.dart';
 import '../workdays/workday_date_format.dart';
 import 'print_preset_params_view_model.dart';
-
-enum PrintGroupBy {
-  byNames('По фамилиям'),
-  byDates('По времени');
-
-  const PrintGroupBy(this.label);
-
-  final String label;
-}
 
 class PrintPresetParamsDialog extends StatefulWidget {
   const PrintPresetParamsDialog({
@@ -34,14 +26,14 @@ class _PrintPresetParamsDialogState extends State<PrintPresetParamsDialog> {
 
   late final TextEditingController _textBeforeController;
   late final TextEditingController _textAfterController;
-  late PrintGroupBy _groupBy;
+  late PrintScheduleGroupBy _groupBy;
   String? _selectedWorkdayId;
 
   @override
   void initState() {
     super.initState();
     widget.viewModel.addListener(_handleViewModelChange);
-    _groupBy = PrintGroupBy.byNames;
+    _groupBy = PrintScheduleGroupBy.byNames;
     _textBeforeController = TextEditingController();
     _textAfterController = TextEditingController();
     _applyLoadedValues();
@@ -93,16 +85,36 @@ class _PrintPresetParamsDialogState extends State<PrintPresetParamsDialog> {
     _textAfterController.text = params.textAfter;
   }
 
-  Future<void> _saveAndClose() async {
+  Future<void> _saveFileAndClose() async {
     final selectedWorkdayId = _selectedWorkdayId;
     if (selectedWorkdayId == null) {
       return;
     }
 
-    final isSuccess = await widget.viewModel.save(
+    final isSuccess = await widget.viewModel.saveFile(
       workdayId: selectedWorkdayId,
       textBefore: _textBeforeController.text,
       textAfter: _textAfterController.text,
+      groupBy: _groupBy,
+    );
+    if (!mounted || !isSuccess) {
+      return;
+    }
+
+    Navigator.of(context).pop();
+  }
+
+  Future<void> _openFileAndClose() async {
+    final selectedWorkdayId = _selectedWorkdayId;
+    if (selectedWorkdayId == null) {
+      return;
+    }
+
+    final isSuccess = await widget.viewModel.openFile(
+      workdayId: selectedWorkdayId,
+      textBefore: _textBeforeController.text,
+      textAfter: _textAfterController.text,
+      groupBy: _groupBy,
     );
     if (!mounted || !isSuccess) {
       return;
@@ -135,12 +147,12 @@ class _PrintPresetParamsDialogState extends State<PrintPresetParamsDialog> {
             ),
             FilledButton.tonal(
               key: const Key('print_preset_params_open_button'),
-              onPressed: isActionEnabled ? _saveAndClose : null,
+              onPressed: isActionEnabled ? _openFileAndClose : null,
               child: const Text('Открыть файл'),
             ),
             FilledButton(
               key: const Key('print_preset_params_save_button'),
-              onPressed: isActionEnabled ? _saveAndClose : null,
+              onPressed: isActionEnabled ? _saveFileAndClose : null,
               child: const Text('Сохранить файл'),
             ),
           ],
@@ -186,13 +198,13 @@ class _PrintPresetParamsDialogState extends State<PrintPresetParamsDialog> {
             labelWidth: _labelColumnWidth,
             child: SizedBox(
               width: _selectFieldWidth,
-              child: DropdownButtonFormField<PrintGroupBy>(
+              child: DropdownButtonFormField<PrintScheduleGroupBy>(
                 key: const Key('print_preset_group_by_field'),
                 value: _groupBy,
                 isExpanded: true,
                 items: [
-                  for (final option in PrintGroupBy.values)
-                    DropdownMenuItem<PrintGroupBy>(
+                  for (final option in PrintScheduleGroupBy.values)
+                    DropdownMenuItem<PrintScheduleGroupBy>(
                       value: option,
                       child: Text(option.label),
                     ),

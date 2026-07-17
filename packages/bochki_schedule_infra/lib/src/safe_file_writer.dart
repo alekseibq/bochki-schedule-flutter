@@ -4,6 +4,8 @@ import 'package:path/path.dart' as p;
 
 abstract interface class SafeFileWriter {
   Future<void> writeString(File destination, String contents);
+
+  Future<void> writeBytes(File destination, List<int> contents);
 }
 
 final class AtomicFileWriter implements SafeFileWriter {
@@ -11,6 +13,24 @@ final class AtomicFileWriter implements SafeFileWriter {
 
   @override
   Future<void> writeString(File destination, String contents) async {
+    await _write(
+      destination,
+      (tempFile) => tempFile.writeAsString(contents, flush: true),
+    );
+  }
+
+  @override
+  Future<void> writeBytes(File destination, List<int> contents) async {
+    await _write(
+      destination,
+      (tempFile) => tempFile.writeAsBytes(contents, flush: true),
+    );
+  }
+
+  Future<void> _write(
+    File destination,
+    Future<void> Function(File tempFile) writeContents,
+  ) async {
     await destination.parent.create(recursive: true);
     final tempFile = File(
       p.join(
@@ -20,7 +40,7 @@ final class AtomicFileWriter implements SafeFileWriter {
     );
 
     try {
-      await tempFile.writeAsString(contents, flush: true);
+      await writeContents(tempFile);
       if (await destination.exists()) {
         await destination.delete();
       }
