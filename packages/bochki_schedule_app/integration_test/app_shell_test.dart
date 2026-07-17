@@ -22,6 +22,7 @@ void main() {
     );
     final procedureSessionsRepository = _InMemoryProcedureSessionsRepository();
     final programSettingsRepository = _InMemoryProgramSettingsRepository();
+    final printPresetParamsRepository = _InMemoryPrintPresetParamsRepository();
     final listProcedureSessionsUseCase = ListProcedureSessionsUseCase(
       procedureSessionsRepository,
     );
@@ -60,6 +61,10 @@ void main() {
       createWorkdayUseCase: CreateWorkdayUseCase(workdaysRepository),
       updateWorkdayUseCase: UpdateWorkdayUseCase(workdaysRepository),
       deleteWorkdayUseCase: DeleteWorkdayUseCase(workdaysRepository),
+      getPrintPresetParamsUseCase:
+          GetPrintPresetParamsUseCase(printPresetParamsRepository),
+      updatePrintPresetParamsUseCase:
+          UpdatePrintPresetParamsUseCase(printPresetParamsRepository),
       getProgramSettingsUseCase:
           GetProgramSettingsUseCase(programSettingsRepository),
       updateProgramSettingsUseCase:
@@ -287,6 +292,20 @@ final class _InMemoryProgramSettingsRepository
   Future<ProgramSettings> update(ProgramSettings settings) async {
     _settings = settings;
     return _settings;
+  }
+}
+
+final class _InMemoryPrintPresetParamsRepository
+    implements PrintPresetParamsRepository {
+  PrintPresetParams _params = PrintPresetParams.defaults;
+
+  @override
+  Future<PrintPresetParams> get() async => _params;
+
+  @override
+  Future<PrintPresetParams> update(PrintPresetParams params) async {
+    _params = params;
+    return _params;
   }
 }
 

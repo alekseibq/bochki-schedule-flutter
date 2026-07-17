@@ -1,4 +1,5 @@
 import 'schema_version.dart';
+import 'print_preset_params.dart';
 import 'program_settings.dart';
 
 final class ProjectDocument {
@@ -10,6 +11,7 @@ final class ProjectDocument {
     this.workdays = const [],
     this.procedureSessions = const [],
     this.programSettings = ProgramSettings.defaults,
+    this.printPresetParams = PrintPresetParams.defaults,
   })  : assert(schemaVersion > 0, 'schemaVersion must be positive'),
         assert(nextId > 0, 'nextId must be positive');
 
@@ -20,6 +22,7 @@ final class ProjectDocument {
   final List<Map<String, Object?>> workdays;
   final List<Map<String, Object?>> procedureSessions;
   final ProgramSettings programSettings;
+  final PrintPresetParams printPresetParams;
 
   factory ProjectDocument.initial() {
     return const ProjectDocument();
@@ -45,6 +48,9 @@ final class ProjectDocument {
       programSettings: json.containsKey('programSettings')
           ? ProgramSettings.fromJson(json['programSettings'])
           : ProgramSettings.defaults,
+      printPresetParams: json.containsKey('printPresetParams')
+          ? PrintPresetParams.fromJson(json['printPresetParams'])
+          : PrintPresetParams.defaults,
     );
   }
 
@@ -57,6 +63,7 @@ final class ProjectDocument {
       'workdays': workdays,
       'procedureSessions': procedureSessions,
       'programSettings': programSettings.toJson(),
+      'printPresetParams': printPresetParams.toJson(),
     };
   }
 
@@ -68,6 +75,7 @@ final class ProjectDocument {
     List<Map<String, Object?>>? workdays,
     List<Map<String, Object?>>? procedureSessions,
     ProgramSettings? programSettings,
+    PrintPresetParams? printPresetParams,
   }) {
     return ProjectDocument(
       schemaVersion: schemaVersion ?? this.schemaVersion,
@@ -77,6 +85,7 @@ final class ProjectDocument {
       workdays: workdays ?? this.workdays,
       procedureSessions: procedureSessions ?? this.procedureSessions,
       programSettings: programSettings ?? this.programSettings,
+      printPresetParams: printPresetParams ?? this.printPresetParams,
     );
   }
 

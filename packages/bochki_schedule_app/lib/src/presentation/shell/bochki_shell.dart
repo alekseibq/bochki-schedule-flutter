@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import '../../app_services.dart';
 import '../../features/participants/participants_dialog.dart';
 import '../../features/participants/participants_view_model.dart';
+import '../../features/print_presets/print_preset_params_dialog.dart';
+import '../../features/print_presets/print_preset_params_view_model.dart';
 import '../../features/procedure_sessions/procedure_session_dialog.dart';
 import '../../features/procedure_sessions/procedure_sessions_view_model.dart';
 import '../../features/procedure_kinds/procedure_kinds_dialog.dart';
@@ -47,6 +49,7 @@ class _BochkiShellState extends State<BochkiShell> {
   bool _participantsDialogOpen = false;
   bool _assistantsDialogOpen = false;
   bool _programSettingsDialogOpen = false;
+  bool _printPresetParamsDialogOpen = false;
   late final ProcedureSessionsViewModel _procedureSessionsViewModel;
 
   @override
@@ -254,6 +257,44 @@ class _BochkiShellState extends State<BochkiShell> {
     }
   }
 
+  Future<void> _openPrintPresetParamsDialog() async {
+    if (_printPresetParamsDialogOpen) {
+      return;
+    }
+
+    setState(() {
+      _printPresetParamsDialogOpen = true;
+    });
+
+    final viewModel = PrintPresetParamsViewModel(
+      getPrintPresetParamsUseCase: widget.services.getPrintPresetParamsUseCase,
+      updatePrintPresetParamsUseCase:
+          widget.services.updatePrintPresetParamsUseCase,
+      listWorkdaysUseCase: widget.services.listWorkdaysUseCase,
+    );
+
+    try {
+      await viewModel.load();
+      if (!mounted) {
+        return;
+      }
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return PrintPresetParamsDialog(viewModel: viewModel);
+        },
+      );
+    } finally {
+      viewModel.dispose();
+      if (mounted) {
+        setState(() {
+          _printPresetParamsDialogOpen = false;
+        });
+      }
+    }
+  }
+
   void _selectDirectorySection(DirectorySection section) {
     switch (section) {
       case DirectorySection.procedureKinds:
@@ -424,6 +465,12 @@ class _BochkiShellState extends State<BochkiShell> {
                         ],
                       ),
                     ),
+                  ),
+                  const SizedBox(width: 12),
+                  FilledButton.tonal(
+                    key: const Key('print_preset_params_button'),
+                    onPressed: _openPrintPresetParamsDialog,
+                    child: const Text('Распечатки'),
                   ),
                 ],
               ),
