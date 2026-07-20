@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.7.1
+
+Release date: 2026-07-20
+
+### Highlights
+
+- Fixed macOS startup in the sandboxed application environment.
+- Added a user-facing startup error screen for recoverable initialization failures.
+
+### Details
+
+- `fix(app): support sandboxed macOS startup`
+
 ## v0.7.0
 
 Release date: 2026-07-20
