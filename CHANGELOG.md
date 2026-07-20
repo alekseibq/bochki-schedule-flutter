@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.7.0
+
+Release date: 2026-07-20
+
+### Highlights
+
+- Added print preset configuration for schedule exports.
+- Added DOCX export for print schedules.
+- Added desktop flows for saving and opening exported schedule documents.
+
+### Details
+
+- `feat(app): add print preset dialog`
+- `feat(app): export print schedules to docx (#66)`
+
 ## v0.6.0
 
 Release date: 2026-07-15
