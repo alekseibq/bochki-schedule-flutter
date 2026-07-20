@@ -563,104 +563,183 @@ class _ProcedureSessionFilters extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final dayOptions = [
+      'Все',
+      for (final workday in viewModel.workdays) workday.name,
+    ];
+    final partOfDayOptions = [
+      for (final filter in ProcedureSessionsPartOfDayFilter.values)
+        filter.label,
+    ];
+    final procedureOptions = [
+      'Все',
+      for (final procedureKind in viewModel.procedureKinds) procedureKind.name,
+    ];
+    final participantOptions = [
+      'Все',
+      for (final participant in viewModel.participants) participant.name,
+    ];
+
+    return SingleChildScrollView(
+      key: const Key('procedure_sessions_filters_scroll_view'),
+      scrollDirection: Axis.horizontal,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 900),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _FilterField(
+                  label: 'День',
+                  width: _dropdownWidth(context, dayOptions),
+                  child: DropdownButtonFormField<String?>(
+                    key: const Key('procedure_sessions_day_filter'),
+                    value: viewModel.selectedDayId,
+                    decoration: const InputDecoration(isDense: true),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('Все'),
+                      ),
+                      for (final workday in viewModel.workdays)
+                        DropdownMenuItem<String?>(
+                          value: workday.id,
+                          child: Text(workday.name),
+                        ),
+                    ],
+                    onChanged: (value) => viewModel.setDayFilter(value),
+                  ),
+                ),
+                const SizedBox(width: 24),
+                _FilterField(
+                  label: 'Часть дня',
+                  width: _dropdownWidth(context, partOfDayOptions),
+                  child:
+                      DropdownButtonFormField<ProcedureSessionsPartOfDayFilter>(
+                    key: const Key('procedure_sessions_part_of_day_filter'),
+                    value: viewModel.partOfDayFilter,
+                    decoration: const InputDecoration(isDense: true),
+                    items: [
+                      for (final filter
+                          in ProcedureSessionsPartOfDayFilter.values)
+                        DropdownMenuItem<ProcedureSessionsPartOfDayFilter>(
+                          value: filter,
+                          child: Text(filter.label),
+                        ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        viewModel.setPartOfDayFilter(value);
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 24),
+                _FilterField(
+                  label: 'Процедура',
+                  width: _dropdownWidth(context, procedureOptions),
+                  child: DropdownButtonFormField<String?>(
+                    key: const Key('procedure_sessions_procedure_filter'),
+                    value: viewModel.selectedProcedureKindId,
+                    decoration: const InputDecoration(isDense: true),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('Все'),
+                      ),
+                      for (final procedureKind in viewModel.procedureKinds)
+                        DropdownMenuItem<String?>(
+                          value: procedureKind.id,
+                          child: Text(procedureKind.name),
+                        ),
+                    ],
+                    onChanged: (value) =>
+                        viewModel.setProcedureKindFilter(value),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _FilterField(
+                  label: 'Участник',
+                  width: _dropdownWidth(context, participantOptions),
+                  child: DropdownButtonFormField<String?>(
+                    key: const Key('procedure_sessions_participant_filter'),
+                    value: viewModel.selectedParticipantId,
+                    decoration: const InputDecoration(isDense: true),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('Все'),
+                      ),
+                      for (final participant in viewModel.participants)
+                        DropdownMenuItem<String?>(
+                          value: participant.id,
+                          child: Text(participant.name),
+                        ),
+                    ],
+                    onChanged: (value) => viewModel.setParticipantFilter(value),
+                  ),
+                ),
+                const SizedBox(width: 24),
+                Checkbox(
+                  key: const Key('procedure_sessions_conflicts_checkbox'),
+                  value: viewModel.showConflictsOnly,
+                  onChanged: (value) =>
+                      viewModel.setShowConflictsOnly(value ?? false),
+                ),
+                const Text('Показать только конфликты'),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  double _dropdownWidth(BuildContext context, List<String> options) {
+    final textStyle = Theme.of(context).textTheme.bodyLarge ??
+        DefaultTextStyle.of(context).style;
+    final textPainter = TextPainter(
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+    );
+    final longestOptionWidth = options.fold(0.0, (maxWidth, option) {
+      textPainter.text = TextSpan(text: option, style: textStyle);
+      textPainter.layout();
+      return maxWidth > textPainter.width ? maxWidth : textPainter.width;
+    });
+    textPainter.dispose();
+
+    return longestOptionWidth + 64;
+  }
+}
+
+class _FilterField extends StatelessWidget {
+  const _FilterField({
+    required this.label,
+    required this.width,
+    required this.child,
+  });
+
+  final String label;
+  final double width;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: DropdownButtonFormField<String?>(
-                key: const Key('procedure_sessions_day_filter'),
-                value: viewModel.selectedDayId,
-                decoration: const InputDecoration(labelText: 'День'),
-                items: [
-                  const DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text('Все'),
-                  ),
-                  for (final workday in viewModel.workdays)
-                    DropdownMenuItem<String?>(
-                      value: workday.id,
-                      child: Text(workday.name),
-                    ),
-                ],
-                onChanged: (value) => viewModel.setDayFilter(value),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: DropdownButtonFormField<ProcedureSessionsPartOfDayFilter>(
-                key: const Key('procedure_sessions_part_of_day_filter'),
-                value: viewModel.partOfDayFilter,
-                decoration: const InputDecoration(labelText: 'Часть дня'),
-                items: [
-                  for (final filter in ProcedureSessionsPartOfDayFilter.values)
-                    DropdownMenuItem<ProcedureSessionsPartOfDayFilter>(
-                      value: filter,
-                      child: Text(filter.label),
-                    ),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    viewModel.setPartOfDayFilter(value);
-                  }
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: DropdownButtonFormField<String?>(
-                key: const Key('procedure_sessions_procedure_filter'),
-                value: viewModel.selectedProcedureKindId,
-                decoration: const InputDecoration(labelText: 'Процедура'),
-                items: [
-                  const DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text('Все'),
-                  ),
-                  for (final procedureKind in viewModel.procedureKinds)
-                    DropdownMenuItem<String?>(
-                      value: procedureKind.id,
-                      child: Text(procedureKind.name),
-                    ),
-                ],
-                onChanged: (value) => viewModel.setProcedureKindFilter(value),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
-        Row(
-          children: [
-            Expanded(
-              child: DropdownButtonFormField<String?>(
-                key: const Key('procedure_sessions_participant_filter'),
-                value: viewModel.selectedParticipantId,
-                decoration: const InputDecoration(labelText: 'Участник'),
-                items: [
-                  const DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text('Все'),
-                  ),
-                  for (final participant in viewModel.participants)
-                    DropdownMenuItem<String?>(
-                      value: participant.id,
-                      child: Text(participant.name),
-                    ),
-                ],
-                onChanged: (value) => viewModel.setParticipantFilter(value),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Checkbox(
-              key: const Key('procedure_sessions_conflicts_checkbox'),
-              value: viewModel.showConflictsOnly,
-              onChanged: (value) =>
-                  viewModel.setShowConflictsOnly(value ?? false),
-            ),
-            const Text('Показать только конфликты'),
-          ],
-        ),
+        Text(label),
+        const SizedBox(width: 10),
+        SizedBox(width: width, child: child),
       ],
     );
   }
