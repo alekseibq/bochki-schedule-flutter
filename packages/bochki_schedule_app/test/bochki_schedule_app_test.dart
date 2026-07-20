@@ -28,6 +28,64 @@ void main() {
     expect(find.text('Список назначенных процедур пуст.'), findsOneWidget);
   });
 
+  testWidgets('procedure session filters use a two-row scrollable form', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(600, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final context = _buildTestContext(
+      participants: [
+        Participant(id: '1', name: 'Александра Константинопольская'),
+      ],
+      procedureKinds: [
+        ProcedureKind(
+          id: '1',
+          patternId: ProcedureKindPatterns.curated.patternId,
+          name: 'Очень длинное название процедуры',
+          capacity: 6,
+          participantBusyTime: 30,
+          assistantBusyTime: 10,
+          resourceBusyTime: 5,
+        ),
+      ],
+      workdays: [
+        Workday(
+          id: '1',
+          name: 'Самый длинный рабочий день',
+          calendarDate: DateTime(2026, 7, 11),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+
+    final dayField = find.byKey(const Key('procedure_sessions_day_filter'));
+    final partOfDayField = find.byKey(
+      const Key('procedure_sessions_part_of_day_filter'),
+    );
+    final procedureField = find.byKey(
+      const Key('procedure_sessions_procedure_filter'),
+    );
+    final participantField = find.byKey(
+      const Key('procedure_sessions_participant_filter'),
+    );
+
+    expect(find.byKey(const Key('procedure_sessions_filters_scroll_view')),
+        findsOneWidget);
+    expect(find.text('День'), findsOneWidget);
+    expect(find.text('Часть дня'), findsOneWidget);
+    expect(find.text('Процедура'), findsOneWidget);
+    expect(find.text('Участник'), findsOneWidget);
+    expect(tester.getCenter(dayField).dy,
+        lessThan(tester.getCenter(participantField).dy));
+    expect(tester.getCenter(dayField).dy, tester.getCenter(partOfDayField).dy);
+    expect(tester.getCenter(dayField).dy, tester.getCenter(procedureField).dy);
+    expect(tester.getSize(procedureField).width,
+        greaterThan(tester.getSize(partOfDayField).width));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('shell opens print preset params dialog from toolbar', (
     tester,
   ) async {
