@@ -111,7 +111,9 @@ fvm flutter run -d windows
 make windows-release
 ```
 
-По умолчанию desktop-сборка хранит `project.json` и `logs/app.log` рядом с файлом запуска.
+По умолчанию Windows-сборка хранит `project.json` и `logs/app.log` рядом с файлом запуска.
+macOS-сборка хранит их в Application Support приложения (в sandbox-контейнере:
+`~/Library/Containers/com.alekseibq.bochkiScheduleApp/Data/Library/Application Support/bochki_schedule_app/`).
 Если нужен явный путь для CI или локального smoke-run, передайте `--app-data-dir=<path>`.
 
 ## Команды workspace

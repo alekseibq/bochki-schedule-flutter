@@ -45,7 +45,8 @@ For local Linux desktop integration runs, install:
 
 ## Desktop Launch Path
 
-When the desktop app is launched without arguments, it stores `project.json` in the same folder as the launched binary or macOS bundle location.
+When the app is launched without arguments, Windows stores `project.json` next to the launched binary.
+On macOS, it stores `project.json` in the app's Application Support directory inside the sandbox container.
 For CI or local smoke runs, pass `--app-data-dir=<path>` so the app writes into an explicit temporary directory.
 
 ## macOS Release Artifacts
