@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import 'app_services.dart';
 import 'data/humans/project_document_humans_repository.dart';
@@ -51,8 +52,8 @@ final class AppBootstrap {
   static Future<AppServices> initialize({
     Directory? appDataDirectory,
   }) async {
-    final resolvedAppDataDirectory = appDataDirectory ??
-        await LaunchAppDataDirectoryProvider().getAppDataDirectory();
+    final resolvedAppDataDirectory =
+        appDataDirectory ?? await _resolveDefaultAppDataDirectory();
     final logger = FileAppLogger(
       logFile: File(p.join(resolvedAppDataDirectory.path, 'logs', 'app.log')),
     );
@@ -273,5 +274,19 @@ final class AppBootstrap {
       flushPending: syncCoordinator.flushPending,
       shutdown: syncCoordinator.shutdown,
     );
+  }
+
+  static Future<Directory> _resolveDefaultAppDataDirectory() async {
+    if (Platform.isMacOS) {
+      final applicationSupportDirectory =
+          await getApplicationSupportDirectory();
+      final directory = Directory(
+        p.join(applicationSupportDirectory.path, 'bochki_schedule_app'),
+      );
+      await directory.create(recursive: true);
+      return directory;
+    }
+
+    return LaunchAppDataDirectoryProvider().getAppDataDirectory();
   }
 }

@@ -47,7 +47,7 @@ Future<void> main(List<String> args) async {
       error: error,
       stackTrace: stackTrace,
     );
-    runApp(const StartupErrorApp());
+    runApp(StartupErrorApp(error: error));
   }
 }
 
