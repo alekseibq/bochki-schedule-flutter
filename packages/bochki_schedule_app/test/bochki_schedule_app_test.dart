@@ -343,6 +343,32 @@ void main() {
     expect(find.text('Ok'), findsOneWidget);
   });
 
+  testWidgets('directories menu opens and closes without animation', (
+    tester,
+  ) async {
+    final context = _buildTestContext();
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+
+    final menu = tester.widget<PopupMenuButton<DirectorySection>>(
+      find.byKey(const Key('directories_menu_button')),
+    );
+    expect(menu.popUpAnimationStyle, AnimationStyle.noAnimation);
+
+    await tester.tap(find.byKey(const Key('directories_menu_button')));
+    await tester.pump();
+    expect(find.byType(PopupMenuItem<DirectorySection>), findsNWidgets(5));
+
+    await tester.tap(find.text('Участники').last);
+    await tester.pump();
+    expect(find.byType(PopupMenuItem<DirectorySection>), findsNothing);
+    expect(
+      find.byKey(const Key('participants_directory_dialog')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('shell opens assistants dialog from menu', (tester) async {
     final context = _buildTestContext();
 

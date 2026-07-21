@@ -427,6 +427,7 @@ class _BochkiShellState extends State<BochkiShell> {
                   PopupMenuButton<DirectorySection>(
                     key: const Key('directories_menu_button'),
                     tooltip: 'Справочники',
+                    popUpAnimationStyle: AnimationStyle.noAnimation,
                     onSelected: _selectDirectorySection,
                     itemBuilder: (context) => const [
                       PopupMenuItem<DirectorySection>(
