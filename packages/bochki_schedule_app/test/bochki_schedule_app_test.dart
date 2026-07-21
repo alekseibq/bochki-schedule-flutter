@@ -495,6 +495,87 @@ void main() {
     expect(context.procedureSessionsRepository.sessions, hasLength(1));
   });
 
+  testWidgets('procedure sessions table is compact and resizes columns', (
+    tester,
+  ) async {
+    final context = _buildTestContext(
+      participants: [Participant(id: '1', name: 'Иван')],
+      procedureKinds: [
+        ProcedureKind(
+          id: '1',
+          patternId: ProcedureKindPatterns.curated.patternId,
+          name: 'Бочка',
+          capacity: 6,
+          participantBusyTime: 30,
+          assistantBusyTime: 10,
+          resourceBusyTime: 5,
+        ),
+      ],
+      workdays: [
+        Workday(
+          id: '1',
+          name: 'День А',
+          calendarDate: DateTime(2026, 7, 11),
+        ),
+      ],
+      procedureSessions: [
+        ProcedureSessionRaw(
+          id: '1',
+          dayId: '1',
+          participantId: '1',
+          startTime: '09:00',
+          procedureKindId: '1',
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+
+    final firstHeader = find.byKey(
+      const Key('procedure_sessions_column_header_0'),
+    );
+    final secondHeader = find.byKey(
+      const Key('procedure_sessions_column_header_1'),
+    );
+    final resizer = find.byKey(
+      const Key('procedure_sessions_column_resizer_0'),
+    );
+
+    expect(
+      find.byKey(const Key('procedure_sessions_table_horizontal_scroll')),
+      findsOneWidget,
+    );
+    expect(tester.getSize(firstHeader).width, 75);
+    expect(tester.getSize(secondHeader).width, 180);
+    expect(
+      tester
+          .getSize(find.byKey(const Key('procedure_session_row_content_1')))
+          .height,
+      30,
+    );
+    expect(
+      tester
+          .widget<MouseRegion>(
+            find.ancestor(of: resizer, matching: find.byType(MouseRegion)),
+          )
+          .cursor,
+      SystemMouseCursors.resizeLeftRight,
+    );
+
+    await tester.drag(resizer, const Offset(20, 0));
+    await tester.pumpAndSettle();
+
+    expect(tester.getSize(firstHeader).width, 95);
+    expect(tester.getSize(secondHeader).width, 160);
+
+    await tester.drag(resizer, const Offset(-100, 0));
+    await tester.pumpAndSettle();
+
+    expect(tester.getSize(firstHeader).width, 60);
+    expect(tester.getSize(secondHeader).width, 195);
+  });
+
   testWidgets('procedure sessions filters by part of day', (tester) async {
     final context = _buildTestContext(
       participants: [

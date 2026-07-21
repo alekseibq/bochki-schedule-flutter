@@ -745,7 +745,7 @@ class _FilterField extends StatelessWidget {
   }
 }
 
-class _ProcedureSessionsTable extends StatelessWidget {
+class _ProcedureSessionsTable extends StatefulWidget {
   const _ProcedureSessionsTable({
     required this.viewModel,
     required this.onEdit,
@@ -756,140 +756,211 @@ class _ProcedureSessionsTable extends StatelessWidget {
   final void Function(String entryId) onEdit;
   final void Function(String entryId) onDelete;
 
+  @override
+  State<_ProcedureSessionsTable> createState() =>
+      _ProcedureSessionsTableState();
+}
+
+class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
+  static const double _headerHeight = 32;
+  static const double _rowHeight = 30;
+  static const double _conflictColumnWidth = 40;
+  static const double _actionColumnWidth = 48;
+  static const Color _dividerColor = Color(0xFFD7DFE8);
+
+  late List<double> _dataColumnWidths;
+
+  @override
+  void initState() {
+    super.initState();
+    _dataColumnWidths =
+        _dataColumns.map((column) => column.initialWidth).toList();
+  }
+
+  void _resizeColumns(int leftColumnIndex, double delta) {
+    final leftColumn = _dataColumns[leftColumnIndex];
+    final rightColumn = _dataColumns[leftColumnIndex + 1];
+    final leftWidth = _dataColumnWidths[leftColumnIndex];
+    final rightWidth = _dataColumnWidths[leftColumnIndex + 1];
+    final actualDelta = delta.clamp(
+      leftColumn.minimumWidth - leftWidth,
+      rightWidth - rightColumn.minimumWidth,
+    );
+
+    if (actualDelta == 0) {
+      return;
+    }
+    setState(() {
+      _dataColumnWidths[leftColumnIndex] = leftWidth + actualDelta;
+      _dataColumnWidths[leftColumnIndex + 1] = rightWidth - actualDelta;
+    });
+  }
+
   void _handleRowPointerDown(String entryId, PointerDownEvent event) {
     if (event.buttons != kPrimaryMouseButton) {
       return;
     }
-    viewModel.selectEntry(entryId);
+    widget.viewModel.selectEntry(entryId);
   }
 
   @override
   Widget build(BuildContext context) {
-    final entries = viewModel.entries;
+    final entries = widget.viewModel.entries;
     if (entries.isEmpty) {
       return Center(
         child: Text(
-          viewModel.showConflictsOnly
+          widget.viewModel.showConflictsOnly
               ? 'Конфликтов по текущим фильтрам нет.'
               : 'Список назначенных процедур пуст.',
         ),
       );
     }
 
-    return Column(
-      children: [
-        Container(
-          key: const Key('procedure_sessions_table_header'),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF2F5F8),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFD0D7DE)),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tableWidth = _tableWidth < constraints.maxWidth
+            ? constraints.maxWidth
+            : _tableWidth;
+        return SingleChildScrollView(
+          key: const Key('procedure_sessions_table_horizontal_scroll'),
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: tableWidth,
+            child: Column(
+              children: [
+                _buildHeader(),
+                const Divider(height: 1, color: _dividerColor),
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: entries.length,
+                    separatorBuilder: (_, __) =>
+                        const Divider(height: 1, color: _dividerColor),
+                    itemBuilder: (context, index) => _buildRow(entries[index]),
+                  ),
+                ),
+              ],
+            ),
           ),
-          child: const Row(
+        );
+      },
+    );
+  }
+
+  double get _tableWidth =>
+      _dataColumnWidths.fold<double>(0, (sum, width) => sum + width) +
+      _conflictColumnWidth +
+      (_actionColumnWidth * 2);
+
+  Widget _buildHeader() {
+    return Container(
+      key: const Key('procedure_sessions_table_header'),
+      height: _headerHeight,
+      color: const Color(0xFFF2F5F8),
+      child: Row(
+        children: [
+          for (var index = 0; index < _dataColumns.length; index++)
+            _ResizableHeaderCell(
+              key: Key('procedure_sessions_column_header_$index'),
+              width: _dataColumnWidths[index],
+              text: _dataColumns[index].label,
+              showResizeHandle: index < _dataColumns.length - 1,
+              onResize: (delta) => _resizeColumns(index, delta),
+              resizeHandleKey: Key('procedure_sessions_column_resizer_$index'),
+            ),
+          const _TableCell(width: _conflictColumnWidth),
+          const _TableCell(width: _actionColumnWidth),
+          const _TableCell(width: _actionColumnWidth, showRightDivider: false),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRow(dynamic entry) {
+    final isSelected = widget.viewModel.selectedEntryId == entry.id;
+    final hasConflicts = entry.hasConflicts;
+    return Listener(
+      onPointerDown: (event) => _handleRowPointerDown(entry.id, event),
+      child: GestureDetector(
+        key: Key('procedure_session_row_${entry.id}'),
+        onTap: () => widget.viewModel.selectEntry(entry.id),
+        onDoubleTap: () => widget.onEdit(entry.id),
+        child: Container(
+          key: Key('procedure_session_row_content_${entry.id}'),
+          height: _rowHeight,
+          decoration: BoxDecoration(
+            color: isSelected
+                ? (hasConflicts
+                    ? const Color(0xFFFFE6E2)
+                    : const Color(0xFFE7F1FB))
+                : (hasConflicts ? const Color(0xFFFFF4F2) : Colors.white),
+          ),
+          child: Row(
             children: [
-              _HeaderCell(flex: 2, text: 'День'),
-              _HeaderCell(flex: 2, text: 'Участник'),
-              _HeaderCell(flex: 1, text: 'Начало'),
-              _HeaderCell(flex: 1, text: 'Конец'),
-              _HeaderCell(flex: 2, text: 'Процедура'),
-              _HeaderCell(flex: 2, text: 'Ассистент/Напарник'),
-              _HeaderCell(flex: 1, text: ''),
-              _HeaderCell(flex: 1, text: ''),
+              _TableCell(width: _dataColumnWidths[0], text: _dayText(entry)),
+              _TableCell(
+                width: _dataColumnWidths[1],
+                text: _participantText(entry),
+              ),
+              _TableCell(width: _dataColumnWidths[2], text: entry.startTime),
+              _TableCell(
+                width: _dataColumnWidths[3],
+                text: entry.finishTime ?? '',
+              ),
+              _TableCell(
+                width: _dataColumnWidths[4],
+                text: _procedureText(entry),
+              ),
+              _TableCell(
+                width: _dataColumnWidths[5],
+                text: _assistantText(entry),
+              ),
+              _TableCell(
+                width: _conflictColumnWidth,
+                alignment: Alignment.center,
+                child: hasConflicts
+                    ? const Tooltip(
+                        message: 'Есть конфликты',
+                        child: Icon(
+                          Icons.warning_amber_rounded,
+                          color: Color(0xFFD66A57),
+                          size: 18,
+                        ),
+                      )
+                    : null,
+              ),
+              _TableCell(
+                width: _actionColumnWidth,
+                alignment: Alignment.center,
+                child: TextButton(
+                  key: Key('procedure_session_edit_${entry.id}'),
+                  style: _compactButtonStyle,
+                  onPressed: () => widget.onEdit(entry.id),
+                  child: const Text('Изм.'),
+                ),
+              ),
+              _TableCell(
+                width: _actionColumnWidth,
+                alignment: Alignment.center,
+                showRightDivider: false,
+                child: TextButton(
+                  key: Key('procedure_session_delete_${entry.id}'),
+                  style: _compactButtonStyle,
+                  onPressed: () => widget.onDelete(entry.id),
+                  child: const Text('Удл.'),
+                ),
+              ),
             ],
           ),
         ),
-        const SizedBox(height: 8),
-        Expanded(
-          child: ListView.separated(
-            itemCount: entries.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 6),
-            itemBuilder: (context, index) {
-              final entry = entries[index];
-              final isSelected = viewModel.selectedEntryId == entry.id;
-              final hasConflicts = entry.hasConflicts;
-              return Listener(
-                onPointerDown: (event) =>
-                    _handleRowPointerDown(entry.id, event),
-                child: GestureDetector(
-                  key: Key('procedure_session_row_${entry.id}'),
-                  onTap: () => viewModel.selectEntry(entry.id),
-                  onDoubleTap: () => onEdit(entry.id),
-                  child: Container(
-                    key: Key('procedure_session_row_content_${entry.id}'),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? (hasConflicts
-                              ? const Color(0xFFFFE6E2)
-                              : const Color(0xFFE7F1FB))
-                          : (hasConflicts
-                              ? const Color(0xFFFFF4F2)
-                              : const Color(0xFFFBFCFD)),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: hasConflicts
-                            ? const Color(0xFFD66A57)
-                            : (isSelected
-                                ? const Color(0xFF7AA7D9)
-                                : const Color(0xFFDCE3EA)),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        _ValueCell(flex: 2, text: _dayText(entry)),
-                        _ValueCell(flex: 2, text: _participantText(entry)),
-                        _ValueCell(flex: 1, text: entry.startTime),
-                        _ValueCell(flex: 1, text: entry.finishTime ?? ''),
-                        _ValueCell(
-                          flex: 2,
-                          text: _procedureText(entry),
-                        ),
-                        _ValueCell(
-                          flex: 2,
-                          text: _assistantText(entry),
-                        ),
-                        SizedBox(
-                          width: 28,
-                          child: hasConflicts
-                              ? const Tooltip(
-                                  message: 'Есть конфликты',
-                                  child: Icon(
-                                    Icons.warning_amber_rounded,
-                                    color: Color(0xFFD66A57),
-                                    size: 18,
-                                  ),
-                                )
-                              : const SizedBox.shrink(),
-                        ),
-                        Expanded(
-                          child: TextButton(
-                            key: Key('procedure_session_edit_${entry.id}'),
-                            onPressed: () => onEdit(entry.id),
-                            child: const Text('Изм.'),
-                          ),
-                        ),
-                        Expanded(
-                          child: TextButton(
-                            key: Key('procedure_session_delete_${entry.id}'),
-                            onPressed: () => onDelete(entry.id),
-                            child: const Text('Удл.'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
+      ),
     );
   }
+
+  static final ButtonStyle _compactButtonStyle = TextButton.styleFrom(
+    minimumSize: Size.zero,
+    padding: EdgeInsets.zero,
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+  );
 
   String _dayText(dynamic entry) {
     return entry.day?.name ?? 'Ошибка: день не найден';
@@ -911,41 +982,116 @@ class _ProcedureSessionsTable extends StatelessWidget {
   }
 }
 
-class _HeaderCell extends StatelessWidget {
-  const _HeaderCell({
-    required this.flex,
+const List<_ProcedureSessionsDataColumn> _dataColumns = [
+  _ProcedureSessionsDataColumn('День', 75, 60),
+  _ProcedureSessionsDataColumn('Участник', 180, 110),
+  _ProcedureSessionsDataColumn('Начало', 75, 60),
+  _ProcedureSessionsDataColumn('Конец', 75, 60),
+  _ProcedureSessionsDataColumn('Процедура', 220, 130),
+  _ProcedureSessionsDataColumn('Ассистент/Напарник', 180, 120),
+];
+
+class _ProcedureSessionsDataColumn {
+  const _ProcedureSessionsDataColumn(
+    this.label,
+    this.initialWidth,
+    this.minimumWidth,
+  );
+
+  final String label;
+  final double initialWidth;
+  final double minimumWidth;
+}
+
+class _ResizableHeaderCell extends StatelessWidget {
+  const _ResizableHeaderCell({
+    required this.width,
     required this.text,
+    required this.showResizeHandle,
+    required this.onResize,
+    required this.resizeHandleKey,
+    super.key,
   });
 
-  final int flex;
+  final double width;
   final String text;
+  final bool showResizeHandle;
+  final ValueChanged<double> onResize;
+  final Key resizeHandleKey;
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      flex: flex,
-      child: Text(
-        text,
-        style: const TextStyle(fontWeight: FontWeight.w700),
+    return SizedBox(
+      width: width,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          _TableCell(
+            width: width,
+            text: text,
+            textStyle: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          if (showResizeHandle)
+            Positioned(
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: 8,
+              child: MouseRegion(
+                cursor: SystemMouseCursors.resizeLeftRight,
+                child: Listener(
+                  key: resizeHandleKey,
+                  behavior: HitTestBehavior.translucent,
+                  onPointerMove: (event) {
+                    if (event.buttons == kPrimaryMouseButton) {
+                      onResize(event.delta.dx);
+                    }
+                  },
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
 }
 
-class _ValueCell extends StatelessWidget {
-  const _ValueCell({
-    required this.flex,
-    required this.text,
+class _TableCell extends StatelessWidget {
+  const _TableCell({
+    required this.width,
+    this.text,
+    this.child,
+    this.alignment = Alignment.centerLeft,
+    this.textStyle,
+    this.showRightDivider = true,
   });
 
-  final int flex;
-  final String text;
+  final double width;
+  final String? text;
+  final Widget? child;
+  final Alignment alignment;
+  final TextStyle? textStyle;
+  final bool showRightDivider;
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      flex: flex,
-      child: Text(text),
+    return Container(
+      width: width,
+      alignment: alignment,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        border: showRightDivider
+            ? const Border(right: BorderSide(color: Color(0xFFD7DFE8)))
+            : null,
+      ),
+      child: child ??
+          Text(
+            text ?? '',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: textStyle,
+          ),
     );
   }
 }
