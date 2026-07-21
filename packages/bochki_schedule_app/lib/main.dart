@@ -7,47 +7,65 @@ import 'package:flutter/widgets.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'src/app_launch_arguments.dart';
-import 'src/presentation/startup_error_app.dart';
+import 'src/presentation/startup_diagnostics.dart';
+import 'src/presentation/startup_launcher.dart';
 
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
-  await _configureWindow();
+  final diagnostics = StartupDiagnostics();
+  final errorReporter = _ApplicationErrorReporter(diagnostics);
+  FlutterError.onError = errorReporter.recordFlutterError;
+  PlatformDispatcher.instance.onError = errorReporter.recordPlatformError;
 
-  AppServices? services;
+  runApp(
+    StartupLauncher(
+      diagnostics: diagnostics,
+      configureWindow: _configureWindow,
+      bootstrap: (diagnostics) => AppBootstrap.initialize(
+        appDataDirectory: resolveAppDataDirectoryOverride(args),
+        diagnostics: diagnostics,
+      ),
+      onServicesReady: errorReporter.attachServices,
+    ),
+  );
+}
 
-  try {
-    services = await AppBootstrap.initialize(
-      appDataDirectory: resolveAppDataDirectoryOverride(args),
+final class _ApplicationErrorReporter {
+  _ApplicationErrorReporter(this._diagnostics);
+
+  final StartupDiagnostics _diagnostics;
+  AppServices? _services;
+
+  void attachServices(AppServices services) {
+    _services = services;
+  }
+
+  void recordFlutterError(FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    _diagnostics.error(
+      'Flutter framework',
+      details.exception,
+      details.stack ?? StackTrace.current,
     );
-    FlutterError.onError = (details) {
-      FlutterError.presentError(details);
-      unawaited(
-        services?.logger.error(
-          'Flutter framework error',
-          error: details.exception,
-          stackTrace: details.stack,
-        ),
-      );
-    };
-    PlatformDispatcher.instance.onError = (error, stackTrace) {
-      unawaited(
-        services?.logger.error(
-          'Unhandled platform error',
-          error: error,
-          stackTrace: stackTrace,
-        ),
-      );
-      return true;
-    };
-
-    runApp(BochkiScheduleApp(services: services));
-  } catch (error, stackTrace) {
-    await services?.logger.error(
-      'Application bootstrap failed',
-      error: error,
-      stackTrace: stackTrace,
+    unawaited(
+      _services?.logger.error(
+        'Flutter framework error',
+        error: details.exception,
+        stackTrace: details.stack,
+      ),
     );
-    runApp(StartupErrorApp(error: error));
+  }
+
+  bool recordPlatformError(Object error, StackTrace stackTrace) {
+    _diagnostics.error('Платформа', error, stackTrace);
+    unawaited(
+      _services?.logger.error(
+        'Unhandled platform error',
+        error: error,
+        stackTrace: stackTrace,
+      ),
+    );
+    return true;
   }
 }
 

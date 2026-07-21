@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'app_services.dart';
+import 'presentation/startup_diagnostics.dart';
 import 'data/humans/project_document_humans_repository.dart';
 import 'data/print_preset_params/project_document_print_preset_params_repository.dart';
 import 'data/print_schedule/docx_print_schedule_exporter.dart';
@@ -51,17 +52,33 @@ import 'domain/workdays/update_workday_use_case.dart';
 final class AppBootstrap {
   static Future<AppServices> initialize({
     Directory? appDataDirectory,
+    StartupDiagnostics? diagnostics,
   }) async {
+    diagnostics?.info('Bootstrap', 'Определение каталога данных приложения.');
     final resolvedAppDataDirectory =
-        appDataDirectory ?? await _resolveDefaultAppDataDirectory();
+        appDataDirectory ?? await _resolveDefaultAppDataDirectory(diagnostics);
+    diagnostics?.info(
+      'Каталог данных',
+      'Каталог данных: ${resolvedAppDataDirectory.path}',
+    );
+    diagnostics?.info(
+        'Каталог данных', 'Проверка доступности каталога данных.');
+    await resolvedAppDataDirectory.create(recursive: true);
+    diagnostics?.info('Каталог данных', 'Каталог данных доступен.');
+    diagnostics?.info('Логирование', 'Подготовка файла журнала запуска.');
     final logger = FileAppLogger(
       logFile: File(p.join(resolvedAppDataDirectory.path, 'logs', 'app.log')),
+    );
+    diagnostics?.info(
+      'Данные проекта',
+      'Чтение файла: ${p.join(resolvedAppDataDirectory.path, 'project.json')}',
     );
     final projectDocumentRepository = JsonProjectDocumentRepository(
       projectFile: File(p.join(resolvedAppDataDirectory.path, 'project.json')),
       safeFileWriter: const AtomicFileWriter(),
     );
     final initialDocument = await projectDocumentRepository.load();
+    diagnostics?.info('Данные проекта', 'Файл данных успешно прочитан.');
     final syncCoordinator = ProjectDocumentSyncCoordinator(
       repository: projectDocumentRepository,
       initialDocument: initialDocument,
@@ -117,11 +134,13 @@ final class AppBootstrap {
     final didNormalizeLegacyProcedureKinds =
         await procedureKindsRepository.normalizeLegacyResourceBusyTimes();
     if (didNormalizeLegacyProcedureKinds) {
+      diagnostics?.info('Миграция данных', 'Нормализация устаревших данных.');
       await logger.info(
         'Normalized legacy procedure kinds resourceBusyTime values.',
       );
       await syncCoordinator.flushPending();
     }
+    diagnostics?.info('Сервисы', 'Создание сервисов приложения.');
     final listHumansUseCase = ListHumansUseCase(humansRepository);
     final listParticipantsUseCase = ListParticipantsUseCase(
       participantsRepository,
@@ -237,6 +256,8 @@ final class AppBootstrap {
     await logger.info(
       'Bootstrap completed. appDataDirectory=${resolvedAppDataDirectory.path}',
     );
+    diagnostics?.info(
+        'Bootstrap', 'Инициализация приложения завершена успешно.');
 
     return AppServices(
       appDataDirectory: resolvedAppDataDirectory,
@@ -276,8 +297,12 @@ final class AppBootstrap {
     );
   }
 
-  static Future<Directory> _resolveDefaultAppDataDirectory() async {
+  static Future<Directory> _resolveDefaultAppDataDirectory(
+    StartupDiagnostics? diagnostics,
+  ) async {
     if (Platform.isMacOS) {
+      diagnostics?.info(
+          'Каталог данных', 'Получение каталога Application Support macOS.');
       final applicationSupportDirectory =
           await getApplicationSupportDirectory();
       final directory = Directory(
@@ -287,6 +312,8 @@ final class AppBootstrap {
       return directory;
     }
 
+    diagnostics?.info(
+        'Каталог данных', 'Получение системного каталога данных.');
     return LaunchAppDataDirectoryProvider().getAppDataDirectory();
   }
 }
