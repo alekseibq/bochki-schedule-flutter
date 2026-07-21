@@ -1,7 +1,7 @@
 name: bochki_schedule_infra
 description: Infrastructure package for Bochki Schedule.
 publish_to: none
-version: 0.7.1
+version: 0.8.0
 
 environment:
   sdk: ^3.5.0

@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.8.0
+
+Release date: 2026-07-21
+
+### Highlights
+
+- Added a startup diagnostics screen with a clear recovery path for initialization problems.
+- Refined the procedure-session filters layout for a more usable scheduling workflow.
+
+### Details
+
+- `feat(app): add startup diagnostics screen (#73)`
+- `feat(ui): refine procedure session filters layout (#71)`
+
 ## v0.7.1
 
 Release date: 2026-07-20
