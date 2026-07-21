@@ -897,9 +897,13 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
           child: Row(
             children: [
               _TableCell(width: _dataColumnWidths[0], text: _dayText(entry)),
-              _TableCell(
+              _buildPersonSummaryCell(
                 width: _dataColumnWidths[1],
-                text: _participantText(entry),
+                entryId: entry.id,
+                column: 'participant',
+                humanId: entry.participant?.id,
+                humanName: entry.participant?.name,
+                fallbackText: _participantText(entry),
               ),
               _TableCell(width: _dataColumnWidths[2], text: entry.startTime),
               _TableCell(
@@ -910,9 +914,14 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
                 width: _dataColumnWidths[4],
                 text: _procedureText(entry),
               ),
-              _TableCell(
+              _buildPersonSummaryCell(
                 width: _dataColumnWidths[5],
-                text: _assistantText(entry),
+                entryId: entry.id,
+                column: 'assistant',
+                humanId: entry.requiresAssistant ? entry.assistant?.id : null,
+                humanName:
+                    entry.requiresAssistant ? entry.assistant?.name : null,
+                fallbackText: _assistantText(entry),
               ),
               _TableCell(
                 width: _conflictColumnWidth,
@@ -979,6 +988,31 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
       return '';
     }
     return entry.assistant?.name ?? 'Ошибка: ассистент не найден';
+  }
+
+  Widget _buildPersonSummaryCell({
+    required double width,
+    required String entryId,
+    required String column,
+    required String? humanId,
+    required String? humanName,
+    required String fallbackText,
+  }) {
+    final cell = _TableCell(width: width, text: fallbackText);
+    if (humanId == null || humanName == null) {
+      return cell;
+    }
+
+    return Tooltip(
+      key: Key('procedure_session_${column}_summary_$entryId'),
+      message: widget.viewModel.participantSummaryTooltip(
+        humanId: humanId,
+        humanName: humanName,
+      ),
+      waitDuration: const Duration(milliseconds: 300),
+      exitDuration: Duration.zero,
+      child: cell,
+    );
   }
 }
 

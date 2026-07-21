@@ -118,6 +118,31 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
   String? get selectedParticipantId => _selectedParticipantId;
   bool get showConflictsOnly => _showConflictsOnly;
 
+  String participantSummaryTooltip({
+    required String humanId,
+    required String humanName,
+  }) {
+    final countsByDayId = <String, int>{};
+    for (final entry in _allEntries) {
+      if (entry.participantId != humanId) {
+        continue;
+      }
+      countsByDayId.update(entry.dayId, (count) => count + 1,
+          ifAbsent: () => 1);
+    }
+
+    if (countsByDayId.isEmpty) {
+      return '$humanName\nНет процедур в роли участника';
+    }
+
+    return [
+      humanName,
+      for (final workday in _workdays)
+        if (countsByDayId[workday.id] case final count?)
+          '${workday.name}: $count',
+    ].join('\n');
+  }
+
   Future<void> load() async {
     _isLoading = true;
     _loadErrorMessage = null;
