@@ -576,6 +576,121 @@ void main() {
     expect(tester.getSize(secondHeader).width, 195);
   });
 
+  testWidgets('person summary tooltips use all assigned procedures', (
+    tester,
+  ) async {
+    final context = _buildTestContext(
+      participants: [
+        Participant(id: '1', name: 'Анна'),
+        Participant(id: '3', name: 'Борис'),
+      ],
+      assistants: [Assistant(id: '2', name: 'Алексей')],
+      procedureKinds: [
+        ProcedureKind(
+          id: '1',
+          patternId: ProcedureKindPatterns.curated.patternId,
+          name: 'Парная процедура',
+          capacity: 2,
+          participantBusyTime: 30,
+          assistantBusyTime: 10,
+          resourceBusyTime: 5,
+        ),
+        ProcedureKind(
+          id: '2',
+          patternId: ProcedureKindPatterns.single.patternId,
+          name: 'Одиночная процедура',
+          capacity: 1,
+          participantBusyTime: 30,
+          resourceBusyTime: 5,
+        ),
+      ],
+      workdays: [
+        Workday(
+          id: '1',
+          name: 'Понедельник',
+          calendarDate: DateTime(2026, 7, 20),
+        ),
+        Workday(
+          id: '2',
+          name: 'Вторник',
+          calendarDate: DateTime(2026, 7, 21),
+        ),
+      ],
+      procedureSessions: [
+        ProcedureSessionRaw(
+            id: '1',
+            dayId: '1',
+            participantId: '1',
+            startTime: '09:00',
+            procedureKindId: '2'),
+        ProcedureSessionRaw(
+            id: '2',
+            dayId: '1',
+            participantId: '1',
+            startTime: '10:00',
+            procedureKindId: '2'),
+        ProcedureSessionRaw(
+            id: '3',
+            dayId: '2',
+            participantId: '1',
+            startTime: '09:00',
+            procedureKindId: '1',
+            assistantId: '2'),
+        ProcedureSessionRaw(
+            id: '4',
+            dayId: '2',
+            participantId: '3',
+            startTime: '10:00',
+            procedureKindId: '1',
+            assistantId: '2'),
+      ],
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+
+    final participantSummary = find.byKey(
+      const Key('procedure_session_participant_summary_1'),
+    );
+    const annaSummary = 'Анна\nПонедельник: 2\nВторник: 1';
+    final participantTooltip = tester.widget<Tooltip>(participantSummary);
+    expect(participantTooltip.message, annaSummary);
+    expect(participantTooltip.waitDuration, const Duration(milliseconds: 300));
+    expect(participantTooltip.exitDuration, Duration.zero);
+
+    tester.state<TooltipState>(participantSummary).ensureTooltipVisible();
+    await tester.pumpAndSettle();
+    expect(find.text(annaSummary), findsOneWidget);
+
+    Tooltip.dismissAllToolTips();
+    await tester.pumpAndSettle();
+    expect(find.text(annaSummary), findsNothing);
+
+    await tester.tap(find.byKey(const Key('procedure_sessions_day_filter')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Понедельник').last);
+    await tester.pumpAndSettle();
+    tester.state<TooltipState>(participantSummary).ensureTooltipVisible();
+    await tester.pumpAndSettle();
+    expect(find.text(annaSummary), findsOneWidget);
+
+    Tooltip.dismissAllToolTips();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('procedure_sessions_day_filter')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Все').last);
+    await tester.pumpAndSettle();
+    final assistantSummary = find.byKey(
+      const Key('procedure_session_assistant_summary_4'),
+    );
+    tester.state<TooltipState>(assistantSummary).ensureTooltipVisible();
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Алексей\nНет процедур в роли участника'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('procedure sessions filters by part of day', (tester) async {
     final context = _buildTestContext(
       participants: [
