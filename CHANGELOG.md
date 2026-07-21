@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.9.0
+
+Release date: 2026-07-21
+
+### Highlights
+
+- Made the procedure sessions table more compact for a clearer scheduling workflow.
+
+### Details
+
+- `feat(ui): compact procedure sessions table (#75)`
+
 ## v0.8.0
 
 Release date: 2026-07-21
