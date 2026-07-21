@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.10.0
+
+Release date: 2026-07-21
+
+### Highlights
+
+- Added procedure-assignment summary tooltips for participants and assistants.
+- Made the Directories menu appear and close instantly.
+
+### Details
+
+- `feat(schedule): add person summary tooltips (#76)`
+- `fix(ui): show directories menu instantly (#77)`
+
 ## v0.9.0
 
 Release date: 2026-07-21
