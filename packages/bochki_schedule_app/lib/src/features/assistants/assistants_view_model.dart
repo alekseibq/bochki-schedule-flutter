@@ -17,10 +17,12 @@ final class AssistantsViewModel extends NamedDirectoryViewModel<Assistant> {
           updateEntry: ({
             required String entryId,
             required String rawName,
+            required String fieldId,
           }) {
             return updateAssistantUseCase.execute(
               assistantId: entryId,
-              rawName: rawName,
+              rawName: fieldId == 'name' ? rawName : null,
+              rawShortName: fieldId == 'shortName' ? rawName : null,
             );
           },
           deleteEntry: deleteAssistantUseCase.execute,
@@ -42,10 +44,12 @@ final class AssistantsViewModel extends NamedDirectoryViewModel<Assistant> {
   Future<bool> updateAssistant({
     required String assistantId,
     required String rawName,
+    String fieldId = 'name',
   }) {
     return updateEntry(
       entryId: assistantId,
       rawName: rawName,
+      fieldId: fieldId,
     );
   }
 

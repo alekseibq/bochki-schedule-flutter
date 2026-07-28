@@ -6,7 +6,9 @@ final class Assistant extends NamedDirectoryEntry {
   Assistant({
     required String id,
     required String name,
-  }) : super(
+    String? shortName,
+  })  : shortName = _normalizeShortName(shortName, name),
+        super(
           id: NamedDirectoryEntry.normalizeId(id),
           name: NamedDirectoryEntry.normalizeName(name),
         ) {
@@ -21,6 +23,8 @@ final class Assistant extends NamedDirectoryEntry {
       );
     }
   }
+
+  final String shortName;
 
   static String normalizeId(String value) {
     return NamedDirectoryEntry.normalizeId(value);
@@ -37,10 +41,20 @@ final class Assistant extends NamedDirectoryEntry {
   Assistant copyWith({
     String? id,
     String? name,
+    String? shortName,
   }) {
     return Assistant(
       id: id ?? this.id,
       name: name ?? this.name,
+      shortName: shortName ?? this.shortName,
     );
+  }
+
+  static String _normalizeShortName(String? value, String name) {
+    final normalizedName = normalizeName(name);
+    final normalizedShortName = (value ?? '').trim();
+    return normalizedShortName.isEmpty || normalizedShortName == normalizedName
+        ? normalizedName
+        : normalizedShortName;
   }
 }

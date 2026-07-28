@@ -51,6 +51,7 @@ void main() {
       <String, Object?>{
         'id': 1,
         'name': 'Анна',
+        'shortName': 'Анна',
         'isParticipant': false,
         'isAssistant': true,
         'deleted': false,
@@ -58,6 +59,7 @@ void main() {
       <String, Object?>{
         'id': 2,
         'name': 'Борис',
+        'shortName': 'Борис',
         'isParticipant': false,
         'isAssistant': true,
         'deleted': true,
@@ -123,6 +125,7 @@ void main() {
       <String, Object?>{
         'id': 2,
         'name': 'Анна',
+        'shortName': 'Анна',
         'isParticipant': false,
         'isAssistant': true,
         'deleted': false,
@@ -130,6 +133,7 @@ void main() {
       <String, Object?>{
         'id': 1,
         'name': 'Борис',
+        'shortName': 'Борис',
         'isParticipant': true,
         'isAssistant': false,
         'deleted': false,
@@ -137,6 +141,7 @@ void main() {
       <String, Object?>{
         'id': 3,
         'name': 'Василиса',
+        'shortName': 'Василиса',
         'isParticipant': false,
         'isAssistant': true,
         'deleted': false,

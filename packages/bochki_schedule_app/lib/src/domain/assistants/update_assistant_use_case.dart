@@ -1,43 +1,51 @@
-import '../named_directory/update_named_directory_entry_use_case.dart';
+import '../named_directory/named_directory_entry.dart';
 
 import 'assistant.dart';
 import 'assistants_repository.dart';
 import 'assistants_validation_exception.dart';
 
 final class UpdateAssistantUseCase {
-  UpdateAssistantUseCase(AssistantsRepository repository)
-      : _delegate = UpdateNamedDirectoryEntryUseCase<Assistant>(
-          repository,
-          entryFactory: _entryFactory,
-          emptyIdMessage: 'Идентификатор ассистента не должен быть пустым.',
-          emptyNameMessage: 'Введите имя ассистента.',
-          duplicateNameMessage: 'Ассистент с таким именем уже есть.',
-          exceptionFactory: _validationException,
-        );
+  UpdateAssistantUseCase(this._repository);
 
-  final UpdateNamedDirectoryEntryUseCase<Assistant> _delegate;
+  final AssistantsRepository _repository;
 
   Future<Assistant> execute({
     required String assistantId,
-    required String rawName,
-  }) {
-    return _delegate.execute(
-      entryId: assistantId,
-      rawName: rawName,
-    );
-  }
+    String? rawName,
+    String? rawShortName,
+  }) async {
+    final normalizedId = Assistant.normalizeId(assistantId);
+    if (normalizedId.isEmpty) {
+      throw const AssistantsValidationException(
+        'Идентификатор ассистента не должен быть пустым.',
+      );
+    }
 
-  static Assistant _entryFactory({
-    required String id,
-    required String name,
-  }) {
-    return Assistant(
-      id: id,
+    final assistants = await _repository.list();
+    final current =
+        assistants.where((entry) => entry.id == normalizedId).firstOrNull;
+    if (current == null) {
+      throw const AssistantsValidationException('Ассистент не найден.');
+    }
+
+    final name = Assistant.normalizeName(rawName ?? current.name);
+    if (name.isEmpty) {
+      throw const AssistantsValidationException('Введите имя ассистента.');
+    }
+    final sortKey = NamedDirectoryEntry.sortKeyForName(name);
+    if (assistants.any((entry) =>
+        entry.id != normalizedId &&
+        NamedDirectoryEntry.sortKeyForName(entry.name) == sortKey)) {
+      throw const AssistantsValidationException(
+          'Ассистент с таким именем уже есть.');
+    }
+
+    final shortName = rawShortName ??
+        (current.shortName == current.name ? name : current.shortName);
+    return _repository.update(Assistant(
+      id: normalizedId,
       name: name,
-    );
-  }
-
-  static AssistantsValidationException _validationException(String message) {
-    return AssistantsValidationException(message);
+      shortName: shortName,
+    ));
   }
 }

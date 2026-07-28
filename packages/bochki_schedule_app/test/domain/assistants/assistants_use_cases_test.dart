@@ -2,6 +2,24 @@ import 'package:bochki_schedule_app/bochki_schedule_app.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('updates a short name without requiring uniqueness', () async {
+    final repository = _InMemoryAssistantsRepository(
+      assistants: [
+        Assistant(id: '1', name: 'Анна'),
+        Assistant(id: '2', name: 'Борис', shortName: 'А'),
+      ],
+    );
+    final useCase = UpdateAssistantUseCase(repository);
+
+    final updated = await useCase.execute(
+      assistantId: '1',
+      rawShortName: ' А ',
+    );
+
+    expect(updated.name, 'Анна');
+    expect(updated.shortName, 'А');
+  });
+
   group('assistants use cases', () {
     test('list loads sorted assistants', () async {
       final repository = _InMemoryAssistantsRepository(

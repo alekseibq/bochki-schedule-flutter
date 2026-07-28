@@ -20,6 +20,7 @@ void main() {
       updateEntry: ({
         required String entryId,
         required String rawName,
+        required String fieldId,
       }) async {
         return repository.update(
           Participant(id: entryId, name: rawName),
