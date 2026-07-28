@@ -53,6 +53,7 @@ void main() {
         'id': 2,
         'patternId': 'single',
         'name': 'Бег',
+        'shortName': 'Бег',
         'capacity': 2,
         'participantBusyTime': 20,
         'deleted': true,
@@ -62,6 +63,7 @@ void main() {
         'id': 1,
         'patternId': 'curated',
         'name': 'Бочка',
+        'shortName': 'Бочка',
         'capacity': 6,
         'participantBusyTime': 30,
         'assistantBusyTime': 10,
@@ -130,6 +132,7 @@ void main() {
         'id': 2,
         'patternId': 'single',
         'name': 'Бег дорожка',
+        'shortName': 'Бег',
         'capacity': 2,
         'participantBusyTime': 20,
         'deleted': false,
@@ -139,6 +142,7 @@ void main() {
         'id': 1,
         'patternId': 'curated',
         'name': 'Бочка',
+        'shortName': 'Бочка',
         'capacity': 6,
         'participantBusyTime': 30,
         'assistantBusyTime': 10,
@@ -146,5 +150,51 @@ void main() {
       },
     ]);
     expect(changeNotifications, 4);
+  });
+
+  test('normalizes short names for legacy active and deleted entries',
+      () async {
+    var changeNotifications = 0;
+    final repository = ProjectDocumentProcedureKindsRepository(
+      initialDocument: const ProjectDocument(
+        procedureKinds: <Map<String, Object?>>[
+          <String, Object?>{
+            'id': 1,
+            'patternId': 'curated',
+            'name': ' Бочка ',
+            'capacity': 6,
+            'participantBusyTime': 30,
+            'deleted': false,
+          },
+          <String, Object?>{
+            'id': 2,
+            'patternId': 'single',
+            'name': 'Бег',
+            'shortName': '   ',
+            'capacity': 2,
+            'participantBusyTime': 20,
+            'deleted': true,
+          },
+        ],
+      ),
+      idAllocator: ProjectDocumentIdAllocator(nextId: 3, onChanged: () {}),
+      onChanged: () => changeNotifications += 1,
+    );
+
+    expect(await repository.normalizeLegacyProcedureKinds(), isTrue);
+    final document = repository.applyToDocument(ProjectDocument.initial());
+
+    expect(changeNotifications, 1);
+    expect(
+        document.procedureKinds,
+        containsAll([
+          containsPair('shortName', 'Бочка'),
+          containsPair('shortName', 'Бег'),
+        ]));
+    expect(
+      document.procedureKinds
+          .singleWhere((entry) => entry['id'] == 2)['deleted'],
+      isTrue,
+    );
   });
 }

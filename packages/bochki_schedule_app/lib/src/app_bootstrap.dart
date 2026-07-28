@@ -132,12 +132,10 @@ final class AppBootstrap {
     syncCoordinator.registerPart(programSettingsRepository);
     syncCoordinator.registerPart(procedureSessionsRepository);
     final didNormalizeLegacyProcedureKinds =
-        await procedureKindsRepository.normalizeLegacyResourceBusyTimes();
+        await procedureKindsRepository.normalizeLegacyProcedureKinds();
     if (didNormalizeLegacyProcedureKinds) {
       diagnostics?.info('Миграция данных', 'Нормализация устаревших данных.');
-      await logger.info(
-        'Normalized legacy procedure kinds resourceBusyTime values.',
-      );
+      await logger.info('Normalized legacy procedure kinds values.');
       await syncCoordinator.flushPending();
     }
     diagnostics?.info('Сервисы', 'Создание сервисов приложения.');

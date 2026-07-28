@@ -8,13 +8,15 @@ final class ProcedureKind {
     required String id,
     required String patternId,
     required String name,
+    String? shortName,
     required this.capacity,
     required this.participantBusyTime,
     this.assistantBusyTime,
     this.resourceBusyTime,
   })  : id = NamedDirectoryEntry.normalizeId(id),
         patternId = patternId.trim(),
-        name = NamedDirectoryEntry.normalizeName(name) {
+        name = NamedDirectoryEntry.normalizeName(name),
+        shortName = _normalizeShortName(shortName, name) {
     if (this.id.isEmpty) {
       throw const ProcedureKindsValidationException(
         'Идентификатор вида процедуры не должен быть пустым.',
@@ -35,6 +37,7 @@ final class ProcedureKind {
   final String id;
   final String patternId;
   final String name;
+  final String shortName;
   final int capacity;
   final int participantBusyTime;
   final int? assistantBusyTime;
@@ -48,6 +51,11 @@ final class ProcedureKind {
 
   static String normalizeName(String value) {
     return NamedDirectoryEntry.normalizeName(value);
+  }
+
+  static String _normalizeShortName(String? value, String name) {
+    final normalized = NamedDirectoryEntry.normalizeName(value ?? '');
+    return normalized.isEmpty ? name : normalized;
   }
 
   static String sortKeyForName(String value) {
@@ -69,6 +77,7 @@ final class ProcedureKind {
     String? id,
     String? patternId,
     String? name,
+    String? shortName,
     int? capacity,
     int? participantBusyTime,
     int? assistantBusyTime,
@@ -80,6 +89,7 @@ final class ProcedureKind {
       id: id ?? this.id,
       patternId: patternId ?? this.patternId,
       name: name ?? this.name,
+      shortName: shortName ?? this.shortName,
       capacity: capacity ?? this.capacity,
       participantBusyTime: participantBusyTime ?? this.participantBusyTime,
       assistantBusyTime: clearAssistantBusyTime

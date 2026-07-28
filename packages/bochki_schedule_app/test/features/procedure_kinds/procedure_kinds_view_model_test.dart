@@ -77,6 +77,35 @@ void main() {
       expect(createdProcedureKind!.assistantBusyTime, isNull);
       expect(createdProcedureKind.resourceBusyTime, 40);
     });
+
+    test('empty short name follows a renamed full name on update', () async {
+      await viewModel.loadProcedureKinds();
+
+      final updatedProcedureKind = await viewModel.updateProcedureKind(
+        procedureKindId: '2',
+        patternId: ProcedureKindPatterns.single.patternId,
+        rawName: 'Бег с препятствиями',
+        rawShortName: '   ',
+        rawCapacity: '2',
+        rawParticipantBusyTime: '20',
+      );
+
+      expect(updatedProcedureKind!.shortName, 'Бег с препятствиями');
+    });
+
+    test('preserves an explicit short name', () async {
+      await viewModel.loadProcedureKinds();
+
+      final createdProcedureKind = await viewModel.createProcedureKind(
+        patternId: ProcedureKindPatterns.single.patternId,
+        rawName: 'Бег с препятствиями',
+        rawShortName: 'Бег',
+        rawCapacity: '2',
+        rawParticipantBusyTime: '20',
+      );
+
+      expect(createdProcedureKind!.shortName, 'Бег');
+    });
   });
 }
 

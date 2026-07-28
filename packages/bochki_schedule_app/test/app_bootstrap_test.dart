@@ -51,8 +51,7 @@ void main() {
     expect(projectContents, contains('"printPresetParams"'));
   });
 
-  test('bootstrap normalizes legacy resourceBusyTime for non-curated kinds',
-      () async {
+  test('bootstrap normalizes legacy procedure kind values', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
       'bochki_bootstrap_legacy_test',
     );
@@ -84,5 +83,6 @@ void main() {
 
     final projectContents = await projectFile.readAsString();
     expect(projectContents, contains('"resourceBusyTime": 20'));
+    expect(projectContents, contains('"shortName": "Бег"'));
   });
 }

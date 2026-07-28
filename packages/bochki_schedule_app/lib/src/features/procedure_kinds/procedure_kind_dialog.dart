@@ -28,6 +28,7 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
   static const double _numericFieldWidth = 72;
 
   late final TextEditingController _nameController;
+  late final TextEditingController _shortNameController;
   late final TextEditingController _capacityController;
   late final TextEditingController _participantBusyTimeController;
   late final TextEditingController _assistantBusyTimeController;
@@ -44,6 +45,12 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
     _patternId = initialProcedureKind?.patternId ??
         ProcedureKindPatterns.curated.patternId;
     _nameController = TextEditingController(text: initialProcedureKind?.name);
+    _shortNameController = TextEditingController(
+      text: initialProcedureKind == null ||
+              initialProcedureKind.shortName == initialProcedureKind.name
+          ? ''
+          : initialProcedureKind.shortName,
+    );
     _capacityController = TextEditingController(
       text: initialProcedureKind == null
           ? '1'
@@ -65,6 +72,7 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
   @override
   void dispose() {
     _nameController.dispose();
+    _shortNameController.dispose();
     _capacityController.dispose();
     _participantBusyTimeController.dispose();
     _assistantBusyTimeController.dispose();
@@ -103,6 +111,7 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
             procedureKindId: widget.initialProcedureKind!.id,
             patternId: _patternId,
             rawName: _nameController.text,
+            rawShortName: _shortNameController.text,
             rawCapacity: _capacityController.text,
             rawParticipantBusyTime: _participantBusyTimeController.text,
             rawAssistantBusyTime:
@@ -113,6 +122,7 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
         : await widget.viewModel.createProcedureKind(
             patternId: _patternId,
             rawName: _nameController.text,
+            rawShortName: _shortNameController.text,
             rawCapacity: _capacityController.text,
             rawParticipantBusyTime: _participantBusyTimeController.text,
             rawAssistantBusyTime:
@@ -176,6 +186,17 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
                     child: TextField(
                       key: const Key('procedure_kind_name_field'),
                       controller: _nameController,
+                      enabled: !widget.viewModel.isSaving,
+                      onChanged: (_) => widget.viewModel.clearFormError(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _FormRow(
+                    label: 'Краткое название',
+                    labelWidth: _labelColumnWidth,
+                    child: TextField(
+                      key: const Key('procedure_kind_short_name_field'),
+                      controller: _shortNameController,
                       enabled: !widget.viewModel.isSaving,
                       onChanged: (_) => widget.viewModel.clearFormError(),
                     ),
