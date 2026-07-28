@@ -4,6 +4,54 @@ import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('normalizes missing short names for every persisted human', () async {
+    var changeNotifications = 0;
+    final repository = ProjectDocumentHumansRepository(
+      initialDocument: const ProjectDocument(
+        humans: <Map<String, Object?>>[
+          <String, Object?>{
+            'id': 1,
+            'name': 'Анна',
+            'isParticipant': true,
+            'isAssistant': false,
+            'deleted': false,
+          },
+          <String, Object?>{
+            'id': 2,
+            'name': 'Борис',
+            'isParticipant': false,
+            'isAssistant': true,
+            'deleted': true,
+          },
+        ],
+      ),
+      idAllocator: ProjectDocumentIdAllocator(nextId: 3, onChanged: () {}),
+      onChanged: () => changeNotifications += 1,
+    );
+
+    expect(await repository.normalizeLegacyShortNames(), isTrue);
+    expect(repository.isDirty, isTrue);
+    expect(changeNotifications, 1);
+    expect(repository.applyToDocument(ProjectDocument.initial()).humans, [
+      <String, Object?>{
+        'id': 1,
+        'name': 'Анна',
+        'shortName': 'Анна',
+        'isParticipant': true,
+        'isAssistant': false,
+        'deleted': false,
+      },
+      <String, Object?>{
+        'id': 2,
+        'name': 'Борис',
+        'shortName': 'Борис',
+        'isParticipant': false,
+        'isAssistant': true,
+        'deleted': true,
+      },
+    ]);
+  });
+
   test('loads humans and persists role flags', () async {
     var changeNotifications = 0;
     final repository = ProjectDocumentHumansRepository(
@@ -109,6 +157,7 @@ void main() {
       <String, Object?>{
         'id': 2,
         'name': 'Борис Общий',
+        'shortName': 'Борис Общий',
         'isParticipant': true,
         'isAssistant': true,
         'deleted': false,

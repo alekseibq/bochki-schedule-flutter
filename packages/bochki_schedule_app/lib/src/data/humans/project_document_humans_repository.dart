@@ -18,11 +18,23 @@ final class ProjectDocumentHumansRepository
         _onChanged = onChanged,
         _entries = initialDocument.humans
             .map(HumanDto.fromJson)
-            .toList(growable: true);
+            .toList(growable: true),
+        _needsShortNameMigration = initialDocument.humans.any(
+          (human) => !human.containsKey('shortName'),
+        );
 
   final ProjectDocumentIdAllocator _idAllocator;
   final void Function() _onChanged;
   final List<HumanDto> _entries;
+  final bool _needsShortNameMigration;
+
+  Future<bool> normalizeLegacyShortNames() async {
+    if (!_needsShortNameMigration) {
+      return false;
+    }
+    _markRepositoryChanged();
+    return true;
+  }
 
   @override
   Future<List<Human>> list() async {
@@ -56,11 +68,13 @@ final class ProjectDocumentHumansRepository
     if (index != -1) {
       final current = _entries[index];
       if (current.name != human.name ||
+          current.shortName != human.shortName ||
           current.isParticipant != human.isParticipant ||
           current.isAssistant != human.isAssistant ||
           current.deleted) {
         _entries[index] = current.copyWith(
           name: human.name,
+          shortName: human.shortName,
           isParticipant: human.isParticipant,
           isAssistant: human.isAssistant,
           deleted: false,

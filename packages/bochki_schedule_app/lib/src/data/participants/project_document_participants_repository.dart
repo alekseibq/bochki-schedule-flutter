@@ -54,6 +54,7 @@ final class ProjectDocumentParticipantsRepository
     await _humansRepository.update(
       current.copyWith(
         name: entry.name,
+        shortName: entry.name,
         isParticipant: true,
       ),
     );

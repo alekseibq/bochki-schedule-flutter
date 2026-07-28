@@ -17,6 +17,7 @@ final class ParticipantsViewModel extends NamedDirectoryViewModel<Participant> {
           updateEntry: ({
             required String entryId,
             required String rawName,
+            required String fieldId,
           }) {
             return updateParticipantUseCase.execute(
               participantId: entryId,

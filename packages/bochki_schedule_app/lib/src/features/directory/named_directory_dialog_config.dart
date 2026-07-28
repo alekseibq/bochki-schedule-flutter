@@ -12,12 +12,14 @@ class DirectoryColumnSpec<T extends NamedDirectoryEntry> {
     required this.id,
     required this.label,
     required this.cellText,
+    this.editValue,
     this.flex = 1,
   });
 
   final String id;
   final String label;
   final String Function(T entry) cellText;
+  final String Function(T entry)? editValue;
   final int flex;
 }
 

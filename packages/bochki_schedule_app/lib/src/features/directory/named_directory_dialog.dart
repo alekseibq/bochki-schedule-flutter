@@ -42,6 +42,7 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
   final DirectoryTableReducer _reducer = const DirectoryTableReducer();
 
   DirectoryTableState _tableState = const DirectoryTableNoSelection();
+  String _editingColumnId = 'name';
   Future<bool>? _pendingSubmit;
 
   NamedDirectoryDialogConfig<T> get _config => widget.config;
@@ -128,6 +129,9 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
 
     setState(() {
       _tableState = nextState;
+      if (!nextState.isEditing) {
+        _editingColumnId = 'name';
+      }
       _syncControllerFromState(nextState);
     });
 
@@ -188,6 +192,7 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
         DirectoryTableSubmitMode.update => await viewModel.updateEntry(
             entryId: request.entryId!,
             rawName: request.rawValue,
+            fieldId: _editingColumnId,
           ),
       };
 
@@ -274,10 +279,24 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
 
   @override
   void beginEdit(String entryId) {
+    _editingColumnId = 'name';
     _setTableState(
       _reducer.resolveSubmitSuccess(
         target: DirectoryTableSuccessTarget.editRow(entryId),
         rows: _rows,
+      ),
+      clearFormError: true,
+    );
+  }
+
+  void _beginEditCell(T entry, DirectoryColumnSpec<T> column) {
+    final value = column.editValue?.call(entry) ?? column.cellText(entry);
+    _editingColumnId = column.id;
+    _setTableState(
+      DirectoryTableEditRow(
+        entryId: entry.id,
+        initialValue: value,
+        currentValue: value,
       ),
       clearFormError: true,
     );
@@ -507,7 +526,7 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
         return KeyEventResult.ignored;
       },
       child: TextField(
-        key: Key('${_config.entryKeyPrefix}_name_field'),
+        key: Key('${_config.entryKeyPrefix}_${_editingColumnId}_field'),
         focusNode: _editorFocusNode,
         controller: _nameController,
         autofocus: true,
@@ -531,16 +550,29 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
     );
   }
 
-  List<Widget> _buildDisplayColumns(BuildContext context, T entry) {
+  List<Widget> _buildDisplayColumns(
+    BuildContext context,
+    T entry, {
+    required bool isEditing,
+    required NamedDirectoryViewModel<T> viewModel,
+  }) {
     return [
       for (final column in _config.columns)
         Expanded(
           flex: column.flex,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Text(
-              column.cellText(entry),
-              style: Theme.of(context).textTheme.bodyLarge,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onDoubleTap: viewModel.isSaving || isEditing
+                ? null
+                : () => _beginEditCell(entry, column),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: isEditing && column.id == _editingColumnId
+                  ? _buildNameEditor(viewModel)
+                  : Text(
+                      column.cellText(entry),
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
             ),
           ),
         ),
@@ -594,10 +626,7 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
             : () => _dispatch(DirectoryTableEvent.clickRow(entry.id)),
         onDoubleTap: viewModel.isSaving
             ? null
-            : () => _dispatch(
-                  DirectoryTableEvent.doubleClickRow(entry.id),
-                  clearFormError: true,
-                ),
+            : () => _beginEditCell(entry, _config.columns.first),
         onSecondaryTapDown: viewModel.isSaving
             ? null
             : (details) => _dispatch(
@@ -629,10 +658,12 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
                     padding: const EdgeInsets.symmetric(vertical: 2),
                     child: Row(
                       children: [
-                        if (isEditing)
-                          Expanded(child: _buildNameEditor(viewModel))
-                        else
-                          ..._buildDisplayColumns(context, entry),
+                        ..._buildDisplayColumns(
+                          context,
+                          entry,
+                          isEditing: isEditing,
+                          viewModel: viewModel,
+                        ),
                         if (_rowButtonActions.isNotEmpty)
                           _buildRowButtons(entry),
                       ],

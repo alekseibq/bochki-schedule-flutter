@@ -20,6 +20,7 @@ final class ProjectDocumentAssistantsRepository
           (human) => Assistant(
             id: human.id,
             name: human.name,
+            shortName: human.shortName,
           ),
         )
         .toList(growable: false);
@@ -34,7 +35,8 @@ final class ProjectDocumentAssistantsRepository
       isParticipant: false,
       isAssistant: true,
     );
-    return Assistant(id: human.id, name: human.name);
+    return Assistant(
+        id: human.id, name: human.name, shortName: human.shortName);
   }
 
   @override
@@ -51,12 +53,11 @@ final class ProjectDocumentAssistantsRepository
       return entry;
     }
 
-    await _humansRepository.update(
-      current.copyWith(
-        name: entry.name,
-        isAssistant: true,
-      ),
-    );
+    await _humansRepository.update(current.copyWith(
+      name: entry.name,
+      shortName: entry.shortName,
+      isAssistant: true,
+    ));
     return entry;
   }
 

@@ -28,9 +28,16 @@ class AssistantsDialog extends NamedDirectoryDialog<Assistant> {
       DirectoryColumnSpec<Assistant>(
         id: 'name',
         label: 'Имя',
-        cellText: _cellText,
+        cellText: _nameCellText,
+      ),
+      DirectoryColumnSpec<Assistant>(
+        id: 'shortName',
+        label: 'Краткое имя',
+        cellText: _shortNameCellText,
+        editValue: _shortNameCellText,
       ),
     ],
+    showColumnHeaders: true,
     rowActions: [
       DirectoryRowActionSpec<Assistant>(
         id: 'edit',
@@ -49,7 +56,13 @@ class AssistantsDialog extends NamedDirectoryDialog<Assistant> {
 
   static String _sectionTitle(int count) => 'Ассистенты ($count)';
 
-  static String _cellText(Assistant assistant) => assistant.name;
+  static String _nameCellText(Assistant assistant) => assistant.name;
+
+  static String _shortNameCellText(Assistant assistant) {
+    return assistant.shortName.trim() == assistant.name
+        ? ''
+        : assistant.shortName;
+  }
 
   static String _deleteConfirmationMessage(Assistant assistant) {
     return 'Ассистент "${assistant.name}" будет скрыт из списка.';

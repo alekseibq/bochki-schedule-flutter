@@ -11,6 +11,7 @@ typedef NamedDirectoryUpdater<T extends NamedDirectoryEntry> = Future<T>
     Function({
   required String entryId,
   required String rawName,
+  required String fieldId,
 });
 typedef NamedDirectoryDeleter = Future<void> Function(String entryId);
 
@@ -76,11 +77,13 @@ class NamedDirectoryViewModel<T extends NamedDirectoryEntry>
   Future<bool> updateEntry({
     required String entryId,
     required String rawName,
+    String fieldId = 'name',
   }) async {
     return _runFormCommand(() async {
       final entry = await _updateEntry(
         entryId: entryId,
         rawName: rawName,
+        fieldId: fieldId,
       );
       _entries = _entries
           .map(

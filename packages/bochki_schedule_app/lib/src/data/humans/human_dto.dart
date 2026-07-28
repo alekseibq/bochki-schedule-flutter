@@ -4,6 +4,7 @@ final class HumanDto {
   const HumanDto({
     required this.id,
     required this.name,
+    required this.shortName,
     required this.isParticipant,
     required this.isAssistant,
     required this.deleted,
@@ -13,6 +14,8 @@ final class HumanDto {
     return HumanDto(
       id: (json['id'] as num?)?.toInt() ?? 0,
       name: (json['name'] as String?) ?? '',
+      shortName:
+          (json['shortName'] as String?) ?? (json['name'] as String?) ?? '',
       isParticipant: json['isParticipant'] as bool? ?? false,
       isAssistant: json['isAssistant'] as bool? ?? false,
       deleted: json['deleted'] as bool? ?? false,
@@ -26,6 +29,7 @@ final class HumanDto {
     return HumanDto(
       id: int.parse(human.id),
       name: human.name,
+      shortName: human.shortName,
       isParticipant: human.isParticipant,
       isAssistant: human.isAssistant,
       deleted: deleted,
@@ -34,6 +38,7 @@ final class HumanDto {
 
   final int id;
   final String name;
+  final String shortName;
   final bool isParticipant;
   final bool isAssistant;
   final bool deleted;
@@ -42,6 +47,7 @@ final class HumanDto {
     return Human(
       id: id.toString(),
       name: name,
+      shortName: shortName,
       isParticipant: isParticipant,
       isAssistant: isAssistant,
     );
@@ -50,6 +56,7 @@ final class HumanDto {
   HumanDto copyWith({
     int? id,
     String? name,
+    String? shortName,
     bool? isParticipant,
     bool? isAssistant,
     bool? deleted,
@@ -57,6 +64,7 @@ final class HumanDto {
     return HumanDto(
       id: id ?? this.id,
       name: name ?? this.name,
+      shortName: shortName ?? this.shortName,
       isParticipant: isParticipant ?? this.isParticipant,
       isAssistant: isAssistant ?? this.isAssistant,
       deleted: deleted ?? this.deleted,
@@ -67,6 +75,7 @@ final class HumanDto {
     return <String, Object?>{
       'id': id,
       'name': name,
+      'shortName': shortName,
       'isParticipant': isParticipant,
       'isAssistant': isAssistant,
       'deleted': deleted,

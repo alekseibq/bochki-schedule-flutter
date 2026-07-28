@@ -131,6 +131,13 @@ final class AppBootstrap {
     syncCoordinator.registerPart(printPresetParamsRepository);
     syncCoordinator.registerPart(programSettingsRepository);
     syncCoordinator.registerPart(procedureSessionsRepository);
+    final didNormalizeLegacyHumanShortNames =
+        await humansRepository.normalizeLegacyShortNames();
+    if (didNormalizeLegacyHumanShortNames) {
+      diagnostics?.info('Миграция данных', 'Нормализация кратких имён людей.');
+      await logger.info('Normalized legacy human short names.');
+      await syncCoordinator.flushPending();
+    }
     final didNormalizeLegacyProcedureKinds =
         await procedureKindsRepository.normalizeLegacyProcedureKinds();
     if (didNormalizeLegacyProcedureKinds) {
