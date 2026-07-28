@@ -10,6 +10,7 @@ import 'data/humans/project_document_humans_repository.dart';
 import 'data/print_preset_params/project_document_print_preset_params_repository.dart';
 import 'data/print_schedule/docx_print_schedule_exporter.dart';
 import 'data/print_schedule/process_document_opener.dart';
+import 'data/procedure_statistics/docx_procedure_statistics_exporter.dart';
 import 'data/participants/project_document_participants_repository.dart';
 import 'data/project_document/project_document_id_allocator.dart';
 import 'data/project_document/project_document_sync_coordinator.dart';
@@ -48,6 +49,9 @@ import 'domain/workdays/create_workday_use_case.dart';
 import 'domain/workdays/delete_workday_use_case.dart';
 import 'domain/workdays/list_workdays_use_case.dart';
 import 'domain/workdays/update_workday_use_case.dart';
+import 'domain/procedure_statistics/build_procedure_statistics_document_use_case.dart';
+import 'domain/procedure_statistics/open_procedure_statistics_file_use_case.dart';
+import 'domain/procedure_statistics/save_procedure_statistics_file_use_case.dart';
 
 final class AppBootstrap {
   static Future<AppServices> initialize({
@@ -234,6 +238,21 @@ final class AppBootstrap {
       savePrintScheduleFileUseCase: savePrintScheduleFileUseCase,
       documentOpener: const ProcessDocumentOpener(),
     );
+    final openProcedureStatisticsFileUseCase =
+        OpenProcedureStatisticsFileUseCase(
+      saveUseCase: SaveProcedureStatisticsFileUseCase(
+        buildUseCase: BuildProcedureStatisticsDocumentUseCase(
+          listWorkdaysUseCase: listWorkdaysUseCase,
+          listHumansUseCase: listHumansUseCase,
+          listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,
+        ),
+        exporter: DocxProcedureStatisticsExporter(
+          safeFileWriter: const AtomicFileWriter(),
+        ),
+        appDataDirectory: resolvedAppDataDirectory,
+      ),
+      documentOpener: const ProcessDocumentOpener(),
+    );
     final listProcedureSessionsWithConflictsUseCase =
         ListProcedureSessionsWithConflictsUseCase(
       listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,
@@ -288,6 +307,7 @@ final class AppBootstrap {
       updatePrintPresetParamsUseCase: updatePrintPresetParamsUseCase,
       savePrintScheduleFileUseCase: savePrintScheduleFileUseCase,
       openPrintScheduleFileUseCase: openPrintScheduleFileUseCase,
+      openProcedureStatisticsFileUseCase: openProcedureStatisticsFileUseCase,
       getProgramSettingsUseCase: getProgramSettingsUseCase,
       updateProgramSettingsUseCase: updateProgramSettingsUseCase,
       listProcedureSessionsUseCase: listProcedureSessionsUseCase,

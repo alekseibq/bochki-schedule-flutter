@@ -31,6 +31,8 @@ enum DirectorySection {
   final String title;
 }
 
+enum ReportsSection { statistics }
+
 class BochkiShell extends StatefulWidget {
   const BochkiShell({
     required this.services,
@@ -299,6 +301,21 @@ class _BochkiShellState extends State<BochkiShell> {
     }
   }
 
+  Future<void> _openStatistics() async {
+    try {
+      final useCase = widget.services.openProcedureStatisticsFileUseCase;
+      if (useCase == null) {
+        return;
+      }
+      await useCase.execute();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Не удалось сформировать отчёт: $error')),
+      );
+    }
+  }
+
   void _selectDirectorySection(DirectorySection section) {
     switch (section) {
       case DirectorySection.procedureKinds:
@@ -469,6 +486,33 @@ class _BochkiShellState extends State<BochkiShell> {
                           Icon(Icons.arrow_drop_down, size: 18),
                         ],
                       ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  PopupMenuButton<ReportsSection>(
+                    key: const Key('reports_menu_button'),
+                    tooltip: 'Отчёты',
+                    onSelected: (_) => unawaited(_openStatistics()),
+                    itemBuilder: (context) => const [
+                      PopupMenuItem<ReportsSection>(
+                        value: ReportsSection.statistics,
+                        child: Text('Статистика'),
+                      ),
+                    ],
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(6),
+                        color: Colors.white.withOpacity(0.72),
+                        border: Border.all(color: const Color(0xFFD0D7DE)),
+                      ),
+                      child:
+                          const Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text('Отчёты'),
+                        SizedBox(width: 6),
+                        Icon(Icons.arrow_drop_down, size: 18),
+                      ]),
                     ),
                   ),
                   const SizedBox(width: 12),
