@@ -31,18 +31,14 @@ final class ProjectDocumentProcedureKindsRepository
         .toList(growable: false);
   }
 
-  Future<bool> normalizeLegacyResourceBusyTimes() async {
+  Future<bool> normalizeLegacyProcedureKinds() async {
     var changed = false;
 
     for (var index = 0; index < _entries.length; index++) {
       final entry = _entries[index];
-      if (entry.deleted) {
-        continue;
-      }
-
       final normalized = ProcedureKindDto.fromDomain(
         entry.toDomain(),
-        deleted: false,
+        deleted: entry.deleted,
       );
       if (entry.toJson().toString() == normalized.toJson().toString()) {
         continue;

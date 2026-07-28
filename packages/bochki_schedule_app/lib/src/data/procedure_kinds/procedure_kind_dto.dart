@@ -5,6 +5,7 @@ final class ProcedureKindDto {
     required this.id,
     required this.patternId,
     required this.name,
+    required this.shortName,
     required this.capacity,
     required this.participantBusyTime,
     required this.assistantBusyTime,
@@ -17,6 +18,7 @@ final class ProcedureKindDto {
       id: (json['id'] as num?)?.toInt() ?? 0,
       patternId: (json['patternId'] as String?) ?? '',
       name: (json['name'] as String?) ?? '',
+      shortName: (json['shortName'] as String?) ?? '',
       capacity: (json['capacity'] as num?)?.toInt() ?? 0,
       participantBusyTime: (json['participantBusyTime'] as num?)?.toInt() ?? 0,
       assistantBusyTime: (json['assistantBusyTime'] as num?)?.toInt(),
@@ -34,6 +36,7 @@ final class ProcedureKindDto {
       id: int.parse(persistedProcedureKind.id),
       patternId: persistedProcedureKind.patternId,
       name: persistedProcedureKind.name,
+      shortName: persistedProcedureKind.shortName,
       capacity: persistedProcedureKind.capacity,
       participantBusyTime: persistedProcedureKind.participantBusyTime,
       assistantBusyTime: persistedProcedureKind.assistantBusyTime,
@@ -45,6 +48,7 @@ final class ProcedureKindDto {
   final int id;
   final String patternId;
   final String name;
+  final String shortName;
   final int capacity;
   final int participantBusyTime;
   final int? assistantBusyTime;
@@ -56,6 +60,7 @@ final class ProcedureKindDto {
       id: id.toString(),
       patternId: patternId,
       name: name,
+      shortName: shortName,
       capacity: capacity,
       participantBusyTime: participantBusyTime,
       assistantBusyTime: assistantBusyTime,
@@ -67,6 +72,7 @@ final class ProcedureKindDto {
     int? id,
     String? patternId,
     String? name,
+    String? shortName,
     int? capacity,
     int? participantBusyTime,
     int? assistantBusyTime,
@@ -79,6 +85,7 @@ final class ProcedureKindDto {
       id: id ?? this.id,
       patternId: patternId ?? this.patternId,
       name: name ?? this.name,
+      shortName: shortName ?? this.shortName,
       capacity: capacity ?? this.capacity,
       participantBusyTime: participantBusyTime ?? this.participantBusyTime,
       assistantBusyTime: clearAssistantBusyTime
@@ -96,6 +103,7 @@ final class ProcedureKindDto {
       'id': id,
       'patternId': patternId,
       'name': name,
+      'shortName': shortName,
       'capacity': capacity,
       'participantBusyTime': participantBusyTime,
       'deleted': deleted,

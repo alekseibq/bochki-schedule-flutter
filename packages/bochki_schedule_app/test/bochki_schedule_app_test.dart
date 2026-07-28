@@ -1258,6 +1258,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(
         find.byKey(const Key('procedure_kind_create_dialog')), findsOneWidget);
+    expect(
+      tester
+          .widget<TextField>(
+            find.byKey(const Key('procedure_kind_short_name_field')),
+          )
+          .controller!
+          .text,
+      isEmpty,
+    );
 
     await tester.enterText(
       find.byKey(const Key('procedure_kind_name_field')),
@@ -1285,9 +1294,22 @@ void main() {
     expect(find.text('Баня 1'), findsOneWidget);
     expect(
         context.procedureKindsRepository.procedureKinds.single.name, 'Баня 1');
+    expect(
+      context.procedureKindsRepository.procedureKinds.single.shortName,
+      'Баня 1',
+    );
 
     await tester.tap(find.byKey(const Key('procedure_kind_edit_1')));
     await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<TextField>(
+            find.byKey(const Key('procedure_kind_short_name_field')),
+          )
+          .controller!
+          .text,
+      isEmpty,
+    );
     await tester.enterText(
       find.byKey(const Key('procedure_kind_name_field')),
       'Медитация',
@@ -1302,6 +1324,10 @@ void main() {
     expect(find.text('Медитация'), findsOneWidget);
     expect(context.procedureKindsRepository.procedureKinds.single.patternId,
         ProcedureKindPatterns.grouped.patternId);
+    expect(
+      context.procedureKindsRepository.procedureKinds.single.shortName,
+      'Медитация',
+    );
     expect(
         context
             .procedureKindsRepository.procedureKinds.single.assistantBusyTime,
