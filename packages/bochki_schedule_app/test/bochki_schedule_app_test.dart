@@ -23,6 +23,7 @@ void main() {
 
     expect(find.text('ПО Расписание Бочки'), findsOneWidget);
     expect(find.text('Справочники'), findsOneWidget);
+    expect(find.text('Отчёты'), findsOneWidget);
     expect(find.text('Распечатки'), findsOneWidget);
     expect(find.text('Добавить запись...'), findsOneWidget);
     expect(find.text('Список назначенных процедур пуст.'), findsOneWidget);
