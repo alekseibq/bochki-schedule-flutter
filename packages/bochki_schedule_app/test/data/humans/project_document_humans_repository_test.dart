@@ -150,6 +150,7 @@ void main() {
       <String, Object?>{
         'id': 1,
         'name': 'Анна',
+        'shortName': 'Анна',
         'isParticipant': false,
         'isAssistant': false,
         'deleted': true,

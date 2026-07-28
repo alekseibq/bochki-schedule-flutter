@@ -53,9 +53,13 @@ final class ProjectDocumentAssistantsRepository
       return entry;
     }
 
+    final shortName =
+        entry.name != current.name && current.shortName == current.name
+            ? entry.name
+            : entry.shortName;
     await _humansRepository.update(current.copyWith(
       name: entry.name,
-      shortName: entry.shortName,
+      shortName: shortName,
       isAssistant: true,
     ));
     return entry;

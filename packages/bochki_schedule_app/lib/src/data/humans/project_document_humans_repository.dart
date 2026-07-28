@@ -67,14 +67,19 @@ final class ProjectDocumentHumansRepository
     final index = _entries.indexWhere((candidate) => candidate.id == humanId);
     if (index != -1) {
       final current = _entries[index];
+      final shortName = human.name != current.name &&
+              human.shortName == current.shortName &&
+              current.shortName == current.name
+          ? human.name
+          : human.shortName;
       if (current.name != human.name ||
-          current.shortName != human.shortName ||
+          current.shortName != shortName ||
           current.isParticipant != human.isParticipant ||
           current.isAssistant != human.isAssistant ||
           current.deleted) {
         _entries[index] = current.copyWith(
           name: human.name,
-          shortName: human.shortName,
+          shortName: shortName,
           isParticipant: human.isParticipant,
           isAssistant: human.isAssistant,
           deleted: false,
