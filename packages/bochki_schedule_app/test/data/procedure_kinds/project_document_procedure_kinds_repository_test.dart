@@ -132,7 +132,7 @@ void main() {
         'id': 2,
         'patternId': 'single',
         'name': 'Бег дорожка',
-        'shortName': 'Бег дорожка',
+        'shortName': 'Бег',
         'capacity': 2,
         'participantBusyTime': 20,
         'deleted': false,
