@@ -71,9 +71,15 @@ void main() {
     final participantField = find.byKey(
       const Key('procedure_sessions_participant_filter'),
     );
+    final filters = find.byKey(
+      const Key('procedure_sessions_filters_scroll_view'),
+    );
+    final divider = find.byKey(
+      const Key('procedure_sessions_filters_results_divider'),
+    );
 
-    expect(find.byKey(const Key('procedure_sessions_filters_scroll_view')),
-        findsOneWidget);
+    expect(filters, findsOneWidget);
+    expect(divider, findsOneWidget);
     expect(find.text('День'), findsOneWidget);
     expect(find.text('Часть дня'), findsOneWidget);
     expect(find.text('Процедура'), findsOneWidget);
@@ -84,6 +90,14 @@ void main() {
     expect(tester.getCenter(dayField).dy, tester.getCenter(procedureField).dy);
     expect(tester.getSize(procedureField).width,
         greaterThan(tester.getSize(partOfDayField).width));
+    expect(
+      tester.getTopLeft(divider).dy,
+      greaterThan(tester.getBottomLeft(filters).dy),
+    );
+    expect(tester.getSize(divider).width, lessThan(900));
+    final dividerWidget = tester.widget<Divider>(divider);
+    expect(dividerWidget.color, const Color(0xFFC4CDD5));
+    expect(dividerWidget.thickness, 1);
     expect(tester.takeException(), isNull);
   });
 

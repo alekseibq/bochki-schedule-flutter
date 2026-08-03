@@ -551,6 +551,8 @@ class _BochkiShellState extends State<BochkiShell> {
 }
 
 class _ProcedureSessionsHome extends StatelessWidget {
+  static const Color _filtersResultsDividerColor = Color(0xFFC4CDD5);
+
   const _ProcedureSessionsHome({
     required this.viewModel,
     required this.onEdit,
@@ -578,7 +580,15 @@ class _ProcedureSessionsHome extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _ProcedureSessionFilters(viewModel: viewModel),
-                const SizedBox(height: 20),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 10),
+                  child: Divider(
+                    key: Key('procedure_sessions_filters_results_divider'),
+                    height: 1,
+                    thickness: 1,
+                    color: _filtersResultsDividerColor,
+                  ),
+                ),
                 Expanded(
                   child: viewModel.isLoading
                       ? const Center(child: CircularProgressIndicator())
