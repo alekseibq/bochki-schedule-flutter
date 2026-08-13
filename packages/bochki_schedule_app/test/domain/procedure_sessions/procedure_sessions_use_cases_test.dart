@@ -420,6 +420,9 @@ final class _InMemoryProcedureSessionsRepository
   }
 
   final List<ProcedureSessionRaw> _sessions;
+
+  @override
+  Future<void> updateMany(List<ProcedureSessionRaw> sessions) async {}
   int _nextId = 1;
 
   @override

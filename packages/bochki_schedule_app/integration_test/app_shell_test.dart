@@ -407,6 +407,13 @@ final class _InMemoryProcedureSessionsRepository
   Future<List<ProcedureSessionRaw>> list() async => [..._sessions];
 
   @override
+  Future<void> updateMany(List<ProcedureSessionRaw> sessions) async {
+    for (final session in sessions) {
+      await update(session);
+    }
+  }
+
+  @override
   Future<ProcedureSessionRaw> update(
     ProcedureSessionRaw procedureSession,
   ) async {

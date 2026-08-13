@@ -13,6 +13,7 @@ import 'domain/procedure_sessions/list_procedure_sessions_use_case.dart';
 import 'domain/procedure_sessions/list_rich_procedure_sessions_use_case.dart';
 import 'domain/procedure_sessions/list_procedure_sessions_with_conflicts_use_case.dart';
 import 'domain/procedure_sessions/update_procedure_session_use_case.dart';
+import 'domain/procedure_sessions/quick_reassignments_use_case.dart';
 import 'domain/procedure_kinds/create_procedure_kind_use_case.dart';
 import 'domain/procedure_kinds/delete_procedure_kind_use_case.dart';
 import 'domain/procedure_kinds/list_procedure_kinds_use_case.dart';
@@ -71,6 +72,7 @@ final class AppServices {
     required this.createProcedureSessionUseCase,
     required this.updateProcedureSessionUseCase,
     required this.deleteProcedureSessionUseCase,
+    this.quickReassignmentsUseCase,
     required this.flushPending,
     required this.shutdown,
   });
@@ -111,6 +113,7 @@ final class AppServices {
   final CreateProcedureSessionUseCase createProcedureSessionUseCase;
   final UpdateProcedureSessionUseCase updateProcedureSessionUseCase;
   final DeleteProcedureSessionUseCase deleteProcedureSessionUseCase;
+  final QuickReassignmentsUseCase? quickReassignmentsUseCase;
   final Future<void> Function() flushPending;
   final Future<void> Function() shutdown;
 }
