@@ -252,6 +252,29 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
     }
   }
 
+  Future<void> _saveAndClose() async {
+    final viewModel = widget.viewModel;
+    if (viewModel.isLoading || viewModel.isSaving) {
+      return;
+    }
+
+    final transition = _reducer.reduce(
+      state: _tableState,
+      event: const DirectoryTableEvent.clickOutside(),
+      rows: _rows,
+    );
+    _setTableState(transition.state);
+
+    final submitRequest = transition.submitRequest;
+    if (submitRequest != null && !await _submit(submitRequest)) {
+      return;
+    }
+
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
+  }
+
   Offset _toTableLocalPosition(Offset globalPosition) {
     final renderObject = _tableAreaKey.currentContext?.findRenderObject();
     if (renderObject is! RenderBox) {
@@ -924,7 +947,9 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           FilledButton(
-                            onPressed: () => Navigator.of(context).pop(),
+                            onPressed: viewModel.isSaving
+                                ? null
+                                : () => unawaited(_saveAndClose()),
                             child: Text(_config.okButtonText),
                           ),
                         ],
