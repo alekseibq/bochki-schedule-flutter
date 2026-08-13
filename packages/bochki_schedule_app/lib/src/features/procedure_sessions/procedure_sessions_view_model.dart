@@ -104,6 +104,7 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
   List<ProcedureSessionWithConflicts> get entries => _applyFilters(_allEntries);
   List<Workday> get workdays => _workdays;
   List<Human> get participants => _participants;
+  List<Human> get humans => _humans;
   List<ProcedureKind> get procedureKinds => _procedureKinds;
   List<Assistant> get assistants => _assistants;
   ProgramSettings get programSettings => _programSettings;
@@ -247,9 +248,7 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
     return ProcedureSessionRaw(
       id: 'draft',
       dayId: _workdays.isEmpty ? 'missing-day' : _workdays.first.id,
-      participantId: _participants.isEmpty
-          ? 'missing-participant'
-          : _participants.first.id,
+      participantId: _humans.isEmpty ? 'missing-participant' : _humans.first.id,
       startTime:
           '${_programSettings.minimumHour.toString().padLeft(2, '0')}:00',
       procedureKindId: firstProcedureKind == null

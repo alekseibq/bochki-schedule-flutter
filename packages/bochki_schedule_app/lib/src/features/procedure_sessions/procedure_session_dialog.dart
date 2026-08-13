@@ -15,7 +15,7 @@ class ProcedureSessionDialog extends StatefulWidget {
   const ProcedureSessionDialog({
     required this.initialValue,
     required this.workdays,
-    required this.participants,
+    required this.humans,
     required this.procedureKinds,
     required this.assistants,
     required this.programSettings,
@@ -26,7 +26,7 @@ class ProcedureSessionDialog extends StatefulWidget {
 
   final ProcedureSessionRaw initialValue;
   final List<Workday> workdays;
-  final List<Human> participants;
+  final List<Human> humans;
   final List<ProcedureKind> procedureKinds;
   final List<Assistant> assistants;
   final ProgramSettings programSettings;
@@ -148,7 +148,7 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
 
   List<DropdownMenuItem<String>> _buildParticipantItems() {
     final items = [
-      for (final participant in widget.participants)
+      for (final participant in widget.humans)
         DropdownMenuItem<String>(
           value: participant.id,
           child: Text(participant.name),

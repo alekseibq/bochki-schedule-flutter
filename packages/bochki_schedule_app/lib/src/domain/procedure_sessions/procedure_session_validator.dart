@@ -22,7 +22,7 @@ abstract final class ProcedureSessionValidator {
       throw const ProcedureSessionsValidationException('Выберите день.');
     }
 
-    final participant = _findParticipant(
+    final participant = _findHuman(
       existingHumans,
       procedureSession.participantId,
     );
@@ -98,9 +98,9 @@ abstract final class ProcedureSessionValidator {
     return null;
   }
 
-  static Human? _findParticipant(Iterable<Human> humans, String id) {
+  static Human? _findHuman(Iterable<Human> humans, String id) {
     for (final human in humans) {
-      if (human.id == id && human.isParticipant) {
+      if (human.id == id) {
         return human;
       }
     }

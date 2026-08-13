@@ -26,12 +26,18 @@ void main() {
                 calendarDate: DateTime(2026, 7, 11),
               ),
             ],
-            participants: [
+            humans: [
               Human(
                 id: '1',
                 name: 'Иван',
                 isParticipant: true,
                 isAssistant: false,
+              ),
+              Human(
+                id: '2',
+                name: 'Петр',
+                isParticipant: false,
+                isAssistant: true,
               ),
             ],
             procedureKinds: [
@@ -74,5 +80,11 @@ void main() {
     expect(find.text('11').last, findsOneWidget);
     expect(find.text('12').last, findsOneWidget);
     expect(find.text('09'), findsNothing);
+
+    await tester
+        .tap(find.byKey(const Key('procedure_session_participant_field')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Петр').last, findsOneWidget);
   });
 }

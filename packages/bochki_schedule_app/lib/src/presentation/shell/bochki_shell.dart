@@ -32,7 +32,7 @@ enum DirectorySection {
   final String title;
 }
 
-enum ReportsSection { statistics, procedureStatistics }
+enum ReportsSection { statistics, procedureStatistics, freeTime }
 
 class BochkiShell extends StatefulWidget {
   const BochkiShell({
@@ -75,9 +75,11 @@ class _BochkiShellState extends State<BochkiShell> {
       getProgramSettingsUseCase: widget.services.getProgramSettingsUseCase,
     );
     final statistics = widget.services.buildProcedureStatisticsTableUseCase;
-    if (statistics != null) {
+    final scheduleGaps = widget.services.buildScheduleGapsUseCase;
+    if (statistics != null && scheduleGaps != null) {
       _desktopWindows = DesktopWindowCoordinator(
         statistics: statistics,
+        scheduleGaps: scheduleGaps,
         sessions: _procedureSessionsViewModel,
       );
       unawaited(_startDesktopWindows());
@@ -340,6 +342,8 @@ class _BochkiShellState extends State<BochkiShell> {
     await _desktopWindows?.openStatistics();
   }
 
+  Future<void> _openFreeTime() async => _desktopWindows?.openFreeTime();
+
   void _selectDirectorySection(DirectorySection section) {
     switch (section) {
       case DirectorySection.procedureKinds:
@@ -380,7 +384,7 @@ class _BochkiShellState extends State<BochkiShell> {
         return ProcedureSessionDialog(
           initialValue: initialValue,
           workdays: _procedureSessionsViewModel.workdays,
-          participants: _procedureSessionsViewModel.participants,
+          humans: _procedureSessionsViewModel.humans,
           procedureKinds: _procedureSessionsViewModel.procedureKinds,
           assistants: _procedureSessionsViewModel.assistants,
           programSettings: _procedureSessionsViewModel.programSettings,
@@ -520,10 +524,12 @@ class _BochkiShellState extends State<BochkiShell> {
                   PopupMenuButton<ReportsSection>(
                     key: const Key('reports_menu_button'),
                     tooltip: 'Отчёты',
-                    onSelected: (section) => unawaited(
-                        section == ReportsSection.statistics
+                    onSelected: (section) =>
+                        unawaited(section == ReportsSection.statistics
                             ? _openStatistics()
-                            : _openProcedureStatistics()),
+                            : section == ReportsSection.procedureStatistics
+                                ? _openProcedureStatistics()
+                                : _openFreeTime()),
                     itemBuilder: (context) => const [
                       PopupMenuItem<ReportsSection>(
                         value: ReportsSection.statistics,
@@ -532,6 +538,10 @@ class _BochkiShellState extends State<BochkiShell> {
                       PopupMenuItem<ReportsSection>(
                         value: ReportsSection.procedureStatistics,
                         child: Text('Статистика процедур'),
+                      ),
+                      PopupMenuItem<ReportsSection>(
+                        value: ReportsSection.freeTime,
+                        child: Text('Свободное время'),
                       ),
                     ],
                     child: Container(
