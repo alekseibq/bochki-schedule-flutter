@@ -2203,8 +2203,11 @@ final class _InMemoryProcedureSessionsRepository
 
   @override
   Future<void> updateMany(List<ProcedureSessionRaw> sessions) async {
-    for (final session in sessions) { await update(session); }
+    for (final session in sessions) {
+      await update(session);
+    }
   }
+
   int _nextId = 1;
 
   List<ProcedureSessionRaw> get sessions => List.unmodifiable(_sessions);

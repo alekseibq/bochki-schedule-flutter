@@ -408,7 +408,9 @@ final class _InMemoryProcedureSessionsRepository
 
   @override
   Future<void> updateMany(List<ProcedureSessionRaw> sessions) async {
-    for (final session in sessions) { await update(session); }
+    for (final session in sessions) {
+      await update(session);
+    }
   }
 
   @override
