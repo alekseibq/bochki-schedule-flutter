@@ -1613,6 +1613,95 @@ void main() {
     expect(find.descendant(of: row, matching: find.text('▶')), findsOneWidget);
   });
 
+  testWidgets('Ok saves edited participant and closes the dialog',
+      (tester) async {
+    final context = _buildTestContext(
+      participants: [Participant(id: '1', name: 'Анна')],
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openParticipantsDialog(tester);
+    await _doubleMouseClick(tester, find.byKey(const Key('participant_row_1')));
+    await tester.enterText(
+      find.byKey(const Key('participant_name_field')),
+      'Анна Петрова',
+    );
+
+    await tester.tap(find.text('Ok'));
+    await tester.pumpAndSettle();
+
+    expect(context.repository.participants.single.name, 'Анна Петрова');
+    expect(
+        find.byKey(const Key('participants_directory_dialog')), findsNothing);
+  });
+
+  testWidgets('Ok keeps participant dialog open when saving fails',
+      (tester) async {
+    final context = _buildTestContext(
+      participants: [
+        Participant(id: '1', name: 'Анна'),
+        Participant(id: '2', name: 'Борис'),
+      ],
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openParticipantsDialog(tester);
+    await _doubleMouseClick(tester, find.byKey(const Key('participant_row_1')));
+    await tester.enterText(
+      find.byKey(const Key('participant_name_field')),
+      'Борис',
+    );
+
+    await tester.tap(find.text('Ok'));
+    await tester.pumpAndSettle();
+
+    expect(
+        find.byKey(const Key('participants_directory_dialog')), findsOneWidget);
+    expect(find.byKey(const Key('participant_name_field')), findsOneWidget);
+    expect(find.text('Участник с таким именем уже есть.'), findsOneWidget);
+  });
+
+  testWidgets('Ok cancels an empty new participant row', (tester) async {
+    final context = _buildTestContext();
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openParticipantsDialog(tester);
+    await tester.tap(find.byKey(const Key('participant_add_row')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Ok'));
+    await tester.pumpAndSettle();
+
+    expect(context.repository.participants, isEmpty);
+    expect(
+        find.byKey(const Key('participants_directory_dialog')), findsNothing);
+  });
+
+  testWidgets('Ok saves edited assistant and closes the dialog',
+      (tester) async {
+    final context = _buildTestContext(
+      assistants: [Assistant(id: '1', name: 'Иван')],
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openAssistantsDialog(tester);
+    await _doubleMouseClick(tester, find.byKey(const Key('assistant_row_1')));
+    await tester.enterText(
+      find.byKey(const Key('assistant_name_field')),
+      'Иван Петров',
+    );
+
+    await tester.tap(find.text('Ok'));
+    await tester.pumpAndSettle();
+
+    expect(context.assistantsRepository.assistants.single.name, 'Иван Петров');
+    expect(find.byKey(const Key('assistants_directory_dialog')), findsNothing);
+  });
+
   testWidgets('empty add row is cancelled on click outside', (tester) async {
     final context = _buildTestContext();
 
