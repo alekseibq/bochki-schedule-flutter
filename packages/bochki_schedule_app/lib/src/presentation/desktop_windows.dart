@@ -154,8 +154,8 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
   final isStatistics = kind == DesktopWindowKind.procedureStatistics;
   final options = WindowOptions(
     title: isStatistics ? 'Статистика процедур' : 'Назначить процедуру',
-    size: isStatistics ? const Size(1065, 514) : const Size(760, 640),
-    minimumSize: isStatistics ? const Size(820, 420) : const Size(650, 540),
+    size: isStatistics ? const Size(1065, 514) : const Size(900, 680),
+    minimumSize: isStatistics ? const Size(820, 420) : const Size(850, 600),
     center: true,
   );
   await windowManager.waitUntilReadyToShow(options, () async {
@@ -249,6 +249,7 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
+        debugShowCheckedModeBanner: false,
         home: Scaffold(
             body: Column(children: [
           Container(
@@ -376,48 +377,52 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
     final snapshot = _snapshot;
     if (snapshot == null) {
       return const MaterialApp(
+          debugShowCheckedModeBanner: false,
           home: Scaffold(body: Center(child: CircularProgressIndicator())));
     }
     final settings = Map<String, dynamic>.from(snapshot['settings'] as Map);
     return MaterialApp(
+        debugShowCheckedModeBanner: false,
         home: Scaffold(
             body: Center(
                 child: ProcedureSessionDialog(
-      initialValue:
-          _sessionFromMap(Map<String, dynamic>.from(snapshot['draft'] as Map)),
-      workdays: _maps(snapshot['workdays']).map(_workdayFromMap).toList(),
-      participants: _maps(snapshot['participants']).map(_humanFromMap).toList(),
-      procedureKinds:
-          _maps(snapshot['procedureKinds']).map(_kindFromMap).toList(),
-      assistants: _maps(snapshot['assistants']).map(_assistantFromMap).toList(),
-      programSettings: ProgramSettings(
-          minimumHour: settings['minimumHour'] as int,
-          maximumHour: settings['maximumHour'] as int,
-          lunchStart: ProgramSettingsTime.fromJson(settings['lunchStart']),
-          lunchEnd: ProgramSettingsTime.fromJson(settings['lunchEnd'])),
-      onSubmit: (session, allowConflicts) async {
-        final response = await _mainChannel.invokeMethod<Map>(
-            'submitProcedureSession', {
-          'session': _sessionMap(session),
-          'allowConflicts': allowConflicts
-        });
-        if (response == null) {
-          return const ProcedureSessionSubmitResult.error(
-              'Не удалось сохранить назначенную процедуру.');
-        }
-        final value = Map<String, dynamic>.from(response);
-        if (value['didSave'] as bool) {
-          await windowManager.close();
-        }
-        return value['didSave'] as bool
-            ? const ProcedureSessionSubmitResult.saved()
-            : (value['conflictMessages'] as List).isNotEmpty
-                ? ProcedureSessionSubmitResult.conflicts(
-                    (value['conflictMessages'] as List).cast<String>())
-                : ProcedureSessionSubmitResult.error(
-                    value['errorMessage'] as String);
-      },
-    ))));
+          initialValue: _sessionFromMap(
+              Map<String, dynamic>.from(snapshot['draft'] as Map)),
+          workdays: _maps(snapshot['workdays']).map(_workdayFromMap).toList(),
+          participants:
+              _maps(snapshot['participants']).map(_humanFromMap).toList(),
+          procedureKinds:
+              _maps(snapshot['procedureKinds']).map(_kindFromMap).toList(),
+          assistants:
+              _maps(snapshot['assistants']).map(_assistantFromMap).toList(),
+          programSettings: ProgramSettings(
+              minimumHour: settings['minimumHour'] as int,
+              maximumHour: settings['maximumHour'] as int,
+              lunchStart: ProgramSettingsTime.fromJson(settings['lunchStart']),
+              lunchEnd: ProgramSettingsTime.fromJson(settings['lunchEnd'])),
+          onSubmit: (session, allowConflicts) async {
+            final response = await _mainChannel.invokeMethod<Map>(
+                'submitProcedureSession', {
+              'session': _sessionMap(session),
+              'allowConflicts': allowConflicts
+            });
+            if (response == null) {
+              return const ProcedureSessionSubmitResult.error(
+                  'Не удалось сохранить назначенную процедуру.');
+            }
+            final value = Map<String, dynamic>.from(response);
+            if (value['didSave'] as bool) {
+              await windowManager.close();
+            }
+            return value['didSave'] as bool
+                ? const ProcedureSessionSubmitResult.saved()
+                : (value['conflictMessages'] as List).isNotEmpty
+                    ? ProcedureSessionSubmitResult.conflicts(
+                        (value['conflictMessages'] as List).cast<String>())
+                    : ProcedureSessionSubmitResult.error(
+                        value['errorMessage'] as String);
+          },
+        ))));
   }
 }
 
