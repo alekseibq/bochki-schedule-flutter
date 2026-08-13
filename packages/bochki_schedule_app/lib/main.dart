@@ -20,7 +20,9 @@ Future<void> main(List<String> args) async {
     await configureChildWindow(kind);
     runApp(kind == DesktopWindowKind.procedureStatistics
         ? const ProcedureStatisticsWindow()
-        : const ProcedureSessionWindow());
+        : kind == DesktopWindowKind.freeTime
+            ? const FreeTimeWindow()
+            : const ProcedureSessionWindow());
     return;
   }
   final diagnostics = StartupDiagnostics();

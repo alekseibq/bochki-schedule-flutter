@@ -53,6 +53,7 @@ import 'domain/procedure_statistics/build_procedure_statistics_document_use_case
 import 'domain/procedure_statistics/open_procedure_statistics_file_use_case.dart';
 import 'domain/procedure_statistics/build_procedure_statistics_table_use_case.dart';
 import 'domain/procedure_statistics/save_procedure_statistics_file_use_case.dart';
+import 'domain/schedule_gaps/build_schedule_gaps_use_case.dart';
 
 final class AppBootstrap {
   static Future<AppServices> initialize({
@@ -261,6 +262,13 @@ final class AppBootstrap {
       listProcedureKindsUseCase: listProcedureKindsUseCase,
       listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,
     );
+    final buildScheduleGapsUseCase = BuildScheduleGapsUseCase(
+      listWorkdaysUseCase: listWorkdaysUseCase,
+      listHumansUseCase: listHumansUseCase,
+      listProcedureKindsUseCase: listProcedureKindsUseCase,
+      listProcedureSessionsUseCase: listProcedureSessionsUseCase,
+      getProgramSettingsUseCase: getProgramSettingsUseCase,
+    );
     final listProcedureSessionsWithConflictsUseCase =
         ListProcedureSessionsWithConflictsUseCase(
       listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,
@@ -318,6 +326,7 @@ final class AppBootstrap {
       openProcedureStatisticsFileUseCase: openProcedureStatisticsFileUseCase,
       buildProcedureStatisticsTableUseCase:
           buildProcedureStatisticsTableUseCase,
+      buildScheduleGapsUseCase: buildScheduleGapsUseCase,
       getProgramSettingsUseCase: getProgramSettingsUseCase,
       updateProgramSettingsUseCase: updateProgramSettingsUseCase,
       listProcedureSessionsUseCase: listProcedureSessionsUseCase,

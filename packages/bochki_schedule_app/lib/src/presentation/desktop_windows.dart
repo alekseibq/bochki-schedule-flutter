@@ -12,12 +12,14 @@ import '../domain/procedure_kinds/procedure_kind.dart';
 import '../domain/procedure_sessions/procedure_session_raw.dart';
 import '../domain/procedure_statistics/build_procedure_statistics_table_use_case.dart';
 import '../domain/procedure_statistics/procedure_statistics_table.dart';
+import '../domain/schedule_gaps/build_schedule_gaps_use_case.dart';
+import '../domain/schedule_gaps/schedule_gap.dart';
 import '../domain/workdays/workday.dart';
 import '../features/procedure_sessions/procedure_session_dialog.dart';
 import '../features/procedure_sessions/procedure_session_submit_result.dart';
 import '../features/procedure_sessions/procedure_sessions_view_model.dart';
 
-enum DesktopWindowKind { main, procedureStatistics, procedureSession }
+enum DesktopWindowKind { main, procedureStatistics, procedureSession, freeTime }
 
 const _mainChannel = WindowMethodChannel(
   'bochki_schedule/main_window',
@@ -40,12 +42,16 @@ DesktopWindowKind windowKindFromArguments(String value) {
 final class DesktopWindowCoordinator {
   DesktopWindowCoordinator({
     required BuildProcedureStatisticsTableUseCase statistics,
+    required BuildScheduleGapsUseCase scheduleGaps,
     required ProcedureSessionsViewModel sessions,
   })  : _statistics = statistics,
+        _scheduleGaps = scheduleGaps,
         _sessions = sessions;
 
   final BuildProcedureStatisticsTableUseCase _statistics;
+  final BuildScheduleGapsUseCase _scheduleGaps;
   final ProcedureSessionsViewModel _sessions;
+  ProcedureSessionRaw? _sessionDraft;
 
   Future<void> start() => _mainChannel.setMethodCallHandler(_handleCall);
 
@@ -65,9 +71,15 @@ final class DesktopWindowCoordinator {
     await _open(DesktopWindowKind.procedureStatistics);
   }
 
-  Future<void> openSession() async {
+  Future<void> openSession({ProcedureSessionRaw? draft}) async {
     await _sessions.load();
+    _sessionDraft = draft;
     await _open(DesktopWindowKind.procedureSession);
+  }
+
+  Future<void> openFreeTime() async {
+    await _sessions.load();
+    await _open(DesktopWindowKind.freeTime);
   }
 
   Future<void> _open(DesktopWindowKind kind) async {
@@ -98,8 +110,31 @@ final class DesktopWindowCoordinator {
         );
         return _statisticsMap(table);
       case 'openProcedureSession':
-        await openSession();
+        final values = call.arguments as Map?;
+        await openSession(
+          draft: values == null
+              ? null
+              : _sessions.createDraft().copyWith(
+                    dayId: values['dayId'] as String,
+                    participantId: values['participantId'] as String,
+                    startTime: values['startTime'] as String,
+                  ),
+        );
         return null;
+      case 'freeTime':
+        final values = Map<String, dynamic>.from(call.arguments as Map);
+        final gaps = await _scheduleGaps.execute(ScheduleGapsQuery(
+          dayId: values['dayId'] as String?,
+          fromMinutes: values['fromMinutes'] as int,
+          toMinutes: values['toMinutes'] as int,
+          peopleFilter: ScheduleGapPeopleFilter.values
+              .byName(values['peopleFilter'] as String),
+          minimumDurationMinutes: values['minimumDurationMinutes'] as int,
+        ));
+        return {
+          'workdays': _sessions.workdays.map(_workdayMap).toList(),
+          'gaps': gaps.map(_gapMap).toList()
+        };
       case 'procedureSessionSnapshot':
         return _sessionSnapshot();
       case 'submitProcedureSession':
@@ -113,6 +148,10 @@ final class DesktopWindowCoordinator {
             if (windowKindFromArguments(controller.arguments) ==
                 DesktopWindowKind.procedureStatistics) {
               await controller.invokeMethod<void>('statistics_changed');
+            }
+            if (windowKindFromArguments(controller.arguments) ==
+                DesktopWindowKind.freeTime) {
+              await controller.invokeMethod<void>('free_time_changed');
             }
           }
         }
@@ -134,8 +173,16 @@ final class DesktopWindowCoordinator {
         'counts': table.counts,
       };
 
+  Map<String, dynamic> _gapMap(ScheduleGap gap) => {
+        'day': _workdayMap(gap.workday),
+        'human': _humanMap(gap.human),
+        'start': gap.startTime,
+        'end': gap.endTime,
+        'duration': gap.durationLabel
+      };
+
   Map<String, dynamic> _sessionSnapshot() => {
-        'draft': _sessionMap(_sessions.createDraft()),
+        'draft': _sessionMap(_sessionDraft ?? _sessions.createDraft()),
         'workdays': _sessions.workdays.map(_workdayMap).toList(),
         'humans': _sessions.humans.map(_humanMap).toList(),
         'procedureKinds': _sessions.procedureKinds.map(_kindMap).toList(),
@@ -152,9 +199,16 @@ final class DesktopWindowCoordinator {
 Future<void> configureChildWindow(DesktopWindowKind kind) async {
   await windowManager.ensureInitialized();
   final isStatistics = kind == DesktopWindowKind.procedureStatistics;
+  final isFreeTime = kind == DesktopWindowKind.freeTime;
   final options = WindowOptions(
-    title: isStatistics ? 'Статистика процедур' : 'Назначить процедуру',
-    size: isStatistics ? const Size(1065, 514) : const Size(900, 680),
+    title: isStatistics
+        ? 'Статистика процедур'
+        : isFreeTime
+            ? 'Свободное время'
+            : 'Назначить процедуру',
+    size: isStatistics || isFreeTime
+        ? const Size(1065, 514)
+        : const Size(900, 680),
     minimumSize: isStatistics ? const Size(820, 420) : const Size(850, 600),
     center: true,
   );
@@ -348,6 +402,218 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
                               ])))),
         ])),
       );
+}
+
+class FreeTimeWindow extends StatefulWidget {
+  const FreeTimeWindow({super.key});
+  @override
+  State<FreeTimeWindow> createState() => _FreeTimeWindowState();
+}
+
+class _FreeTimeWindowState extends State<FreeTimeWindow> {
+  String? _dayId;
+  var _people = ScheduleGapPeopleFilter.all;
+  var _from = 480;
+  var _to = 1200;
+  var _minimum = 30;
+  List<Workday> _workdays = const [];
+  List<Map<String, dynamic>> _gaps = const [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _listen();
+    _load();
+  }
+
+  Future<void> _listen() async {
+    final controller = await WindowController.fromCurrentEngine();
+    await controller.setWindowMethodHandler((call) async {
+      if (call.method == 'free_time_changed') {
+        await _load();
+        return null;
+      }
+      if (call.method == 'window_close') {
+        await windowManager.close();
+        return null;
+      }
+      if (call.method == 'window_focus') {
+        await windowManager.focus();
+        return null;
+      }
+      throw MissingPluginException('Unknown free-time-window method');
+    });
+  }
+
+  Future<void> _load() async {
+    if (mounted) setState(() => _loading = true);
+    final value = await _mainChannel.invokeMethod<Map>('freeTime', {
+      'dayId': _dayId,
+      'fromMinutes': _from,
+      'toMinutes': _to,
+      'peopleFilter': _people.name,
+      'minimumDurationMinutes': _minimum
+    });
+    if (mounted) {
+      setState(() {
+        _workdays = _maps(value?['workdays']).map(_workdayFromMap).toList();
+        _gaps = _maps(value?['gaps']);
+        _loading = false;
+      });
+    }
+  }
+
+  List<int> get _times =>
+      [for (var value = 480; value <= 1200; value += 30) value];
+  String _time(int value) =>
+      '${(value ~/ 60).toString().padLeft(2, '0')}:${(value % 60).toString().padLeft(2, '0')}';
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+          body: Column(children: [
+        Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(children: [
+              Expanded(
+                  child: DropdownButtonFormField<String?>(
+                      value: _dayId,
+                      decoration: const InputDecoration(labelText: 'День'),
+                      items: [
+                        const DropdownMenuItem(
+                            value: null, child: Text('Все дни')),
+                        ..._workdays.map((d) =>
+                            DropdownMenuItem(value: d.id, child: Text(d.name)))
+                      ],
+                      onChanged: (v) {
+                        _dayId = v;
+                        _load();
+                      })),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: DropdownButtonFormField<int>(
+                      value: _from,
+                      decoration: const InputDecoration(labelText: 'Время с'),
+                      items: _times
+                          .map((v) =>
+                              DropdownMenuItem(value: v, child: Text(_time(v))))
+                          .toList(),
+                      onChanged: (v) {
+                        if (v != null) {
+                          _from = v;
+                          if (_from > _to) {
+                            final x = _from;
+                            _from = _to;
+                            _to = x;
+                          }
+                          _load();
+                        }
+                      })),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: DropdownButtonFormField<int>(
+                      value: _to,
+                      decoration: const InputDecoration(labelText: 'Время до'),
+                      items: _times
+                          .map((v) =>
+                              DropdownMenuItem(value: v, child: Text(_time(v))))
+                          .toList(),
+                      onChanged: (v) {
+                        if (v != null) {
+                          _to = v;
+                          if (_from > _to) {
+                            final x = _from;
+                            _from = _to;
+                            _to = x;
+                          }
+                          _load();
+                        }
+                      })),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: DropdownButtonFormField<ScheduleGapPeopleFilter>(
+                      value: _people,
+                      decoration:
+                          const InputDecoration(labelText: 'Искать для'),
+                      items: const [
+                        DropdownMenuItem(
+                            value: ScheduleGapPeopleFilter.all,
+                            child: Text('Участники и Ассистенты')),
+                        DropdownMenuItem(
+                            value: ScheduleGapPeopleFilter.participants,
+                            child: Text('Участники')),
+                        DropdownMenuItem(
+                            value: ScheduleGapPeopleFilter.assistants,
+                            child: Text('Ассистенты'))
+                      ],
+                      onChanged: (v) {
+                        if (v != null) {
+                          _people = v;
+                          _load();
+                        }
+                      })),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: DropdownButtonFormField<int>(
+                      value: _minimum,
+                      decoration: const InputDecoration(
+                          labelText: 'Показывать интервалы более'),
+                      items: [
+                        for (var v = 30; v <= 300; v += 30)
+                          DropdownMenuItem(
+                              value: v,
+                              child: Text(v == 30
+                                  ? '30 мин'
+                                  : '${v ~/ 60}ч ${(v % 60).toString().padLeft(2, '0')}мин'))
+                      ],
+                      onChanged: (v) {
+                        if (v != null) {
+                          _minimum = v;
+                          _load();
+                        }
+                      })),
+            ])),
+        Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _gaps.isEmpty
+                    ? const Center(
+                        child: Text('Нет данных по выбранным фильтрам'))
+                    : SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: DataTable(
+                            columns: const [
+                              DataColumn(label: Text('День')),
+                              DataColumn(label: Text('Человек')),
+                              DataColumn(label: Text('Начало')),
+                              DataColumn(label: Text('Конец')),
+                              DataColumn(label: Text('Длительность')),
+                              DataColumn(label: Text('')),
+                            ],
+                            rows: _gaps.map((g) {
+                              final day = _workdayFromMap(
+                                  Map<String, dynamic>.from(g['day'] as Map));
+                              final human = _humanFromMap(
+                                  Map<String, dynamic>.from(g['human'] as Map));
+                              return DataRow(cells: [
+                                DataCell(Text(day.name)),
+                                DataCell(Text(human.name)),
+                                DataCell(Text(g['start'] as String)),
+                                DataCell(Text(g['end'] as String)),
+                                DataCell(Text(g['duration'] as String)),
+                                DataCell(FilledButton.tonal(
+                                    onPressed: () => _mainChannel
+                                            .invokeMethod<void>(
+                                                'openProcedureSession', {
+                                          'dayId': day.id,
+                                          'participantId': human.id,
+                                          'startTime': g['start'] as String
+                                        }),
+                                    child: const Text('Занять участника'))),
+                              ]);
+                            }).toList()))),
+      ])));
 }
 
 class ProcedureSessionWindow extends StatefulWidget {

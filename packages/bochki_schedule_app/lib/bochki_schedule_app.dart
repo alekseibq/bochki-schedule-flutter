@@ -54,6 +54,8 @@ export 'src/domain/procedure_sessions/schedule_conflict.dart';
 export 'src/domain/procedure_sessions/procedure_sessions_repository.dart';
 export 'src/domain/procedure_sessions/procedure_sessions_validation_exception.dart';
 export 'src/domain/procedure_sessions/update_procedure_session_use_case.dart';
+export 'src/domain/schedule_gaps/build_schedule_gaps_use_case.dart';
+export 'src/domain/schedule_gaps/schedule_gap.dart';
 export 'src/features/procedure_kinds/procedure_kind_dialog.dart';
 export 'src/features/procedure_kinds/procedure_kinds_dialog.dart';
 export 'src/features/procedure_kinds/procedure_kinds_view_model.dart';
