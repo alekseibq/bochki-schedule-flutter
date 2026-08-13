@@ -87,3 +87,7 @@ export 'src/features/workdays/workday_dialog.dart';
 export 'src/features/workdays/workdays_dialog.dart';
 export 'src/features/workdays/workdays_view_model.dart';
 export 'src/presentation/shell/bochki_shell.dart';
+export 'src/domain/procedure_statistics/build_procedure_statistics_table_use_case.dart';
+export 'src/domain/procedure_statistics/procedure_statistics_table.dart';
+export 'src/features/procedure_statistics/procedure_statistics_dialog.dart';
+export 'src/features/procedure_statistics/procedure_statistics_view_model.dart';

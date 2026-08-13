@@ -51,6 +51,7 @@ import 'domain/workdays/list_workdays_use_case.dart';
 import 'domain/workdays/update_workday_use_case.dart';
 import 'domain/procedure_statistics/build_procedure_statistics_document_use_case.dart';
 import 'domain/procedure_statistics/open_procedure_statistics_file_use_case.dart';
+import 'domain/procedure_statistics/build_procedure_statistics_table_use_case.dart';
 import 'domain/procedure_statistics/save_procedure_statistics_file_use_case.dart';
 
 final class AppBootstrap {
@@ -253,6 +254,13 @@ final class AppBootstrap {
       ),
       documentOpener: const ProcessDocumentOpener(),
     );
+    final buildProcedureStatisticsTableUseCase =
+        BuildProcedureStatisticsTableUseCase(
+      listWorkdaysUseCase: listWorkdaysUseCase,
+      listHumansUseCase: listHumansUseCase,
+      listProcedureKindsUseCase: listProcedureKindsUseCase,
+      listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,
+    );
     final listProcedureSessionsWithConflictsUseCase =
         ListProcedureSessionsWithConflictsUseCase(
       listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,
@@ -308,6 +316,8 @@ final class AppBootstrap {
       savePrintScheduleFileUseCase: savePrintScheduleFileUseCase,
       openPrintScheduleFileUseCase: openPrintScheduleFileUseCase,
       openProcedureStatisticsFileUseCase: openProcedureStatisticsFileUseCase,
+      buildProcedureStatisticsTableUseCase:
+          buildProcedureStatisticsTableUseCase,
       getProgramSettingsUseCase: getProgramSettingsUseCase,
       updateProgramSettingsUseCase: updateProgramSettingsUseCase,
       listProcedureSessionsUseCase: listProcedureSessionsUseCase,

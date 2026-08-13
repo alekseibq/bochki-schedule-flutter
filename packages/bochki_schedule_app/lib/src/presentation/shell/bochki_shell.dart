@@ -18,6 +18,8 @@ import '../../features/assistants/assistants_dialog.dart';
 import '../../features/assistants/assistants_view_model.dart';
 import '../../features/workdays/workdays_dialog.dart';
 import '../../features/workdays/workdays_view_model.dart';
+import '../../features/procedure_statistics/procedure_statistics_dialog.dart';
+import '../../features/procedure_statistics/procedure_statistics_view_model.dart';
 
 enum DirectorySection {
   procedureKinds('Процедуры'),
@@ -31,7 +33,7 @@ enum DirectorySection {
   final String title;
 }
 
-enum ReportsSection { statistics }
+enum ReportsSection { statistics, procedureStatistics }
 
 class BochkiShell extends StatefulWidget {
   const BochkiShell({
@@ -316,6 +318,28 @@ class _BochkiShellState extends State<BochkiShell> {
     }
   }
 
+  Future<void> _openProcedureStatistics() async {
+    final buildUseCase = widget.services.buildProcedureStatisticsTableUseCase;
+    if (buildUseCase == null) {
+      return;
+    }
+    final viewModel = ProcedureStatisticsViewModel(
+      buildUseCase: buildUseCase,
+      listWorkdaysUseCase: widget.services.listWorkdaysUseCase,
+    );
+    try {
+      unawaited(viewModel.load());
+      await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => ProcedureStatisticsDialog(
+              viewModel: viewModel,
+              onAdd: () => _openProcedureSessionDialog(isEditing: false)));
+    } finally {
+      viewModel.dispose();
+    }
+  }
+
   void _selectDirectorySection(DirectorySection section) {
     switch (section) {
       case DirectorySection.procedureKinds:
@@ -492,11 +516,18 @@ class _BochkiShellState extends State<BochkiShell> {
                   PopupMenuButton<ReportsSection>(
                     key: const Key('reports_menu_button'),
                     tooltip: 'Отчёты',
-                    onSelected: (_) => unawaited(_openStatistics()),
+                    onSelected: (section) => unawaited(
+                        section == ReportsSection.statistics
+                            ? _openStatistics()
+                            : _openProcedureStatistics()),
                     itemBuilder: (context) => const [
                       PopupMenuItem<ReportsSection>(
                         value: ReportsSection.statistics,
                         child: Text('Статистика'),
+                      ),
+                      PopupMenuItem<ReportsSection>(
+                        value: ReportsSection.procedureStatistics,
+                        child: Text('Статистика процедур'),
                       ),
                     ],
                     child: Container(

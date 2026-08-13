@@ -32,6 +32,7 @@ import 'domain/workdays/delete_workday_use_case.dart';
 import 'domain/workdays/list_workdays_use_case.dart';
 import 'domain/workdays/update_workday_use_case.dart';
 import 'domain/procedure_statistics/open_procedure_statistics_file_use_case.dart';
+import 'domain/procedure_statistics/build_procedure_statistics_table_use_case.dart';
 
 final class AppServices {
   const AppServices({
@@ -59,6 +60,7 @@ final class AppServices {
     required this.savePrintScheduleFileUseCase,
     required this.openPrintScheduleFileUseCase,
     this.openProcedureStatisticsFileUseCase,
+    this.buildProcedureStatisticsTableUseCase,
     required this.getProgramSettingsUseCase,
     required this.updateProgramSettingsUseCase,
     required this.listProcedureSessionsUseCase,
@@ -95,6 +97,8 @@ final class AppServices {
   final SavePrintScheduleFileUseCase savePrintScheduleFileUseCase;
   final OpenPrintScheduleFileUseCase openPrintScheduleFileUseCase;
   final OpenProcedureStatisticsFileUseCase? openProcedureStatisticsFileUseCase;
+  final BuildProcedureStatisticsTableUseCase?
+      buildProcedureStatisticsTableUseCase;
   final GetProgramSettingsUseCase getProgramSettingsUseCase;
   final UpdateProgramSettingsUseCase updateProgramSettingsUseCase;
   final ListProcedureSessionsUseCase listProcedureSessionsUseCase;
