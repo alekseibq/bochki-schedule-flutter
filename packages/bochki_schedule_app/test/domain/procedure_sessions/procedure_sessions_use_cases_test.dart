@@ -33,6 +33,30 @@ void main() {
       expect(created.assistantId, isNull);
     });
 
+    test('create allows an assistant human as the procedure participant',
+        () async {
+      final repository = _InMemoryProcedureSessionsRepository();
+
+      final created = await CreateProcedureSessionUseCase(
+        repository,
+        workdaysRepository: _InMemoryWorkdaysRepository(),
+        humansRepository: _InMemoryHumansRepository(),
+        procedureKindsRepository: _InMemoryProcedureKindsRepository(),
+        assistantsRepository: _InMemoryAssistantsRepository(),
+        programSettingsRepository: _InMemoryProgramSettingsRepository(),
+      ).execute(
+        ProcedureSessionRaw(
+          id: 'draft',
+          dayId: '1',
+          participantId: '2',
+          startTime: '09:30',
+          procedureKindId: '2',
+        ),
+      );
+
+      expect(created.participantId, '2');
+    });
+
     test('curated procedure kind requires assistant', () async {
       final repository = _InMemoryProcedureSessionsRepository();
       final workdaysRepository = _InMemoryWorkdaysRepository();

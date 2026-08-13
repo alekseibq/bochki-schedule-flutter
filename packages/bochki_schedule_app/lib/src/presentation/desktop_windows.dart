@@ -137,7 +137,7 @@ final class DesktopWindowCoordinator {
   Map<String, dynamic> _sessionSnapshot() => {
         'draft': _sessionMap(_sessions.createDraft()),
         'workdays': _sessions.workdays.map(_workdayMap).toList(),
-        'participants': _sessions.participants.map(_humanMap).toList(),
+        'humans': _sessions.humans.map(_humanMap).toList(),
         'procedureKinds': _sessions.procedureKinds.map(_kindMap).toList(),
         'assistants': _sessions.assistants.map(_assistantMap).toList(),
         'settings': {
@@ -389,8 +389,7 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
           initialValue: _sessionFromMap(
               Map<String, dynamic>.from(snapshot['draft'] as Map)),
           workdays: _maps(snapshot['workdays']).map(_workdayFromMap).toList(),
-          participants:
-              _maps(snapshot['participants']).map(_humanFromMap).toList(),
+          humans: _maps(snapshot['humans']).map(_humanFromMap).toList(),
           procedureKinds:
               _maps(snapshot['procedureKinds']).map(_kindFromMap).toList(),
           assistants:

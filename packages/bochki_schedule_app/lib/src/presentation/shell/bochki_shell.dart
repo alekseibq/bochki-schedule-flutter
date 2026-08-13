@@ -380,7 +380,7 @@ class _BochkiShellState extends State<BochkiShell> {
         return ProcedureSessionDialog(
           initialValue: initialValue,
           workdays: _procedureSessionsViewModel.workdays,
-          participants: _procedureSessionsViewModel.participants,
+          humans: _procedureSessionsViewModel.humans,
           procedureKinds: _procedureSessionsViewModel.procedureKinds,
           assistants: _procedureSessionsViewModel.assistants,
           programSettings: _procedureSessionsViewModel.programSettings,
