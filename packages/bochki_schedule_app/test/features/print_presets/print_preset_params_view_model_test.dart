@@ -230,6 +230,9 @@ final class _ProcedureSessionsRepository
   final List<ProcedureSessionRaw> _sessions;
 
   @override
+  Future<void> updateMany(List<ProcedureSessionRaw> sessions) async {}
+
+  @override
   Future<ProcedureSessionRaw> create(ProcedureSessionRaw procedureSession) {
     throw UnimplementedError();
   }
