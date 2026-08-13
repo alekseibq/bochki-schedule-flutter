@@ -39,21 +39,20 @@ final class DocxProcedureStatisticsExporter
           '${_table(document.pages[i])}${i + 1 < document.pages.length ? '<w:p><w:r><w:br w:type="page"/></w:r></w:p>' : ''}'
       ].join()}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720"/></w:sectPr></w:body></w:document>''';
   String _table(ProcedureStatisticsPage page) =>
-      '<w:tbl><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="8"/><w:left w:val="single" w:sz="8"/><w:bottom w:val="single" w:sz="8"/><w:right w:val="single" w:sz="8"/><w:insideH w:val="single" w:sz="8"/><w:insideV w:val="single" w:sz="8"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="2400"/><w:gridCol w:w="2300"/><w:gridCol w:w="2300"/><w:gridCol w:w="2300"/><w:gridCol w:w="2300"/></w:tblGrid>${_row([
+      '<w:tbl><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="8"/><w:left w:val="single" w:sz="8"/><w:bottom w:val="single" w:sz="8"/><w:right w:val="single" w:sz="8"/><w:insideH w:val="single" w:sz="8"/><w:insideV w:val="single" w:sz="8"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="2400"/><w:gridCol w:w="2300"/><w:gridCol w:w="2300"/><w:gridCol w:w="2300"/><w:gridCol w:w="2300"/></w:tblGrid>${_textRow([
             'Кто',
             ...page.workdays.map((day) => day?.name ?? '')
-          ], header: true)}${page.rows.map((row) => row.cells.isEmpty ? _row([
+          ], header: true)}${page.rows.map((row) => row.cells.isEmpty ? _textRow([
               row.name,
               '',
               '',
               '',
               ''
-            ], header: true) : _row([
-              row.name,
-              ...row.cells.map(_cell)
-            ])).join()}</w:tbl>';
-  String _row(List<String> values, {bool header = false}) =>
+            ], header: true) : _dataRow(row)).join()}</w:tbl>';
+  String _textRow(List<String> values, {bool header = false}) =>
       '<w:tr>${values.map((value) => _cellText(value, bold: header)).join()}</w:tr>';
+  String _dataRow(ProcedureStatisticsRow row) =>
+      '<w:tr>${_cellText(row.name)}${row.cells.map(_cell).join()}</w:tr>';
   String _cell(ProcedureStatisticsCell cell) =>
       '<w:tc><w:tcPr><w:tcW w:w="0" w:type="auto"/></w:tcPr>${cell.lines.isEmpty ? _paragraph('') : cell.lines.map((line) => switch (line) {
             ProcedureStatisticsTextLine(:final text) => _paragraph(text),

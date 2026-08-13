@@ -523,7 +523,7 @@ class _BochkiShellState extends State<BochkiShell> {
                     itemBuilder: (context) => const [
                       PopupMenuItem<ReportsSection>(
                         value: ReportsSection.statistics,
-                        child: Text('Статистика'),
+                        child: Text('Статистика по сопровождениям'),
                       ),
                       PopupMenuItem<ReportsSection>(
                         value: ReportsSection.procedureStatistics,

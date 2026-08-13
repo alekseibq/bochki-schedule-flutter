@@ -92,10 +92,10 @@ final class BuildProcedureStatisticsDocumentUseCase {
   }
 
   String _fileName(List<Workday> workdays) {
-    if (workdays.isEmpty) return 'statistika-procedur.docx';
+    if (workdays.isEmpty) return 'statistika-po-soprovozhdeniyam.docx';
     String format(DateTime value) =>
         '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
-    return 'statistika-procedur-${format(workdays.first.calendarDate)}-${format(workdays.last.calendarDate)}.docx';
+    return 'statistika-po-soprovozhdeniyam-${format(workdays.first.calendarDate)}-${format(workdays.last.calendarDate)}.docx';
   }
 
   ProcedureStatisticsRow _row(Human human, List<Workday?> workdays,
