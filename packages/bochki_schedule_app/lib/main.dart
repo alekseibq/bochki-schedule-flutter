@@ -3,15 +3,26 @@ import 'dart:io';
 import 'dart:ui';
 
 import 'package:bochki_schedule_app/bochki_schedule_app.dart';
+import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/widgets.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'src/app_launch_arguments.dart';
 import 'src/presentation/startup_diagnostics.dart';
 import 'src/presentation/startup_launcher.dart';
+import 'src/presentation/desktop_windows.dart';
 
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  final controller = await WindowController.fromCurrentEngine();
+  final kind = windowKindFromArguments(controller.arguments);
+  if (kind != DesktopWindowKind.main) {
+    await configureChildWindow(kind);
+    runApp(kind == DesktopWindowKind.procedureStatistics
+        ? const ProcedureStatisticsWindow()
+        : const ProcedureSessionWindow());
+    return;
+  }
   final diagnostics = StartupDiagnostics();
   final errorReporter = _ApplicationErrorReporter(diagnostics);
   FlutterError.onError = errorReporter.recordFlutterError;

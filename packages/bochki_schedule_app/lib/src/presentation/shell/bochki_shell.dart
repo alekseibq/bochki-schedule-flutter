@@ -18,8 +18,7 @@ import '../../features/assistants/assistants_dialog.dart';
 import '../../features/assistants/assistants_view_model.dart';
 import '../../features/workdays/workdays_dialog.dart';
 import '../../features/workdays/workdays_view_model.dart';
-import '../../features/procedure_statistics/procedure_statistics_dialog.dart';
-import '../../features/procedure_statistics/procedure_statistics_view_model.dart';
+import '../desktop_windows.dart';
 
 enum DirectorySection {
   procedureKinds('Процедуры'),
@@ -55,6 +54,7 @@ class _BochkiShellState extends State<BochkiShell> {
   bool _programSettingsDialogOpen = false;
   bool _printPresetParamsDialogOpen = false;
   late final ProcedureSessionsViewModel _procedureSessionsViewModel;
+  DesktopWindowCoordinator? _desktopWindows;
 
   @override
   void initState() {
@@ -74,11 +74,29 @@ class _BochkiShellState extends State<BochkiShell> {
       listAssistantsUseCase: widget.services.listAssistantsUseCase,
       getProgramSettingsUseCase: widget.services.getProgramSettingsUseCase,
     );
+    final statistics = widget.services.buildProcedureStatisticsTableUseCase;
+    if (statistics != null) {
+      _desktopWindows = DesktopWindowCoordinator(
+        statistics: statistics,
+        sessions: _procedureSessionsViewModel,
+      );
+      unawaited(_startDesktopWindows());
+    }
     unawaited(_procedureSessionsViewModel.load());
+  }
+
+  Future<void> _startDesktopWindows() async {
+    try {
+      await _desktopWindows?.start();
+    } catch (_) {
+      // The channel is not present in widget tests and unsupported targets.
+    }
   }
 
   @override
   void dispose() {
+    unawaited(_desktopWindows?.closeChildren());
+    unawaited(_desktopWindows?.dispose());
     _procedureSessionsViewModel.dispose();
     super.dispose();
   }
@@ -319,25 +337,7 @@ class _BochkiShellState extends State<BochkiShell> {
   }
 
   Future<void> _openProcedureStatistics() async {
-    final buildUseCase = widget.services.buildProcedureStatisticsTableUseCase;
-    if (buildUseCase == null) {
-      return;
-    }
-    final viewModel = ProcedureStatisticsViewModel(
-      buildUseCase: buildUseCase,
-      listWorkdaysUseCase: widget.services.listWorkdaysUseCase,
-    );
-    try {
-      unawaited(viewModel.load());
-      await showDialog<void>(
-          context: context,
-          barrierDismissible: false,
-          builder: (_) => ProcedureStatisticsDialog(
-              viewModel: viewModel,
-              onAdd: () => _openProcedureSessionDialog(isEditing: false)));
-    } finally {
-      viewModel.dispose();
-    }
+    await _desktopWindows?.openStatistics();
   }
 
   void _selectDirectorySection(DirectorySection section) {
@@ -364,6 +364,10 @@ class _BochkiShellState extends State<BochkiShell> {
     required bool isEditing,
     String? procedureSessionId,
   }) async {
+    if (!isEditing) {
+      await _desktopWindows?.openSession();
+      return;
+    }
     final initialValue = isEditing
         ? _procedureSessionsViewModel.entries
             .firstWhere((entry) => entry.id == procedureSessionId!)
