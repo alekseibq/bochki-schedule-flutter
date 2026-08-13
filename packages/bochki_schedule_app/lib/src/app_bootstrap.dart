@@ -30,6 +30,7 @@ import 'domain/procedure_sessions/list_procedure_sessions_use_case.dart';
 import 'domain/procedure_sessions/list_rich_procedure_sessions_use_case.dart';
 import 'domain/procedure_sessions/list_procedure_sessions_with_conflicts_use_case.dart';
 import 'domain/procedure_sessions/update_procedure_session_use_case.dart';
+import 'domain/procedure_sessions/quick_reassignments_use_case.dart';
 import 'domain/procedure_kinds/create_procedure_kind_use_case.dart';
 import 'domain/procedure_kinds/delete_procedure_kind_use_case.dart';
 import 'domain/procedure_kinds/list_procedure_kinds_use_case.dart';
@@ -292,6 +293,13 @@ final class AppBootstrap {
     final deleteProcedureSessionUseCase = DeleteProcedureSessionUseCase(
       procedureSessionsRepository,
     );
+    final quickReassignmentsUseCase = QuickReassignmentsUseCase(
+      repository: procedureSessionsRepository,
+      workdaysRepository: workdaysRepository,
+      humansRepository: humansRepository,
+      procedureKindsRepository: procedureKindsRepository,
+      assistantsRepository: assistantsRepository,
+    );
 
     await logger.info(
       'Bootstrap completed. appDataDirectory=${resolvedAppDataDirectory.path}',
@@ -336,6 +344,7 @@ final class AppBootstrap {
       createProcedureSessionUseCase: createProcedureSessionUseCase,
       updateProcedureSessionUseCase: updateProcedureSessionUseCase,
       deleteProcedureSessionUseCase: deleteProcedureSessionUseCase,
+      quickReassignmentsUseCase: quickReassignmentsUseCase,
       flushPending: syncCoordinator.flushPending,
       shutdown: syncCoordinator.shutdown,
     );

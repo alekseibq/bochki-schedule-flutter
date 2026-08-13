@@ -18,6 +18,8 @@ import '../../features/assistants/assistants_dialog.dart';
 import '../../features/assistants/assistants_view_model.dart';
 import '../../features/workdays/workdays_dialog.dart';
 import '../../features/workdays/workdays_view_model.dart';
+import '../../features/quick_reassignments/quick_reassignments_dialog.dart';
+import '../../features/quick_reassignments/quick_reassignments_view_model.dart';
 import '../desktop_windows.dart';
 
 enum DirectorySection {
@@ -53,6 +55,7 @@ class _BochkiShellState extends State<BochkiShell> {
   bool _assistantsDialogOpen = false;
   bool _programSettingsDialogOpen = false;
   bool _printPresetParamsDialogOpen = false;
+  bool _quickReassignmentsDialogOpen = false;
   late final ProcedureSessionsViewModel _procedureSessionsViewModel;
   DesktopWindowCoordinator? _desktopWindows;
 
@@ -344,6 +347,33 @@ class _BochkiShellState extends State<BochkiShell> {
 
   Future<void> _openFreeTime() async => _desktopWindows?.openFreeTime();
 
+  Future<void> _openQuickReassignments() async {
+    if (_quickReassignmentsDialogOpen ||
+        widget.services.quickReassignmentsUseCase == null) {
+      return;
+    }
+    setState(() => _quickReassignmentsDialogOpen = true);
+    final viewModel = QuickReassignmentsViewModel(
+      sessions: widget.services.listRichProcedureSessionsUseCase,
+      workdays: widget.services.listWorkdaysUseCase,
+      humans: widget.services.listHumansUseCase,
+      settings: widget.services.getProgramSettingsUseCase,
+      mutations: widget.services.quickReassignmentsUseCase!,
+    );
+    try {
+      await viewModel.load();
+      if (mounted) {
+        await showDialog<void>(
+            context: context,
+            builder: (_) => QuickReassignmentsDialog(viewModel: viewModel));
+      }
+    } finally {
+      viewModel.dispose();
+      unawaited(_procedureSessionsViewModel.load());
+      if (mounted) setState(() => _quickReassignmentsDialogOpen = false);
+    }
+  }
+
   void _selectDirectorySection(DirectorySection section) {
     switch (section) {
       case DirectorySection.procedureKinds:
@@ -565,6 +595,12 @@ class _BochkiShellState extends State<BochkiShell> {
                     key: const Key('print_preset_params_button'),
                     onPressed: _openPrintPresetParamsDialog,
                     child: const Text('Распечатки'),
+                  ),
+                  const SizedBox(width: 12),
+                  FilledButton.tonal(
+                    key: const Key('quick_reassignments_button'),
+                    onPressed: _openQuickReassignments,
+                    child: const Text('Быстрые перестановки'),
                   ),
                 ],
               ),

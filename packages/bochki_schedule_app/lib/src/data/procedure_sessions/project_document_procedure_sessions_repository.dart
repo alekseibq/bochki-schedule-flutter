@@ -69,6 +69,36 @@ final class ProjectDocumentProcedureSessionsRepository
   }
 
   @override
+  Future<void> updateMany(List<ProcedureSessionRaw> procedureSessions) async {
+    final replacements = <int, ProcedureSessionDto>{
+      for (final session in procedureSessions)
+        int.parse(session.id): ProcedureSessionDto.fromDomain(
+          session,
+          deleted: false,
+        ),
+    };
+    final indexes = <int, int>{};
+    for (final entry in replacements.entries) {
+      final index = _entries.indexWhere((item) => item.id == entry.key);
+      if (index == -1) {
+        throw StateError('Назначенная процедура ${entry.key} не найдена.');
+      }
+      indexes[entry.key] = index;
+    }
+    var changed = false;
+    for (final entry in replacements.entries) {
+      final index = indexes[entry.key]!;
+      if (_entries[index].toJson().toString() !=
+              entry.value.toJson().toString() ||
+          _entries[index].deleted) {
+        _entries[index] = entry.value;
+        changed = true;
+      }
+    }
+    if (changed) _markRepositoryChanged();
+  }
+
+  @override
   Future<void> delete(String procedureSessionId) async {
     final entryId = int.parse(procedureSessionId);
     final index = _entries.indexWhere((entry) => entry.id == entryId);
