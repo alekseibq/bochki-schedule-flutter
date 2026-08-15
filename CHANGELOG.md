@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.11.0
+
+Release date: 2026-08-15
+
+### Highlights
+
+- Added saved schedule templates for reusing common scheduling setups.
+- Added quick reassignment actions and a free-time report.
+- Added desktop windows and documents for procedure tools and statistics.
+
+### Details
+
+- `feat: add saved schedule templates (#102)`
+- `feat: add quick reassignment dialog (#101)`
+- `feat(reports): add free time report (#100)`
+- `feat(app): open procedure tools in desktop windows (#97)`
+- `feat(app): add procedure statistics dialog (#95)`
+- `feat(reports): render accompaniment statistics cells`
+- `fix(schedule): allow assistants as procedure participants`
+- `fix(directory): save inline edits when confirming dialog`
+
 ## v0.10.0
 
 Release date: 2026-07-21
