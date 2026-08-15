@@ -5,3 +5,4 @@ export 'src/app_paths.dart';
 export 'src/file_app_logger.dart';
 export 'src/project_document_store.dart';
 export 'src/safe_file_writer.dart';
+export 'src/template_file_store.dart';
