@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
 
 import '../../app_services.dart';
 import '../../features/participants/participants_dialog.dart';
@@ -36,13 +37,17 @@ enum DirectorySection {
 
 enum ReportsSection { statistics, procedureStatistics, freeTime }
 
+enum TemplatesSection { create, load, delete }
+
 class BochkiShell extends StatefulWidget {
   const BochkiShell({
     required this.services,
+    this.onProjectLoaded,
     super.key,
   });
 
   final AppServices services;
+  final Future<void> Function()? onProjectLoaded;
 
   @override
   State<BochkiShell> createState() => _BochkiShellState();
@@ -56,6 +61,7 @@ class _BochkiShellState extends State<BochkiShell> {
   bool _programSettingsDialogOpen = false;
   bool _printPresetParamsDialogOpen = false;
   bool _quickReassignmentsDialogOpen = false;
+  bool _templatesDialogOpen = false;
   late final ProcedureSessionsViewModel _procedureSessionsViewModel;
   DesktopWindowCoordinator? _desktopWindows;
 
@@ -374,6 +380,178 @@ class _BochkiShellState extends State<BochkiShell> {
     }
   }
 
+  Future<void> _selectTemplateSection(TemplatesSection section) async {
+    if (widget.services.templateService == null) return;
+    if (_templatesDialogOpen) return;
+    setState(() => _templatesDialogOpen = true);
+    try {
+      switch (section) {
+        case TemplatesSection.create:
+          await _createTemplate();
+          return;
+        case TemplatesSection.load:
+          await _chooseTemplate(isDelete: false);
+          return;
+        case TemplatesSection.delete:
+          await _chooseTemplate(isDelete: true);
+          return;
+      }
+    } finally {
+      if (mounted) setState(() => _templatesDialogOpen = false);
+    }
+  }
+
+  Future<void> _createTemplate() async {
+    final templateService = widget.services.templateService;
+    if (templateService == null) return;
+    final controller = TextEditingController();
+    try {
+      final title = await showDialog<String>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Создать шаблон'),
+          content: TextField(
+            key: const Key('template_title_field'),
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(labelText: 'Название шаблона'),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Отмена')),
+            FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, controller.text),
+                child: const Text('Сохранить')),
+          ],
+        ),
+      );
+      if (title == null) return;
+      final error = templateService.validateTitle(title);
+      if (error.isNotEmpty) {
+        _showError(error);
+        return;
+      }
+      final existing = await templateService.existingForTitle(title);
+      if (existing != null &&
+          !await _confirm('Перезаписать шаблон?',
+              'Шаблон «${existing.displayName}» уже существует.')) return;
+      await templateService.save(title);
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Шаблон сохранён.')));
+      }
+    } catch (error) {
+      _showError('Не удалось сохранить шаблон: $error');
+    } finally {
+      controller.dispose();
+    }
+  }
+
+  Future<void> _chooseTemplate({required bool isDelete}) async {
+    final templateService = widget.services.templateService;
+    if (templateService == null) return;
+    final templates = await templateService.list();
+    if (!mounted) return;
+    TemplateFile? selected;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title:
+              Text(isDelete ? 'Удалить шаблон' : 'Загрузить данные из шаблона'),
+          content: SizedBox(
+            width: 520,
+            height: 300,
+            child: templates.isEmpty
+                ? const Center(child: Text('Сохранённых шаблонов нет.'))
+                : ListView.builder(
+                    itemCount: templates.length,
+                    itemBuilder: (_, index) {
+                      final template = templates[index];
+                      return RadioListTile<TemplateFile>(
+                        value: template,
+                        groupValue: selected,
+                        title: Text(template.displayName),
+                        onChanged: (value) =>
+                            setDialogState(() => selected = value),
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Отмена')),
+            FilledButton(
+              style: isDelete
+                  ? FilledButton.styleFrom(backgroundColor: Colors.red)
+                  : null,
+              onPressed:
+                  selected == null ? null : () => Navigator.pop(dialogContext),
+              child: Text(isDelete ? 'Удалить' : 'Загрузить'),
+            ),
+          ],
+        ),
+      ),
+    );
+    final template = selected;
+    if (template == null || !mounted) return;
+    if (isDelete) {
+      if (!await _confirm('Удалить шаблон?',
+          'Шаблон «${template.displayName}» будет удалён без возможности восстановления.',
+          destructive: true)) return;
+      await templateService.delete(template);
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Шаблон удалён.')));
+      }
+      return;
+    }
+    if (!await _confirm('Загрузить шаблон?',
+        'Текущие данные будут заменены шаблоном «${template.displayName}».')) {
+      return;
+    }
+    try {
+      await templateService.load(template);
+      await widget.onProjectLoaded?.call();
+    } catch (error) {
+      _showError('Не удалось загрузить шаблон: $error');
+    }
+  }
+
+  Future<bool> _confirm(String title, String content,
+          {bool destructive = false}) async =>
+      await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(title),
+          content: Text(content),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Отмена')),
+            FilledButton(
+              style: destructive
+                  ? FilledButton.styleFrom(backgroundColor: Colors.red)
+                  : null,
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(destructive ? 'Удалить' : 'Загрузить'),
+            ),
+          ],
+        ),
+      ) ??
+      false;
+
+  void _showError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
   void _selectDirectorySection(DirectorySection section) {
     switch (section) {
       case DirectorySection.procedureKinds:
@@ -548,6 +726,40 @@ class _BochkiShellState extends State<BochkiShell> {
                           Icon(Icons.arrow_drop_down, size: 18),
                         ],
                       ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  PopupMenuButton<TemplatesSection>(
+                    key: const Key('templates_menu_button'),
+                    tooltip: 'Шаблоны',
+                    popUpAnimationStyle: AnimationStyle.noAnimation,
+                    onSelected: (section) =>
+                        unawaited(_selectTemplateSection(section)),
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(
+                          value: TemplatesSection.create,
+                          child: Text('Создать шаблон')),
+                      PopupMenuItem(
+                          value: TemplatesSection.load,
+                          child: Text('Загрузить данные из шаблона')),
+                      PopupMenuItem(
+                          value: TemplatesSection.delete,
+                          child: Text('Удалить шаблон')),
+                    ],
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(6),
+                        color: Colors.white.withOpacity(0.72),
+                        border: Border.all(color: const Color(0xFFD0D7DE)),
+                      ),
+                      child:
+                          const Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text('Шаблоны'),
+                        SizedBox(width: 6),
+                        Icon(Icons.arrow_drop_down, size: 18),
+                      ]),
                     ),
                   ),
                   const SizedBox(width: 12),

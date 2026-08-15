@@ -55,6 +55,7 @@ import 'domain/procedure_statistics/open_procedure_statistics_file_use_case.dart
 import 'domain/procedure_statistics/build_procedure_statistics_table_use_case.dart';
 import 'domain/procedure_statistics/save_procedure_statistics_file_use_case.dart';
 import 'domain/schedule_gaps/build_schedule_gaps_use_case.dart';
+import 'domain/templates/template_service.dart';
 
 final class AppBootstrap {
   static Future<AppServices> initialize({
@@ -90,6 +91,14 @@ final class AppBootstrap {
       repository: projectDocumentRepository,
       initialDocument: initialDocument,
       logger: logger,
+    );
+    final templateService = TemplateService(
+      store: TemplateFileStore(
+        appDataDirectory: resolvedAppDataDirectory,
+        safeFileWriter: const AtomicFileWriter(),
+      ),
+      projectRepository: projectDocumentRepository,
+      flushPending: syncCoordinator.flushPending,
     );
     final idAllocator = ProjectDocumentIdAllocator(
       nextId: initialDocument.nextId,
@@ -347,6 +356,7 @@ final class AppBootstrap {
       quickReassignmentsUseCase: quickReassignmentsUseCase,
       flushPending: syncCoordinator.flushPending,
       shutdown: syncCoordinator.shutdown,
+      templateService: templateService,
     );
   }
 

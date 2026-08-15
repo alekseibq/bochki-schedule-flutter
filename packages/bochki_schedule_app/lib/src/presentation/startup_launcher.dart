@@ -62,6 +62,19 @@ class _StartupLauncherState extends State<StartupLauncher> {
     }
   }
 
+  Future<void> _reloadProject() async {
+    final previous = _services;
+    if (previous == null) return;
+    await previous.shutdown();
+    final services = await widget.bootstrap(widget.diagnostics);
+    widget.onServicesReady?.call(services);
+    if (!mounted) {
+      await services.shutdown();
+      return;
+    }
+    setState(() => _services = services);
+  }
+
   void _continueToApplication() {
     setState(() => _status = StartupStatus.continued);
   }
@@ -70,7 +83,10 @@ class _StartupLauncherState extends State<StartupLauncher> {
   Widget build(BuildContext context) {
     final services = _services;
     if (_status == StartupStatus.continued && services != null) {
-      return BochkiScheduleApp(services: services);
+      return BochkiScheduleApp(
+        services: services,
+        onProjectLoaded: _reloadProject,
+      );
     }
 
     return StartupErrorApp(

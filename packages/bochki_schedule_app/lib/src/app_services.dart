@@ -35,6 +35,7 @@ import 'domain/workdays/update_workday_use_case.dart';
 import 'domain/procedure_statistics/open_procedure_statistics_file_use_case.dart';
 import 'domain/procedure_statistics/build_procedure_statistics_table_use_case.dart';
 import 'domain/schedule_gaps/build_schedule_gaps_use_case.dart';
+import 'domain/templates/template_service.dart';
 
 final class AppServices {
   const AppServices({
@@ -75,6 +76,7 @@ final class AppServices {
     this.quickReassignmentsUseCase,
     required this.flushPending,
     required this.shutdown,
+    this.templateService,
   });
 
   final Directory appDataDirectory;
@@ -116,4 +118,5 @@ final class AppServices {
   final QuickReassignmentsUseCase? quickReassignmentsUseCase;
   final Future<void> Function() flushPending;
   final Future<void> Function() shutdown;
+  final TemplateService? templateService;
 }

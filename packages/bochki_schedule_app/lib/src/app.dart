@@ -9,10 +9,12 @@ import 'presentation/shell/bochki_shell.dart';
 class BochkiScheduleApp extends StatefulWidget {
   const BochkiScheduleApp({
     required this.services,
+    this.onProjectLoaded,
     super.key,
   });
 
   final AppServices services;
+  final Future<void> Function()? onProjectLoaded;
 
   @override
   State<BochkiScheduleApp> createState() => _BochkiScheduleAppState();
@@ -63,7 +65,10 @@ class _BochkiScheduleAppState extends State<BochkiScheduleApp> {
         ),
         scaffoldBackgroundColor: const Color(0xFFF6F7F9),
       ),
-      home: BochkiShell(services: widget.services),
+      home: BochkiShell(
+        services: widget.services,
+        onProjectLoaded: widget.onProjectLoaded,
+      ),
     );
   }
 }
