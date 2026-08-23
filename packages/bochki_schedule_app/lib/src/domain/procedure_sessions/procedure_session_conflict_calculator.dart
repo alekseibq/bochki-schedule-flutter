@@ -1,13 +1,19 @@
+import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
+
 import 'conflict_resource_type.dart';
 import 'procedure_session_occupancy_record.dart';
 import 'procedure_session_rich.dart';
 import 'procedure_session_time.dart';
 import 'schedule_conflict.dart';
+import 'schedule_conflict_type.dart';
 
 final class ProcedureSessionConflictCalculator {
   const ProcedureSessionConflictCalculator();
 
-  List<ScheduleConflict> calculate(Iterable<ProcedureSessionRich> sessions) {
+  List<ScheduleConflict> calculate(
+    Iterable<ProcedureSessionRich> sessions, {
+    required ProgramSettings programSettings,
+  }) {
     final records = <ProcedureSessionOccupancyRecord>[
       for (final session in sessions) ..._buildRecords(session),
     ];
@@ -24,7 +30,69 @@ final class ProcedureSessionConflictCalculator {
     for (final group in grouped.values) {
       conflicts.addAll(_calculateGroup(group));
     }
+    for (final session in sessions) {
+      conflicts
+          .addAll(_calculateTimeBoundaryConflicts(session, programSettings));
+    }
     return _mergeAdjacentConflicts(conflicts);
+  }
+
+  List<ScheduleConflict> _calculateTimeBoundaryConflicts(
+    ProcedureSessionRich session,
+    ProgramSettings settings,
+  ) {
+    final start = ProcedureSessionTime.toMinutes(session.startTime);
+    final minimum =
+        settings.minimumTime.hour * 60 + settings.minimumTime.minute;
+    final maximum =
+        settings.maximumTime.hour * 60 + settings.maximumTime.minute;
+    final conflicts = <ScheduleConflict>[];
+    if (start < minimum) {
+      conflicts.add(ScheduleConflict(
+        type: ScheduleConflictType.timeBoundary,
+        workdayId: session.dayId,
+        timeStart: session.startTime,
+        timeFinish: _formatAbsoluteTime(minimum),
+        procedureSessionId: session.id,
+        message:
+            'Процедура начинается раньше минимального времени ${_formatAbsoluteTime(minimum)}.',
+      ));
+    }
+
+    final kind = session.procedureKind;
+    if (kind == null) return conflicts;
+    final ends = <String>[];
+    final endMinutes = <int>[];
+    void addEnd(String label, int? duration) {
+      if (duration == null) return;
+      final end = start + duration;
+      endMinutes.add(end);
+      if (end > maximum) ends.add('$label до ${_formatAbsoluteTime(end)}');
+    }
+
+    addEnd('участник', kind.participantBusyTime);
+    if (session.assistantId != null)
+      addEnd('ассистент', kind.assistantBusyTime);
+    addEnd('ресурс', kind.resourceBusyTime);
+    if (ends.isNotEmpty) {
+      conflicts.add(ScheduleConflict(
+        type: ScheduleConflictType.timeBoundary,
+        workdayId: session.dayId,
+        timeStart: session.startTime,
+        timeFinish:
+            _formatAbsoluteTime(endMinutes.reduce((a, b) => a > b ? a : b)),
+        procedureSessionId: session.id,
+        message:
+            'Процедура выходит за максимальное время ${_formatAbsoluteTime(maximum)}: ${ends.join(', ')}.',
+      ));
+    }
+    return conflicts;
+  }
+
+  String _formatAbsoluteTime(int minutes) {
+    final dayOffset = minutes ~/ (24 * 60);
+    final time = ProcedureSessionTime.fromMinutes(minutes);
+    return dayOffset > 0 ? '$time следующего дня' : time;
   }
 
   List<ProcedureSessionOccupancyRecord> _buildRecords(
@@ -141,8 +209,8 @@ final class ProcedureSessionConflictCalculator {
         if (bySession != 0) {
           return bySession;
         }
-        final byResourceType =
-            left.resourceType.name.compareTo(right.resourceType.name);
+        final byResourceType = (left.resourceType?.name ?? '')
+            .compareTo(right.resourceType?.name ?? '');
         if (byResourceType != 0) {
           return byResourceType;
         }
@@ -169,14 +237,15 @@ final class ProcedureSessionConflictCalculator {
       }
 
       final previous = merged.last;
-      final canMerge =
+      final canMerge = previous.type == ScheduleConflictType.resourceOverload &&
+          conflict.type == ScheduleConflictType.resourceOverload &&
           previous.procedureSessionId == conflict.procedureSessionId &&
-              previous.resourceType == conflict.resourceType &&
-              previous.resourceId == conflict.resourceId &&
-              previous.workdayId == conflict.workdayId &&
-              previous.capacityAllowed == conflict.capacityAllowed &&
-              previous.capacityRegistered == conflict.capacityRegistered &&
-              previous.timeFinish == conflict.timeStart;
+          previous.resourceType == conflict.resourceType &&
+          previous.resourceId == conflict.resourceId &&
+          previous.workdayId == conflict.workdayId &&
+          previous.capacityAllowed == conflict.capacityAllowed &&
+          previous.capacityRegistered == conflict.capacityRegistered &&
+          previous.timeFinish == conflict.timeStart;
       if (!canMerge) {
         merged.add(conflict);
         continue;

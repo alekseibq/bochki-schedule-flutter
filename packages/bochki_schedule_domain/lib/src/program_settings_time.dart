@@ -4,8 +4,8 @@ final class ProgramSettingsTime {
     required this.minute,
   })  : assert(hour >= 0 && hour <= 23, 'hour must be between 0 and 23'),
         assert(
-          minute >= 0 && minute <= 50 && minute % 10 == 0,
-          'minute must be between 0 and 50 in 10-minute increments',
+          minute >= 0 && minute <= 55 && minute % 5 == 0,
+          'minute must be between 0 and 55 in 5-minute increments',
         );
 
   final int hour;
@@ -71,9 +71,9 @@ final class ProgramSettingsTime {
     }
 
     final minute = value.toInt();
-    if (minute < 0 || minute > 50 || minute % 10 != 0) {
+    if (minute < 0 || minute > 55 || minute % 5 != 0) {
       throw const FormatException(
-        'Program settings time minute must be between 0 and 50 in 10-minute increments.',
+        'Program settings time minute must be between 0 and 55 in 5-minute increments.',
       );
     }
     return minute;

@@ -153,34 +153,27 @@ void main() {
       expect(sorted.map((entry) => entry.id), ['1', '2', '3']);
     });
 
-    test('create rejects start time before minimum hour', () async {
+    test('create allows start time before minimum hour', () async {
       final repository = _InMemoryProcedureSessionsRepository();
 
-      expect(
-        () => CreateProcedureSessionUseCase(
-          repository,
-          workdaysRepository: _InMemoryWorkdaysRepository(),
-          humansRepository: _InMemoryHumansRepository(),
-          procedureKindsRepository: _InMemoryProcedureKindsRepository(),
-          assistantsRepository: _InMemoryAssistantsRepository(),
-          programSettingsRepository: _InMemoryProgramSettingsRepository(),
-        ).execute(
-          ProcedureSessionRaw(
-            id: 'draft',
-            dayId: '1',
-            participantId: '1',
-            startTime: '07:55',
-            procedureKindId: '2',
-          ),
-        ),
-        throwsA(
-          isA<ProcedureSessionsValidationException>().having(
-            (error) => error.message,
-            'message',
-            'Время начала должно быть в диапазоне 08:00-20:55.',
-          ),
+      final created = await CreateProcedureSessionUseCase(
+        repository,
+        workdaysRepository: _InMemoryWorkdaysRepository(),
+        humansRepository: _InMemoryHumansRepository(),
+        procedureKindsRepository: _InMemoryProcedureKindsRepository(),
+        assistantsRepository: _InMemoryAssistantsRepository(),
+        programSettingsRepository: _InMemoryProgramSettingsRepository(),
+      ).execute(
+        ProcedureSessionRaw(
+          id: 'draft',
+          dayId: '1',
+          participantId: '1',
+          startTime: '07:55',
+          procedureKindId: '2',
         ),
       );
+
+      expect(created.startTime, '07:55');
     });
 
     test('create allows start time at maximum hour minute 55', () async {
@@ -273,7 +266,7 @@ void main() {
             resourceBusyTime: 30,
           ),
         ),
-      ]);
+      ], programSettings: ProgramSettings.defaults);
 
       expect(conflicts, hasLength(4));
       expect(
@@ -333,9 +326,53 @@ void main() {
             resourceBusyTime: 30,
           ),
         ),
-      ]);
+      ], programSettings: ProgramSettings.defaults);
 
       expect(noConflicts, isEmpty);
+    });
+
+    test('conflict calculator reports exact time-boundary violations', () {
+      const calculator = ProcedureSessionConflictCalculator();
+      const settings = ProgramSettings(
+        lunchStart: ProgramSettingsTime(hour: 12, minute: 0),
+        lunchEnd: ProgramSettingsTime(hour: 13, minute: 0),
+        minimumTime: ProgramSettingsTime(hour: 8, minute: 15),
+        maximumTime: ProgramSettingsTime(hour: 19, minute: 40),
+      );
+
+      final conflicts = calculator.calculate([
+        _buildRichSession(
+          id: '1',
+          participantId: '10',
+          startTime: '08:10',
+          assistantId: '20',
+          procedureKind: ProcedureKind(
+            id: '100',
+            patternId: ProcedureKindPatterns.curated.patternId,
+            name: 'Бочка',
+            capacity: 1,
+            participantBusyTime: 100,
+            assistantBusyTime: 700,
+            resourceBusyTime: 1000,
+          ),
+        ),
+      ], programSettings: settings);
+
+      expect(
+          conflicts
+              .where((item) => item.type == ScheduleConflictType.timeBoundary),
+          hasLength(2));
+      expect(
+        conflicts.map((item) => item.message),
+        contains(contains('раньше минимального времени 08:15')),
+      );
+      expect(
+        conflicts.map((item) => item.message),
+        contains(allOf(
+          contains('ассистент до 19:50'),
+          contains('ресурс до 00:50 следующего дня'),
+        )),
+      );
     });
 
     test('list rich sorts by workday name then time then procedure name',

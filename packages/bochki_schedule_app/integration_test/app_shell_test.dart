@@ -90,6 +90,8 @@ void main() {
       listProcedureSessionsWithConflictsUseCase:
           ListProcedureSessionsWithConflictsUseCase(
         listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,
+        getProgramSettingsUseCase:
+            GetProgramSettingsUseCase(programSettingsRepository),
       ),
       createProcedureSessionUseCase: CreateProcedureSessionUseCase(
         procedureSessionsRepository,

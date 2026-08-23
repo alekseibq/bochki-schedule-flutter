@@ -225,8 +225,8 @@ final class DesktopWindowCoordinator {
         'procedureKinds': _sessions.procedureKinds.map(_kindMap).toList(),
         'assistants': _sessions.assistants.map(_assistantMap).toList(),
         'settings': {
-          'minimumHour': _sessions.programSettings.minimumHour,
-          'maximumHour': _sessions.programSettings.maximumHour,
+          'minimumTime': _sessions.programSettings.minimumTime.toJson(),
+          'maximumTime': _sessions.programSettings.maximumTime.toJson(),
           'lunchStart': _sessions.programSettings.lunchStart.toJson(),
           'lunchEnd': _sessions.programSettings.lunchEnd.toJson(),
         },
@@ -846,8 +846,10 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
           assistants:
               _maps(snapshot['assistants']).map(_assistantFromMap).toList(),
           programSettings: ProgramSettings(
-              minimumHour: settings['minimumHour'] as int,
-              maximumHour: settings['maximumHour'] as int,
+              minimumTime:
+                  ProgramSettingsTime.fromJson(settings['minimumTime']),
+              maximumTime:
+                  ProgramSettingsTime.fromJson(settings['maximumTime']),
               lunchStart: ProgramSettingsTime.fromJson(settings['lunchStart']),
               lunchEnd: ProgramSettingsTime.fromJson(settings['lunchEnd'])),
           onSubmit: (session, allowConflicts) async {

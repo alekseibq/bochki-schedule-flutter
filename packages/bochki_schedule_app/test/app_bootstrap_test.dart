@@ -149,8 +149,8 @@ void main() {
       programSettings: ProgramSettings(
         lunchStart: ProgramSettingsTime(hour: 12, minute: 0),
         lunchEnd: ProgramSettingsTime(hour: 13, minute: 0),
-        minimumHour: 7,
-        maximumHour: 22,
+        minimumTime: ProgramSettingsTime(hour: 7, minute: 0),
+        maximumTime: ProgramSettingsTime(hour: 22, minute: 0),
       ),
       printPresetParams: PrintPresetParams(
         workdayId: '13',

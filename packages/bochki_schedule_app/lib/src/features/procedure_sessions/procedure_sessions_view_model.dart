@@ -250,7 +250,7 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
       dayId: _workdays.isEmpty ? 'missing-day' : _workdays.first.id,
       participantId: _humans.isEmpty ? 'missing-participant' : _humans.first.id,
       startTime:
-          '${_programSettings.minimumHour.toString().padLeft(2, '0')}:00',
+          '${_programSettings.minimumTime.hour.toString().padLeft(2, '0')}:00',
       procedureKindId: firstProcedureKind == null
           ? 'missing-procedure'
           : firstProcedureKind.id,
@@ -434,7 +434,10 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
         return left.id.compareTo(right.id);
       });
 
-    final conflicts = _conflictCalculator.calculate(richSessions);
+    final conflicts = _conflictCalculator.calculate(
+      richSessions,
+      programSettings: _programSettings,
+    );
     final conflictsBySessionId = <String, List<ScheduleConflict>>{};
     for (final conflict in conflicts) {
       conflictsBySessionId

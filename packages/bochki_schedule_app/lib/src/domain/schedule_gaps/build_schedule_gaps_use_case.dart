@@ -52,8 +52,9 @@ final class BuildScheduleGapsUseCase {
     final kinds = await _listProcedureKindsUseCase.execute();
     final sessions = await _listProcedureSessionsUseCase.execute();
     final kindsById = {for (final kind in kinds) kind.id: kind};
-    final dayStart = settings.minimumHour * 60;
-    final dayEnd = settings.maximumHour * 60;
+    final dayStart =
+        settings.minimumTime.hour * 60 + settings.minimumTime.minute;
+    final dayEnd = settings.maximumTime.hour * 60 + settings.maximumTime.minute;
     final result = <ScheduleGap>[];
 
     for (final day in workdays) {
