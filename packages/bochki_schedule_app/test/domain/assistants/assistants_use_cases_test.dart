@@ -49,6 +49,19 @@ void main() {
       expect(repository.assistants.single.name, 'Иван Иванов');
     });
 
+    test('create preserves a supplied short name', () async {
+      final repository = _InMemoryAssistantsRepository();
+      final useCase = CreateAssistantUseCase(repository);
+
+      final assistant = await useCase.execute(
+        'Иван Иванов',
+        rawShortName: 'Иван',
+      );
+
+      expect(assistant.shortName, 'Иван');
+      expect(repository.assistants.single.shortName, 'Иван');
+    });
+
     test('empty name does not pass validation', () async {
       final repository = _InMemoryAssistantsRepository();
       final useCase = CreateAssistantUseCase(repository);

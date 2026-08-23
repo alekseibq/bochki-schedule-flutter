@@ -20,6 +20,7 @@ import '../app_services.dart';
 import '../features/procedure_sessions/procedure_session_dialog.dart';
 import '../features/procedure_sessions/procedure_session_submit_result.dart';
 import '../features/procedure_sessions/procedure_sessions_view_model.dart';
+import '../features/directory/people_directory_table.dart';
 
 enum DesktopWindowKind {
   main,
@@ -288,8 +289,10 @@ final class DesktopWindowCoordinator {
             await _services.deleteAssistantUseCase
                 .execute(values['id'] as String);
           if (action == 'create')
-            await _services.createAssistantUseCase
-                .execute(entry['name'] as String);
+            await _services.createAssistantUseCase.execute(
+              entry['name'] as String,
+              rawShortName: entry['shortName'] as String?,
+            );
           if (action == 'update')
             await _services.updateAssistantUseCase.execute(
                 assistantId: values['id'] as String,
@@ -971,6 +974,9 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
   bool get _isEditor =>
       _kind == DesktopWindowKind.procedureKindEditor ||
       _kind == DesktopWindowKind.workdayEditor;
+  bool get _isPeopleDirectory =>
+      _kind == DesktopWindowKind.participants ||
+      _kind == DesktopWindowKind.assistants;
   String get _directory => switch (_kind) {
         DesktopWindowKind.participants => 'participants',
         DesktopWindowKind.assistants => 'assistants',
@@ -1112,6 +1118,7 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
       return const MaterialApp(
           home: Scaffold(body: Center(child: CircularProgressIndicator())));
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(useMaterial3: true),
       home: Scaffold(
         appBar: AppBar(title: Text(_title)),
@@ -1138,7 +1145,55 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
         _ => '',
       };
 
-  Widget _directoryList() => Column(children: [
+  Widget _directoryList() {
+    if (_isPeopleDirectory) {
+      return PeopleDirectoryTable(
+        type: _kind == DesktopWindowKind.participants
+            ? PeopleDirectoryType.participants
+            : PeopleDirectoryType.assistants,
+        entries: _entries
+            .map(
+              (entry) => PeopleDirectoryEntry(
+                id: entry['id'] as String,
+                name: entry['name'] as String,
+                shortName: entry['shortName'] as String?,
+              ),
+            )
+            .toList(growable: false),
+        onMutate: _mutatePeople,
+        onChanged: _load,
+      );
+    }
+    return _legacyDirectoryList();
+  }
+
+  Future<String?> _mutatePeople(
+    String action, {
+    String? id,
+    String? name,
+    String? shortName,
+  }) async {
+    try {
+      final result = Map<String, dynamic>.from(
+        await _mainChannel.invokeMethod('directoryMutate', {
+          'directory': _directory,
+          'action': action,
+          if (id != null) 'id': id,
+          'entry': {
+            if (name != null) 'name': name,
+            if (shortName != null) 'shortName': shortName,
+          },
+        }) as Map,
+      );
+      return result['ok'] == true
+          ? null
+          : result['error'] as String? ?? 'Не удалось сохранить изменения.';
+    } catch (_) {
+      return 'Не удалось сохранить изменения.';
+    }
+  }
+
+  Widget _legacyDirectoryList() => Column(children: [
         Row(children: [
           FilledButton.tonal(
               onPressed: _saving
