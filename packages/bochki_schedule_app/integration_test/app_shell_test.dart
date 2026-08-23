@@ -109,6 +109,8 @@ void main() {
       ),
       deleteProcedureSessionUseCase:
           DeleteProcedureSessionUseCase(procedureSessionsRepository),
+      clearProcedureSessionsUseCase:
+          ClearProcedureSessionsUseCase(procedureSessionsRepository),
       flushPending: _noopAsync,
       shutdown: _noopAsync,
     );

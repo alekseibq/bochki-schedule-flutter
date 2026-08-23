@@ -25,6 +25,7 @@ import 'domain/participants/delete_participant_use_case.dart';
 import 'domain/participants/list_participants_use_case.dart';
 import 'domain/participants/update_participant_use_case.dart';
 import 'domain/procedure_sessions/create_procedure_session_use_case.dart';
+import 'domain/procedure_sessions/clear_procedure_sessions_use_case.dart';
 import 'domain/procedure_sessions/delete_procedure_session_use_case.dart';
 import 'domain/procedure_sessions/list_procedure_sessions_use_case.dart';
 import 'domain/procedure_sessions/list_rich_procedure_sessions_use_case.dart';
@@ -302,6 +303,9 @@ final class AppBootstrap {
     final deleteProcedureSessionUseCase = DeleteProcedureSessionUseCase(
       procedureSessionsRepository,
     );
+    final clearProcedureSessionsUseCase = ClearProcedureSessionsUseCase(
+      procedureSessionsRepository,
+    );
     final quickReassignmentsUseCase = QuickReassignmentsUseCase(
       repository: procedureSessionsRepository,
       workdaysRepository: workdaysRepository,
@@ -353,6 +357,7 @@ final class AppBootstrap {
       createProcedureSessionUseCase: createProcedureSessionUseCase,
       updateProcedureSessionUseCase: updateProcedureSessionUseCase,
       deleteProcedureSessionUseCase: deleteProcedureSessionUseCase,
+      clearProcedureSessionsUseCase: clearProcedureSessionsUseCase,
       quickReassignmentsUseCase: quickReassignmentsUseCase,
       flushPending: syncCoordinator.flushPending,
       shutdown: syncCoordinator.shutdown,

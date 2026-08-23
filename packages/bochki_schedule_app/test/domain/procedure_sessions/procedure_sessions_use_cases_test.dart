@@ -4,6 +4,33 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('procedure sessions use cases', () {
+    test('clear removes all procedure sessions and returns their count',
+        () async {
+      final repository = _InMemoryProcedureSessionsRepository(
+        sessions: [
+          ProcedureSessionRaw(
+            id: '1',
+            dayId: '1',
+            participantId: '1',
+            startTime: '09:00',
+            procedureKindId: '1',
+          ),
+          ProcedureSessionRaw(
+            id: '2',
+            dayId: '2',
+            participantId: '2',
+            startTime: '10:00',
+            procedureKindId: '2',
+          ),
+        ],
+      );
+
+      final cleared = await ClearProcedureSessionsUseCase(repository).execute();
+
+      expect(cleared, 2);
+      expect(await repository.list(), isEmpty);
+    });
+
     test('create clears assistant for single procedure kind', () async {
       final repository = _InMemoryProcedureSessionsRepository();
       final workdaysRepository = _InMemoryWorkdaysRepository();

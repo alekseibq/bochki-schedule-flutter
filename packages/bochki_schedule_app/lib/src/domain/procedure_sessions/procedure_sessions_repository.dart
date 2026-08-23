@@ -16,4 +16,15 @@ abstract interface class ProcedureSessionsRepository {
   }
 
   Future<void> delete(String procedureSessionId);
+
+  /// Removes all active procedure sessions as one logical operation.
+  ///
+  /// Returns the number of removed sessions.
+  Future<int> clearAll() async {
+    final procedureSessions = await list();
+    for (final procedureSession in procedureSessions) {
+      await delete(procedureSession.id);
+    }
+    return procedureSessions.length;
+  }
 }
