@@ -450,13 +450,86 @@ void main() {
     await tester.pump();
     expect(find.byType(PopupMenuItem<DirectorySection>), findsNWidgets(5));
 
-    await tester.tap(find.text('Участники').last);
+    await tester.tap(find.text('Участники (0)').last);
     await tester.pump();
     expect(find.byType(PopupMenuItem<DirectorySection>), findsNothing);
     expect(
       find.byKey(const Key('participants_directory_dialog')),
       findsOneWidget,
     );
+  });
+
+  testWidgets('directories menu shows active directory counts', (tester) async {
+    final context = _buildTestContext(
+      participants: [
+        Participant(id: '1', name: 'Иван'),
+        Participant(id: '2', name: 'Мария'),
+      ],
+      assistants: [Assistant(id: '3', name: 'Анна')],
+      procedureKinds: [
+        ProcedureKind(
+          id: '4',
+          patternId: ProcedureKindPatterns.single.patternId,
+          name: 'Бочка',
+          capacity: 1,
+          participantBusyTime: 30,
+        ),
+      ],
+      workdays: [
+        Workday(
+          id: '5',
+          name: 'Понедельник',
+          calendarDate: DateTime(2026, 8, 24),
+        ),
+        Workday(
+          id: '6',
+          name: 'Вторник',
+          calendarDate: DateTime(2026, 8, 25),
+        ),
+        Workday(
+          id: '7',
+          name: 'Среда',
+          calendarDate: DateTime(2026, 8, 26),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('directories_menu_button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Процедуры (1)'), findsOneWidget);
+    expect(find.text('Дни (3)'), findsOneWidget);
+    expect(find.text('Ассистенты (1)'), findsOneWidget);
+    expect(find.text('Участники (2)'), findsOneWidget);
+    expect(find.text('Настройки'), findsOneWidget);
+    expect(find.text('Настройки (0)'), findsNothing);
+  });
+
+  testWidgets('directories menu refreshes a count after closing its dialog', (
+    tester,
+  ) async {
+    final context = _buildTestContext();
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openParticipantsDialog(tester);
+    await tester.tap(find.byKey(const Key('participant_add_row')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('participant_name_field')),
+      'Иван',
+    );
+    await tester.tap(find.text('Участники (0)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Закрыть'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('directories_menu_button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Участники (1)'), findsOneWidget);
   });
 
   testWidgets('shell opens assistants dialog from menu', (tester) async {
@@ -1932,28 +2005,28 @@ Future<void> _doubleMouseClick(
 Future<void> _openParticipantsDialog(WidgetTester tester) async {
   await tester.tap(find.byKey(const Key('directories_menu_button')));
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Участники').last);
+  await tester.tap(find.textContaining('Участники (').last);
   await tester.pumpAndSettle();
 }
 
 Future<void> _openAssistantsDialog(WidgetTester tester) async {
   await tester.tap(find.byKey(const Key('directories_menu_button')));
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Ассистенты').last);
+  await tester.tap(find.textContaining('Ассистенты (').last);
   await tester.pumpAndSettle();
 }
 
 Future<void> _openProcedureKindsDialog(WidgetTester tester) async {
   await tester.tap(find.byKey(const Key('directories_menu_button')));
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Процедуры').last);
+  await tester.tap(find.textContaining('Процедуры (').last);
   await tester.pumpAndSettle();
 }
 
 Future<void> _openWorkdaysDialog(WidgetTester tester) async {
   await tester.tap(find.byKey(const Key('directories_menu_button')));
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Дни').last);
+  await tester.tap(find.textContaining('Дни (').last);
   await tester.pumpAndSettle();
 }
 

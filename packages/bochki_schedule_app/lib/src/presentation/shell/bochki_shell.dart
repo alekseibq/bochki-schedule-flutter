@@ -62,6 +62,10 @@ class _BochkiShellState extends State<BochkiShell> {
   bool _printPresetParamsDialogOpen = false;
   bool _quickReassignmentsDialogOpen = false;
   bool _templatesDialogOpen = false;
+  int? _procedureKindsCount;
+  int? _workdaysCount;
+  int? _assistantsCount;
+  int? _participantsCount;
   late final ProcedureSessionsViewModel _procedureSessionsViewModel;
   DesktopWindowCoordinator? _desktopWindows;
 
@@ -94,6 +98,73 @@ class _BochkiShellState extends State<BochkiShell> {
       unawaited(_startDesktopWindows());
     }
     unawaited(_procedureSessionsViewModel.load());
+    unawaited(_loadDirectoryCounts());
+  }
+
+  Future<void> _loadDirectoryCounts() async {
+    await _refreshProcedureKindsCount();
+    await _refreshWorkdaysCount();
+    await _refreshAssistantsCount();
+    await _refreshParticipantsCount();
+  }
+
+  Future<void> _refreshProcedureKindsCount() async {
+    try {
+      final count =
+          (await widget.services.listProcedureKindsUseCase.execute()).length;
+      if (mounted) {
+        setState(() => _procedureKindsCount = count);
+      }
+    } catch (_) {
+      // Keep the most recently loaded value, if any.
+    }
+  }
+
+  Future<void> _refreshWorkdaysCount() async {
+    try {
+      final count =
+          (await widget.services.listWorkdaysUseCase.execute()).length;
+      if (mounted) {
+        setState(() => _workdaysCount = count);
+      }
+    } catch (_) {
+      // Keep the most recently loaded value, if any.
+    }
+  }
+
+  Future<void> _refreshAssistantsCount() async {
+    try {
+      final count =
+          (await widget.services.listAssistantsUseCase.execute()).length;
+      if (mounted) {
+        setState(() => _assistantsCount = count);
+      }
+    } catch (_) {
+      // Keep the most recently loaded value, if any.
+    }
+  }
+
+  Future<void> _refreshParticipantsCount() async {
+    try {
+      final count =
+          (await widget.services.listParticipantsUseCase.execute()).length;
+      if (mounted) {
+        setState(() => _participantsCount = count);
+      }
+    } catch (_) {
+      // Keep the most recently loaded value, if any.
+    }
+  }
+
+  String _directoryMenuLabel(DirectorySection section) {
+    final count = switch (section) {
+      DirectorySection.procedureKinds => _procedureKindsCount,
+      DirectorySection.workdays => _workdaysCount,
+      DirectorySection.assistants => _assistantsCount,
+      DirectorySection.participants => _participantsCount,
+      DirectorySection.settings => null,
+    };
+    return count == null ? section.title : '${section.title} ($count)';
   }
 
   Future<void> _startDesktopWindows() async {
@@ -139,6 +210,7 @@ class _BochkiShellState extends State<BochkiShell> {
       );
     } finally {
       viewModel.dispose();
+      await _refreshProcedureKindsCount();
       if (mounted) {
         setState(() {
           _procedureKindsDialogOpen = false;
@@ -174,6 +246,7 @@ class _BochkiShellState extends State<BochkiShell> {
       );
     } finally {
       viewModel.dispose();
+      await _refreshParticipantsCount();
       if (mounted) {
         setState(() {
           _participantsDialogOpen = false;
@@ -209,6 +282,7 @@ class _BochkiShellState extends State<BochkiShell> {
       );
     } finally {
       viewModel.dispose();
+      await _refreshWorkdaysCount();
       if (mounted) {
         setState(() {
           _workdaysDialogOpen = false;
@@ -244,6 +318,7 @@ class _BochkiShellState extends State<BochkiShell> {
       );
     } finally {
       viewModel.dispose();
+      await _refreshAssistantsCount();
       if (mounted) {
         setState(() {
           _assistantsDialogOpen = false;
@@ -686,24 +761,32 @@ class _BochkiShellState extends State<BochkiShell> {
                     tooltip: 'Справочники',
                     popUpAnimationStyle: AnimationStyle.noAnimation,
                     onSelected: _selectDirectorySection,
-                    itemBuilder: (context) => const [
+                    itemBuilder: (context) => [
                       PopupMenuItem<DirectorySection>(
                         value: DirectorySection.procedureKinds,
-                        child: Text('Процедуры'),
+                        child: Text(
+                          _directoryMenuLabel(DirectorySection.procedureKinds),
+                        ),
                       ),
                       PopupMenuItem<DirectorySection>(
                         value: DirectorySection.workdays,
-                        child: Text('Дни'),
+                        child: Text(
+                          _directoryMenuLabel(DirectorySection.workdays),
+                        ),
                       ),
                       PopupMenuItem<DirectorySection>(
                         value: DirectorySection.assistants,
-                        child: Text('Ассистенты'),
+                        child: Text(
+                          _directoryMenuLabel(DirectorySection.assistants),
+                        ),
                       ),
                       PopupMenuItem<DirectorySection>(
                         value: DirectorySection.participants,
-                        child: Text('Участники'),
+                        child: Text(
+                          _directoryMenuLabel(DirectorySection.participants),
+                        ),
                       ),
-                      PopupMenuItem<DirectorySection>(
+                      const PopupMenuItem<DirectorySection>(
                         value: DirectorySection.settings,
                         child: Text('Настройки'),
                       ),
