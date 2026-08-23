@@ -41,6 +41,23 @@ enum ReportsSection { statistics, procedureStatistics, freeTime }
 
 enum TemplatesSection { create, load, delete, clearSchedule }
 
+typedef DirectoryCountRefresher = Future<void> Function();
+
+Future<void> refreshDirectoryCount(
+  String directory, {
+  required DirectoryCountRefresher refreshParticipants,
+  required DirectoryCountRefresher refreshAssistants,
+  required DirectoryCountRefresher refreshProcedureKinds,
+  required DirectoryCountRefresher refreshWorkdays,
+}) =>
+    switch (directory) {
+      'participants' => refreshParticipants(),
+      'assistants' => refreshAssistants(),
+      'procedureKinds' => refreshProcedureKinds(),
+      'workdays' => refreshWorkdays(),
+      _ => Future<void>.value(),
+    };
+
 class BochkiShell extends StatefulWidget {
   const BochkiShell({
     required this.services,
@@ -99,6 +116,7 @@ class _BochkiShellState extends State<BochkiShell> {
         statistics: statistics,
         scheduleGaps: scheduleGaps,
         sessions: _procedureSessionsViewModel,
+        onDirectoryChanged: _refreshDirectoryCount,
       );
       unawaited(_startDesktopWindows());
       _windowsSubscription =
@@ -163,6 +181,15 @@ class _BochkiShellState extends State<BochkiShell> {
       // Keep the most recently loaded value, if any.
     }
   }
+
+  Future<void> _refreshDirectoryCount(String directory) =>
+      refreshDirectoryCount(
+        directory,
+        refreshParticipants: _refreshParticipantsCount,
+        refreshAssistants: _refreshAssistantsCount,
+        refreshProcedureKinds: _refreshProcedureKindsCount,
+        refreshWorkdays: _refreshWorkdaysCount,
+      );
 
   String _directoryMenuLabel(DirectorySection section) {
     final count = switch (section) {
@@ -781,8 +808,16 @@ class _BochkiShellState extends State<BochkiShell> {
     String? procedureSessionId,
   }) async {
     if (!isEditing) {
-      await _desktopWindows?.openSession();
-      return;
+      final coordinator = _desktopWindows;
+      if (coordinator != null) {
+        try {
+          await coordinator.openSession();
+          return;
+        } catch (_) {
+          // Multi-window APIs are unavailable in widget tests and unsupported
+          // targets. Fall back to the in-process dialog in those environments.
+        }
+      }
     }
     final initialValue = isEditing
         ? _procedureSessionsViewModel.entries
