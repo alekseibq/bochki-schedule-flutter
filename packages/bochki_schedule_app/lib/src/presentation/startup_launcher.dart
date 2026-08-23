@@ -84,6 +84,7 @@ class _StartupLauncherState extends State<StartupLauncher> {
     final services = _services;
     if (_status == StartupStatus.continued && services != null) {
       return BochkiScheduleApp(
+        key: ValueKey(services),
         services: services,
         onProjectLoaded: _reloadProject,
       );

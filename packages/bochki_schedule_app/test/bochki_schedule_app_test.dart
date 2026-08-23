@@ -29,6 +29,81 @@ void main() {
     expect(find.text('Список назначенных процедур пуст.'), findsOneWidget);
   });
 
+  testWidgets('a new app services instance recreates the shell state', (
+    tester,
+  ) async {
+    final oldContext = _buildTestContext(
+      participants: [Participant(id: '1', name: 'Старый участник')],
+      procedureKinds: [
+        ProcedureKind(
+          id: '2',
+          patternId: ProcedureKindPatterns.single.patternId,
+          name: 'Старая процедура',
+          capacity: 1,
+          participantBusyTime: 30,
+          resourceBusyTime: 30,
+        ),
+      ],
+      workdays: [
+        Workday(id: '3', name: 'Старый день', calendarDate: DateTime(2026)),
+      ],
+      procedureSessions: [
+        ProcedureSessionRaw(
+          id: '4',
+          dayId: '3',
+          participantId: '1',
+          startTime: '10:00',
+          procedureKindId: '2',
+        ),
+      ],
+    );
+    final newContext = _buildTestContext(
+      participants: [Participant(id: '11', name: 'Новый участник')],
+      procedureKinds: [
+        ProcedureKind(
+          id: '12',
+          patternId: ProcedureKindPatterns.single.patternId,
+          name: 'Новая процедура',
+          capacity: 1,
+          participantBusyTime: 30,
+          resourceBusyTime: 30,
+        ),
+      ],
+      workdays: [
+        Workday(id: '13', name: 'Новый день', calendarDate: DateTime(2026)),
+      ],
+      procedureSessions: [
+        ProcedureSessionRaw(
+          id: '14',
+          dayId: '13',
+          participantId: '11',
+          startTime: '11:00',
+          procedureKindId: '12',
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      BochkiScheduleApp(
+        key: ValueKey(oldContext.services),
+        services: oldContext.services,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Старая процедура'), findsOneWidget);
+
+    await tester.pumpWidget(
+      BochkiScheduleApp(
+        key: ValueKey(newContext.services),
+        services: newContext.services,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Старая процедура'), findsNothing);
+    expect(find.text('Новая процедура'), findsOneWidget);
+  });
+
   testWidgets('procedure session filters use a two-row scrollable form', (
     tester,
   ) async {
