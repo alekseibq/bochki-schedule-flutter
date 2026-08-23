@@ -86,8 +86,8 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
 
   List<String> get _hours {
     final hours = [
-      for (int hour = widget.programSettings.minimumHour;
-          hour <= widget.programSettings.maximumHour;
+      for (int hour = widget.programSettings.minimumTime.hour;
+          hour <= widget.programSettings.maximumTime.hour;
           hour++)
         hour.toString().padLeft(2, '0'),
     ];
@@ -119,10 +119,10 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
 
   String get _scheduleHint {
     final minimumHour =
-        widget.programSettings.minimumHour.toString().padLeft(2, '0');
+        widget.programSettings.minimumTime.hour.toString().padLeft(2, '0');
     final maximumHour =
-        widget.programSettings.maximumHour.toString().padLeft(2, '0');
-    return 'Допустимое время начала: $minimumHour:00-$maximumHour:55. '
+        widget.programSettings.maximumTime.hour.toString().padLeft(2, '0');
+    return 'Доступные часы начала: $minimumHour-$maximumHour. '
         'Обед: с ${_formatSettingsTime(widget.programSettings.lunchStart)} '
         'до ${_formatSettingsTime(widget.programSettings.lunchEnd)}.';
   }

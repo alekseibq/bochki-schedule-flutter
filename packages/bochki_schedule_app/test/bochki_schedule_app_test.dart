@@ -1041,8 +1041,8 @@ void main() {
       programSettings: const ProgramSettings(
         lunchStart: ProgramSettingsTime(hour: 13, minute: 0),
         lunchEnd: ProgramSettingsTime(hour: 14, minute: 0),
-        minimumHour: 8,
-        maximumHour: 20,
+        minimumTime: ProgramSettingsTime(hour: 8, minute: 0),
+        maximumTime: ProgramSettingsTime(hour: 20, minute: 0),
       ),
     );
 
@@ -1112,8 +1112,8 @@ void main() {
       programSettings: const ProgramSettings(
         lunchStart: ProgramSettingsTime(hour: 14, minute: 0),
         lunchEnd: ProgramSettingsTime(hour: 15, minute: 0),
-        minimumHour: 8,
-        maximumHour: 20,
+        minimumTime: ProgramSettingsTime(hour: 8, minute: 0),
+        maximumTime: ProgramSettingsTime(hour: 20, minute: 0),
       ),
     );
 
@@ -1250,8 +1250,8 @@ void main() {
       programSettings: const ProgramSettings(
         lunchStart: ProgramSettingsTime(hour: 14, minute: 0),
         lunchEnd: ProgramSettingsTime(hour: 15, minute: 0),
-        minimumHour: 10,
-        maximumHour: 18,
+        minimumTime: ProgramSettingsTime(hour: 10, minute: 0),
+        maximumTime: ProgramSettingsTime(hour: 18, minute: 0),
       ),
     );
 
@@ -1270,7 +1270,7 @@ void main() {
     );
     expect(
       find.text(
-        'Допустимое время начала: 10:00-18:55. Обед: с 14:00 до 15:00.',
+        'Доступные часы начала: 10-18. Обед: с 14:00 до 15:00.',
       ),
       findsOneWidget,
     );
@@ -1279,7 +1279,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Время начала должно быть в диапазоне 10:00-18:55.'),
+      find.text('Процедура начинается раньше минимального времени 10:00.'),
       findsOneWidget,
     );
     expect(
@@ -2258,6 +2258,8 @@ _TestContext _buildTestContext({
       listProcedureSessionsWithConflictsUseCase:
           ListProcedureSessionsWithConflictsUseCase(
         listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,
+        getProgramSettingsUseCase:
+            GetProgramSettingsUseCase(programSettingsRepository),
       ),
       createProcedureSessionUseCase: CreateProcedureSessionUseCase(
         procedureSessionsRepository,

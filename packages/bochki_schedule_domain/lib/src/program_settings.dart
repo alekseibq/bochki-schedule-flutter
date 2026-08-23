@@ -4,28 +4,21 @@ final class ProgramSettings {
   const ProgramSettings({
     required this.lunchStart,
     required this.lunchEnd,
-    required this.minimumHour,
-    required this.maximumHour,
-  })  : assert(
-          minimumHour >= 0 && minimumHour <= 23,
-          'minimumHour must be between 0 and 23',
-        ),
-        assert(
-          maximumHour >= 0 && maximumHour <= 23,
-          'maximumHour must be between 0 and 23',
-        );
+    required this.minimumTime,
+    required this.maximumTime,
+  });
 
   static const ProgramSettings defaults = ProgramSettings(
     lunchStart: ProgramSettingsTime(hour: 14, minute: 0),
     lunchEnd: ProgramSettingsTime(hour: 15, minute: 0),
-    minimumHour: 8,
-    maximumHour: 20,
+    minimumTime: ProgramSettingsTime(hour: 8, minute: 0),
+    maximumTime: ProgramSettingsTime(hour: 20, minute: 0),
   );
 
   final ProgramSettingsTime lunchStart;
   final ProgramSettingsTime lunchEnd;
-  final int minimumHour;
-  final int maximumHour;
+  final ProgramSettingsTime minimumTime;
+  final ProgramSettingsTime maximumTime;
 
   factory ProgramSettings.fromJson(Object? json) {
     if (json is! Map) {
@@ -35,8 +28,18 @@ final class ProgramSettings {
     return ProgramSettings(
       lunchStart: ProgramSettingsTime.fromJson(json['lunchStart']),
       lunchEnd: ProgramSettingsTime.fromJson(json['lunchEnd']),
-      minimumHour: _readHour(json['minimumHour'], fieldName: 'minimumHour'),
-      maximumHour: _readHour(json['maximumHour'], fieldName: 'maximumHour'),
+      minimumTime: json.containsKey('minimumTime')
+          ? ProgramSettingsTime.fromJson(json['minimumTime'])
+          : ProgramSettingsTime(
+              hour: _readHour(json['minimumHour'], fieldName: 'minimumHour'),
+              minute: 0,
+            ),
+      maximumTime: json.containsKey('maximumTime')
+          ? ProgramSettingsTime.fromJson(json['maximumTime'])
+          : ProgramSettingsTime(
+              hour: _readHour(json['maximumHour'], fieldName: 'maximumHour'),
+              minute: 0,
+            ),
     );
   }
 
@@ -44,22 +47,22 @@ final class ProgramSettings {
     return <String, Object?>{
       'lunchStart': lunchStart.toJson(),
       'lunchEnd': lunchEnd.toJson(),
-      'minimumHour': minimumHour,
-      'maximumHour': maximumHour,
+      'minimumTime': minimumTime.toJson(),
+      'maximumTime': maximumTime.toJson(),
     };
   }
 
   ProgramSettings copyWith({
     ProgramSettingsTime? lunchStart,
     ProgramSettingsTime? lunchEnd,
-    int? minimumHour,
-    int? maximumHour,
+    ProgramSettingsTime? minimumTime,
+    ProgramSettingsTime? maximumTime,
   }) {
     return ProgramSettings(
       lunchStart: lunchStart ?? this.lunchStart,
       lunchEnd: lunchEnd ?? this.lunchEnd,
-      minimumHour: minimumHour ?? this.minimumHour,
-      maximumHour: maximumHour ?? this.maximumHour,
+      minimumTime: minimumTime ?? this.minimumTime,
+      maximumTime: maximumTime ?? this.maximumTime,
     );
   }
 

@@ -1,4 +1,5 @@
 import 'list_rich_procedure_sessions_use_case.dart';
+import '../program_settings/get_program_settings_use_case.dart';
 import 'procedure_session_conflict_calculator.dart';
 import 'procedure_session_with_conflicts.dart';
 import 'schedule_conflict.dart';
@@ -6,16 +7,23 @@ import 'schedule_conflict.dart';
 final class ListProcedureSessionsWithConflictsUseCase {
   ListProcedureSessionsWithConflictsUseCase({
     required ListRichProcedureSessionsUseCase listRichProcedureSessionsUseCase,
+    required GetProgramSettingsUseCase getProgramSettingsUseCase,
     ProcedureSessionConflictCalculator? calculator,
   })  : _listRichProcedureSessionsUseCase = listRichProcedureSessionsUseCase,
+        _getProgramSettingsUseCase = getProgramSettingsUseCase,
         _calculator = calculator ?? const ProcedureSessionConflictCalculator();
 
   final ListRichProcedureSessionsUseCase _listRichProcedureSessionsUseCase;
+  final GetProgramSettingsUseCase _getProgramSettingsUseCase;
   final ProcedureSessionConflictCalculator _calculator;
 
   Future<List<ProcedureSessionWithConflicts>> execute() async {
     final sessions = await _listRichProcedureSessionsUseCase.execute();
-    final conflicts = _calculator.calculate(sessions);
+    final settings = await _getProgramSettingsUseCase.execute();
+    final conflicts = _calculator.calculate(
+      sessions,
+      programSettings: settings,
+    );
     final conflictsBySessionId = <String, List<ScheduleConflict>>{};
     for (final conflict in conflicts) {
       conflictsBySessionId

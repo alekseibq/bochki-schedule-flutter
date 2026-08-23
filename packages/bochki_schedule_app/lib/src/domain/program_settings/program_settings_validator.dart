@@ -9,29 +9,20 @@ abstract final class ProgramSettingsValidator {
         'Конец обеда должен быть позже начала обеда.',
       );
     }
-    if (settings.maximumHour <= settings.minimumHour) {
+    if (settings.maximumTime.compareTo(settings.minimumTime) <= 0) {
       throw const ProgramSettingsValidationException(
         'Максимальное время должно быть больше минимального.',
       );
     }
 
-    final minimumTime = ProgramSettingsTime(
-      hour: settings.minimumHour,
-      minute: 0,
-    );
-    final maximumTime = ProgramSettingsTime(
-      hour: settings.maximumHour,
-      minute: 0,
-    );
-
-    if (settings.lunchStart.compareTo(minimumTime) < 0 ||
-        settings.lunchStart.compareTo(maximumTime) > 0) {
+    if (settings.lunchStart.compareTo(settings.minimumTime) < 0 ||
+        settings.lunchStart.compareTo(settings.maximumTime) > 0) {
       throw const ProgramSettingsValidationException(
         'Начало обеда должно быть внутри диапазона времени.',
       );
     }
-    if (settings.lunchEnd.compareTo(minimumTime) < 0 ||
-        settings.lunchEnd.compareTo(maximumTime) > 0) {
+    if (settings.lunchEnd.compareTo(settings.minimumTime) < 0 ||
+        settings.lunchEnd.compareTo(settings.maximumTime) > 0) {
       throw const ProgramSettingsValidationException(
         'Конец обеда должен быть внутри диапазона времени.',
       );

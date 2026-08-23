@@ -3,6 +3,7 @@ import '../procedure_kinds/procedure_kind.dart';
 
 import 'conflict_resource_type.dart';
 import 'schedule_conflict.dart';
+import 'schedule_conflict_type.dart';
 
 final class ProcedureSessionConflictMessageFormatter {
   const ProcedureSessionConflictMessageFormatter();
@@ -12,7 +13,10 @@ final class ProcedureSessionConflictMessageFormatter {
     required Iterable<Human> humans,
     required Iterable<ProcedureKind> procedureKinds,
   }) {
-    switch (conflict.resourceType) {
+    if (conflict.type == ScheduleConflictType.timeBoundary) {
+      return conflict.message ?? 'Нарушены границы времени программы.';
+    }
+    switch (conflict.resourceType!) {
       case ConflictResourceType.human:
         final humanName = _findHumanName(humans, conflict.humanId);
         return 'Участник/ассистент $humanName занят с '

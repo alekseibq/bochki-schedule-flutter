@@ -21,7 +21,9 @@ class _ProgramSettingsDialogState extends State<ProgramSettingsDialog> {
   late int _lunchEndHour;
   late int _lunchEndMinute;
   late int _minimumHour;
+  late int _minimumMinute;
   late int _maximumHour;
+  late int _maximumMinute;
 
   @override
   void initState() {
@@ -42,8 +44,10 @@ class _ProgramSettingsDialogState extends State<ProgramSettingsDialog> {
     _lunchStartMinute = settings.lunchStart.minute;
     _lunchEndHour = settings.lunchEnd.hour;
     _lunchEndMinute = settings.lunchEnd.minute;
-    _minimumHour = settings.minimumHour;
-    _maximumHour = settings.maximumHour;
+    _minimumHour = settings.minimumTime.hour;
+    _minimumMinute = settings.minimumTime.minute;
+    _maximumHour = settings.maximumTime.hour;
+    _maximumMinute = settings.maximumTime.minute;
   }
 
   void _showActionErrorIfNeeded() {
@@ -73,8 +77,14 @@ class _ProgramSettingsDialogState extends State<ProgramSettingsDialog> {
         hour: _lunchEndHour,
         minute: _lunchEndMinute,
       ),
-      minimumHour: _minimumHour,
-      maximumHour: _maximumHour,
+      minimumTime: ProgramSettingsTime(
+        hour: _minimumHour,
+        minute: _minimumMinute,
+      ),
+      maximumTime: ProgramSettingsTime(
+        hour: _maximumHour,
+        minute: _maximumMinute,
+      ),
     );
 
     final isSuccess = await widget.viewModel.saveProgramSettings(settings);
@@ -180,20 +190,32 @@ class _ProgramSettingsDialogState extends State<ProgramSettingsDialog> {
                       _updateField(() => _lunchEndMinute = value),
                 ),
                 const SizedBox(height: 16),
-                _buildHourField(
+                _buildTimeRow(
                   label: 'Минимальное время',
-                  fieldKey: const Key('program_settings_minimum_hour_field'),
+                  tooltip:
+                      'Процедура, начавшаяся раньше этого времени, будет отмечена как конфликт.',
+                  hourKey: const Key('program_settings_minimum_hour_field'),
+                  minuteKey: const Key('program_settings_minimum_minute_field'),
                   selectedHour: _minimumHour,
-                  onChanged: (value) =>
+                  selectedMinute: _minimumMinute,
+                  onHourChanged: (value) =>
                       _updateField(() => _minimumHour = value),
+                  onMinuteChanged: (value) =>
+                      _updateField(() => _minimumMinute = value),
                 ),
                 const SizedBox(height: 16),
-                _buildHourField(
+                _buildTimeRow(
                   label: 'Максимальное время',
-                  fieldKey: const Key('program_settings_maximum_hour_field'),
+                  tooltip:
+                      'Если участник, ассистент или ресурс занят позже этого времени, процедура будет отмечена как конфликт.',
+                  hourKey: const Key('program_settings_maximum_hour_field'),
+                  minuteKey: const Key('program_settings_maximum_minute_field'),
                   selectedHour: _maximumHour,
-                  onChanged: (value) =>
+                  selectedMinute: _maximumMinute,
+                  onHourChanged: (value) =>
                       _updateField(() => _maximumHour = value),
+                  onMinuteChanged: (value) =>
+                      _updateField(() => _maximumMinute = value),
                 ),
                 if (widget.viewModel.formErrorMessage case final message?) ...[
                   const SizedBox(height: 16),
@@ -213,6 +235,7 @@ class _ProgramSettingsDialogState extends State<ProgramSettingsDialog> {
 
   Widget _buildTimeRow({
     required String label,
+    String? tooltip,
     required Key hourKey,
     required Key minuteKey,
     required int selectedHour,
@@ -223,7 +246,20 @@ class _ProgramSettingsDialogState extends State<ProgramSettingsDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label),
+            if (tooltip != null)
+              Tooltip(
+                message: tooltip,
+                child: const Padding(
+                  padding: EdgeInsets.only(left: 4),
+                  child: Icon(Icons.info_outline, size: 18),
+                ),
+              ),
+          ],
+        ),
         const SizedBox(height: 8),
         Row(
           children: [
@@ -241,34 +277,12 @@ class _ProgramSettingsDialogState extends State<ProgramSettingsDialog> {
               child: _buildDropdown<int>(
                 fieldKey: minuteKey,
                 value: selectedMinute,
-                items: List<int>.generate(6, (index) => index * 10),
+                items: List<int>.generate(12, (index) => index * 5),
                 formatter: _formatHour,
                 onChanged: onMinuteChanged,
               ),
             ),
           ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHourField({
-    required String label,
-    required Key fieldKey,
-    required int selectedHour,
-    required ValueChanged<int> onChanged,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label),
-        const SizedBox(height: 8),
-        _buildDropdown<int>(
-          fieldKey: fieldKey,
-          value: selectedHour,
-          items: List<int>.generate(24, (index) => index),
-          formatter: _formatHour,
-          onChanged: onChanged,
         ),
       ],
     );

@@ -31,13 +31,35 @@ void main() {
     const settings = ProgramSettings(
       lunchStart: ProgramSettingsTime(hour: 12, minute: 0),
       lunchEnd: ProgramSettingsTime(hour: 13, minute: 0),
-      minimumHour: 8,
-      maximumHour: 18,
+      minimumTime: ProgramSettingsTime(hour: 8, minute: 0),
+      maximumTime: ProgramSettingsTime(hour: 18, minute: 0),
     );
 
     final json = const ProjectDocument(programSettings: settings).toJson();
 
     expect(json['programSettings'], settings.toJson());
+  });
+
+  test('migrates legacy program settings hours to times', () {
+    final document = ProjectDocument.fromJson(<String, Object?>{
+      'programSettings': <String, Object?>{
+        'lunchStart': <String, Object?>{'hour': 12, 'minute': 0},
+        'lunchEnd': <String, Object?>{'hour': 13, 'minute': 0},
+        'minimumHour': 8,
+        'maximumHour': 18,
+      },
+    });
+
+    expect(document.programSettings.minimumTime.hour, 8);
+    expect(document.programSettings.minimumTime.minute, 0);
+    expect(document.programSettings.maximumTime.hour, 18);
+    expect(document.programSettings.maximumTime.minute, 0);
+    expect(document.toJson()['programSettings'], <String, Object?>{
+      'lunchStart': <String, Object?>{'hour': 12, 'minute': 0},
+      'lunchEnd': <String, Object?>{'hour': 13, 'minute': 0},
+      'minimumTime': <String, Object?>{'hour': 8, 'minute': 0},
+      'maximumTime': <String, Object?>{'hour': 18, 'minute': 0},
+    });
   });
 
   test('throws when stored print preset params are incomplete', () {

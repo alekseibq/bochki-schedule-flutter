@@ -283,6 +283,7 @@ final class AppBootstrap {
     final listProcedureSessionsWithConflictsUseCase =
         ListProcedureSessionsWithConflictsUseCase(
       listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,
+      getProgramSettingsUseCase: getProgramSettingsUseCase,
     );
     final createProcedureSessionUseCase = CreateProcedureSessionUseCase(
       procedureSessionsRepository,

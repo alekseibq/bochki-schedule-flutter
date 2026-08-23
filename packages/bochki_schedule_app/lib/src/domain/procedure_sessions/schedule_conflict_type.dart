@@ -1,0 +1,4 @@
+enum ScheduleConflictType {
+  resourceOverload,
+  timeBoundary,
+}

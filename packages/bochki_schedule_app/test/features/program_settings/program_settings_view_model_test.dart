@@ -31,8 +31,8 @@ void main() {
         const ProgramSettings(
           lunchStart: ProgramSettingsTime(hour: 15, minute: 0),
           lunchEnd: ProgramSettingsTime(hour: 14, minute: 0),
-          minimumHour: 8,
-          maximumHour: 20,
+          minimumTime: ProgramSettingsTime(hour: 8, minute: 0),
+          maximumTime: ProgramSettingsTime(hour: 20, minute: 0),
         ),
       );
 

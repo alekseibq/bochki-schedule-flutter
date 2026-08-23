@@ -6,7 +6,6 @@ import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 
 import 'procedure_session_raw.dart';
 import 'procedure_sessions_validation_exception.dart';
-import 'procedure_session_time.dart';
 
 abstract final class ProcedureSessionValidator {
   static ProcedureSessionRaw validateForSave(
@@ -38,11 +37,6 @@ abstract final class ProcedureSessionValidator {
       throw const ProcedureSessionsValidationException('Выберите процедуру.');
     }
 
-    _validateStartTime(
-      procedureSession.startTime,
-      programSettings: programSettings,
-    );
-
     if (procedureKind.isCurated) {
       if (procedureSession.assistantId == null) {
         throw const ProcedureSessionsValidationException(
@@ -63,22 +57,6 @@ abstract final class ProcedureSessionValidator {
     }
 
     return procedureSession.copyWith(clearAssistantId: true);
-  }
-
-  static void _validateStartTime(
-    String startTime, {
-    required ProgramSettings programSettings,
-  }) {
-    final startMinutes = ProcedureSessionTime.toMinutes(startTime);
-    final minimumStartMinutes = programSettings.minimumHour * 60;
-    final maximumStartMinutes = programSettings.maximumHour * 60 + 55;
-    if (startMinutes < minimumStartMinutes ||
-        startMinutes > maximumStartMinutes) {
-      throw ProcedureSessionsValidationException(
-        'Время начала должно быть в диапазоне '
-        '${_formatTime(minimumStartMinutes)}-${_formatTime(maximumStartMinutes)}.',
-      );
-    }
   }
 
   static void validateId(String procedureSessionId) {

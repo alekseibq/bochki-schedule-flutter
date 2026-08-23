@@ -56,8 +56,8 @@ void main() {
             programSettings: const ProgramSettings(
               lunchStart: ProgramSettingsTime(hour: 13, minute: 30),
               lunchEnd: ProgramSettingsTime(hour: 14, minute: 30),
-              minimumHour: 10,
-              maximumHour: 12,
+              minimumTime: ProgramSettingsTime(hour: 10, minute: 0),
+              maximumTime: ProgramSettingsTime(hour: 12, minute: 0),
             ),
             onSubmit: (_, __) async =>
                 const ProcedureSessionSubmitResult.saved(),
@@ -68,7 +68,7 @@ void main() {
 
     expect(
       find.text(
-        'Допустимое время начала: 10:00-12:55. Обед: с 13:30 до 14:30.',
+        'Доступные часы начала: 10-12. Обед: с 13:30 до 14:30.',
       ),
       findsOneWidget,
     );
