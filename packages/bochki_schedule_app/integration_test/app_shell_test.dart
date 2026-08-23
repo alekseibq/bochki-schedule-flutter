@@ -393,6 +393,15 @@ final class _InMemoryProcedureSessionsRepository
   final List<ProcedureSessionRaw> _sessions = <ProcedureSessionRaw>[];
 
   @override
+  Future<int> clearAll() async {
+    final sessions = await list();
+    for (final session in sessions) {
+      await delete(session.id);
+    }
+    return sessions.length;
+  }
+
+  @override
   Future<ProcedureSessionRaw> create(
     ProcedureSessionRaw procedureSession,
   ) async {

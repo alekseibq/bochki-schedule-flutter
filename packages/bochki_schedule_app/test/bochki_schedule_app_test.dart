@@ -2462,6 +2462,15 @@ final class _InMemoryProcedureSessionsRepository
   final List<ProcedureSessionRaw> _sessions;
 
   @override
+  Future<int> clearAll() async {
+    final sessions = await list();
+    for (final session in sessions) {
+      await delete(session.id);
+    }
+    return sessions.length;
+  }
+
+  @override
   Future<void> updateMany(List<ProcedureSessionRaw> sessions) async {
     for (final session in sessions) {
       await update(session);

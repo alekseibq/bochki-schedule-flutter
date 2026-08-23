@@ -230,6 +230,13 @@ final class _ProcedureSessionsRepository
   final List<ProcedureSessionRaw> _sessions;
 
   @override
+  Future<int> clearAll() async {
+    final count = _sessions.length;
+    _sessions.clear();
+    return count;
+  }
+
+  @override
   Future<void> updateMany(List<ProcedureSessionRaw> sessions) async {}
 
   @override
