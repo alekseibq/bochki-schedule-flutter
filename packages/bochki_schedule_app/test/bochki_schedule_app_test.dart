@@ -22,11 +22,33 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('ПО Расписание Бочки'), findsOneWidget);
-    expect(find.text('Справочники'), findsOneWidget);
+    expect(find.text('Данные'), findsOneWidget);
     expect(find.text('Отчёты'), findsOneWidget);
     expect(find.text('Распечатки'), findsOneWidget);
     expect(find.text('Добавить запись...'), findsOneWidget);
     expect(find.text('Список назначенных процедур пуст.'), findsOneWidget);
+  });
+
+  testWidgets('shell orders header actions from left to right', (tester) async {
+    final context = _buildTestContext();
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+
+    final labels = [
+      'Добавить запись...',
+      'Данные',
+      'Отчёты',
+      'Распечатки',
+      'Быстрые перестановки',
+      'Шаблоны',
+    ];
+    final positions =
+        labels.map((label) => tester.getCenter(find.text(label)).dx).toList();
+
+    for (var index = 1; index < positions.length; index++) {
+      expect(positions[index], greaterThan(positions[index - 1]));
+    }
   });
 
   testWidgets('a new app services instance recreates the shell state', (
@@ -445,6 +467,7 @@ void main() {
       find.byKey(const Key('directories_menu_button')),
     );
     expect(menu.popUpAnimationStyle, AnimationStyle.noAnimation);
+    expect(menu.tooltip, 'Данные');
 
     await tester.tap(find.byKey(const Key('directories_menu_button')));
     await tester.pump();
@@ -505,6 +528,19 @@ void main() {
     expect(find.text('Участники (2)'), findsOneWidget);
     expect(find.text('Настройки'), findsOneWidget);
     expect(find.text('Настройки (0)'), findsNothing);
+
+    final labels = [
+      'Участники (2)',
+      'Ассистенты (1)',
+      'Процедуры (1)',
+      'Дни (3)',
+      'Настройки',
+    ];
+    final positions =
+        labels.map((label) => tester.getCenter(find.text(label)).dy).toList();
+    for (var index = 1; index < positions.length; index++) {
+      expect(positions[index], greaterThan(positions[index - 1]));
+    }
   });
 
   testWidgets('directories menu refreshes a count after closing its dialog', (

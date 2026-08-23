@@ -758,10 +758,22 @@ class _BochkiShellState extends State<BochkiShell> {
                   const SizedBox(width: 12),
                   PopupMenuButton<DirectorySection>(
                     key: const Key('directories_menu_button'),
-                    tooltip: 'Справочники',
+                    tooltip: 'Данные',
                     popUpAnimationStyle: AnimationStyle.noAnimation,
                     onSelected: _selectDirectorySection,
                     itemBuilder: (context) => [
+                      PopupMenuItem<DirectorySection>(
+                        value: DirectorySection.participants,
+                        child: Text(
+                          _directoryMenuLabel(DirectorySection.participants),
+                        ),
+                      ),
+                      PopupMenuItem<DirectorySection>(
+                        value: DirectorySection.assistants,
+                        child: Text(
+                          _directoryMenuLabel(DirectorySection.assistants),
+                        ),
+                      ),
                       PopupMenuItem<DirectorySection>(
                         value: DirectorySection.procedureKinds,
                         child: Text(
@@ -772,18 +784,6 @@ class _BochkiShellState extends State<BochkiShell> {
                         value: DirectorySection.workdays,
                         child: Text(
                           _directoryMenuLabel(DirectorySection.workdays),
-                        ),
-                      ),
-                      PopupMenuItem<DirectorySection>(
-                        value: DirectorySection.assistants,
-                        child: Text(
-                          _directoryMenuLabel(DirectorySection.assistants),
-                        ),
-                      ),
-                      PopupMenuItem<DirectorySection>(
-                        value: DirectorySection.participants,
-                        child: Text(
-                          _directoryMenuLabel(DirectorySection.participants),
                         ),
                       ),
                       const PopupMenuItem<DirectorySection>(
@@ -804,45 +804,11 @@ class _BochkiShellState extends State<BochkiShell> {
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text('Справочники'),
+                          Text('Данные'),
                           SizedBox(width: 6),
                           Icon(Icons.arrow_drop_down, size: 18),
                         ],
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  PopupMenuButton<TemplatesSection>(
-                    key: const Key('templates_menu_button'),
-                    tooltip: 'Шаблоны',
-                    popUpAnimationStyle: AnimationStyle.noAnimation,
-                    onSelected: (section) =>
-                        unawaited(_selectTemplateSection(section)),
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(
-                          value: TemplatesSection.create,
-                          child: Text('Создать шаблон')),
-                      PopupMenuItem(
-                          value: TemplatesSection.load,
-                          child: Text('Загрузить данные из шаблона')),
-                      PopupMenuItem(
-                          value: TemplatesSection.delete,
-                          child: Text('Удалить шаблон')),
-                    ],
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(6),
-                        color: Colors.white.withOpacity(0.72),
-                        border: Border.all(color: const Color(0xFFD0D7DE)),
-                      ),
-                      child:
-                          const Row(mainAxisSize: MainAxisSize.min, children: [
-                        Text('Шаблоны'),
-                        SizedBox(width: 6),
-                        Icon(Icons.arrow_drop_down, size: 18),
-                      ]),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -896,6 +862,40 @@ class _BochkiShellState extends State<BochkiShell> {
                     key: const Key('quick_reassignments_button'),
                     onPressed: _openQuickReassignments,
                     child: const Text('Быстрые перестановки'),
+                  ),
+                  const SizedBox(width: 12),
+                  PopupMenuButton<TemplatesSection>(
+                    key: const Key('templates_menu_button'),
+                    tooltip: 'Шаблоны',
+                    popUpAnimationStyle: AnimationStyle.noAnimation,
+                    onSelected: (section) =>
+                        unawaited(_selectTemplateSection(section)),
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(
+                          value: TemplatesSection.create,
+                          child: Text('Создать шаблон')),
+                      PopupMenuItem(
+                          value: TemplatesSection.load,
+                          child: Text('Загрузить данные из шаблона')),
+                      PopupMenuItem(
+                          value: TemplatesSection.delete,
+                          child: Text('Удалить шаблон')),
+                    ],
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(6),
+                        color: Colors.white.withOpacity(0.72),
+                        border: Border.all(color: const Color(0xFFD0D7DE)),
+                      ),
+                      child:
+                          const Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text('Шаблоны'),
+                        SizedBox(width: 6),
+                        Icon(Icons.arrow_drop_down, size: 18),
+                      ]),
+                    ),
                   ),
                 ],
               ),
