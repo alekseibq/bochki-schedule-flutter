@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
@@ -15,18 +16,28 @@ import '../domain/procedure_statistics/procedure_statistics_table.dart';
 import '../domain/schedule_gaps/build_schedule_gaps_use_case.dart';
 import '../domain/schedule_gaps/schedule_gap.dart';
 import '../domain/workdays/workday.dart';
+import '../app_services.dart';
 import '../features/procedure_sessions/procedure_session_dialog.dart';
 import '../features/procedure_sessions/procedure_session_submit_result.dart';
 import '../features/procedure_sessions/procedure_sessions_view_model.dart';
 
-enum DesktopWindowKind { main, procedureStatistics, procedureSession, freeTime }
+enum DesktopWindowKind {
+  main,
+  procedureStatistics,
+  procedureSession,
+  freeTime,
+  participants,
+  assistants,
+  procedureKinds,
+  workdays,
+  procedureKindEditor,
+  workdayEditor,
+}
 
 const _mainChannel = WindowMethodChannel(
   'bochki_schedule/main_window',
   mode: ChannelMode.unidirectional,
 );
-
-String _arguments(DesktopWindowKind kind) => jsonEncode({'kind': kind.name});
 
 DesktopWindowKind windowKindFromArguments(String value) {
   try {
@@ -41,13 +52,16 @@ DesktopWindowKind windowKindFromArguments(String value) {
 /// Runs only in the main window. Child windows never initialize repositories.
 final class DesktopWindowCoordinator {
   DesktopWindowCoordinator({
+    required AppServices services,
     required BuildProcedureStatisticsTableUseCase statistics,
     required BuildScheduleGapsUseCase scheduleGaps,
     required ProcedureSessionsViewModel sessions,
-  })  : _statistics = statistics,
+  })  : _services = services,
+        _statistics = statistics,
         _scheduleGaps = scheduleGaps,
         _sessions = sessions;
 
+  final AppServices _services;
   final BuildProcedureStatisticsTableUseCase _statistics;
   final BuildScheduleGapsUseCase _scheduleGaps;
   final ProcedureSessionsViewModel _sessions;
@@ -82,7 +96,15 @@ final class DesktopWindowCoordinator {
     await _open(DesktopWindowKind.freeTime);
   }
 
-  Future<void> _open(DesktopWindowKind kind) async {
+  Future<void> openDirectory(DesktopWindowKind kind) => _open(kind);
+
+  Future<void> openDirectoryEditor(
+    DesktopWindowKind kind, {
+    String? entryId,
+  }) =>
+      _open(kind, entryId: entryId);
+
+  Future<void> _open(DesktopWindowKind kind, {String? entryId}) async {
     final existing = (await WindowController.getAll()).where(
       (controller) => windowKindFromArguments(controller.arguments) == kind,
     );
@@ -92,7 +114,10 @@ final class DesktopWindowCoordinator {
       return;
     }
     final controller = await WindowController.create(
-      WindowConfiguration(arguments: _arguments(kind)),
+      WindowConfiguration(
+        arguments: jsonEncode(
+            {'kind': kind.name, if (entryId != null) 'entryId': entryId}),
+      ),
     );
     await controller.show();
   }
@@ -137,6 +162,18 @@ final class DesktopWindowCoordinator {
         };
       case 'procedureSessionSnapshot':
         return _sessionSnapshot();
+      case 'directorySnapshot':
+        return _directorySnapshot(call.arguments as String);
+      case 'directoryMutate':
+        return _directoryMutate(
+            Map<String, dynamic>.from(call.arguments as Map));
+      case 'openDirectoryEditor':
+        final values = Map<String, dynamic>.from(call.arguments as Map);
+        await openDirectoryEditor(
+          DesktopWindowKind.values.byName(values['kind'] as String),
+          entryId: values['entryId'] as String?,
+        );
+        return null;
       case 'submitProcedureSession':
         final values = Map<String, dynamic>.from(call.arguments as Map);
         final result = await _sessions.submitProcedureSession(
@@ -194,22 +231,154 @@ final class DesktopWindowCoordinator {
           'lunchEnd': _sessions.programSettings.lunchEnd.toJson(),
         },
       };
+
+  Future<Map<String, dynamic>> _directorySnapshot(String directory) async {
+    switch (directory) {
+      case 'participants':
+        return {
+          'entries': (await _services.listParticipantsUseCase.execute())
+              .map((entry) => {'id': entry.id, 'name': entry.name})
+              .toList()
+        };
+      case 'assistants':
+        return {
+          'entries': (await _services.listAssistantsUseCase.execute())
+              .map(_assistantMap)
+              .toList()
+        };
+      case 'procedureKinds':
+        return {
+          'entries': (await _services.listProcedureKindsUseCase.execute())
+              .map(_kindMap)
+              .toList()
+        };
+      case 'workdays':
+        return {
+          'entries': (await _services.listWorkdaysUseCase.execute())
+              .map(_workdayMap)
+              .toList()
+        };
+      default:
+        throw ArgumentError.value(directory, 'directory');
+    }
+  }
+
+  Future<Map<String, dynamic>> _directoryMutate(
+      Map<String, dynamic> values) async {
+    final directory = values['directory'] as String;
+    final action = values['action'] as String;
+    final entry =
+        Map<String, dynamic>.from(values['entry'] as Map? ?? const {});
+    try {
+      switch (directory) {
+        case 'participants':
+          if (action == 'delete')
+            await _services.deleteParticipantUseCase
+                .execute(values['id'] as String);
+          if (action == 'create')
+            await _services.createParticipantUseCase
+                .execute(entry['name'] as String);
+          if (action == 'update')
+            await _services.updateParticipantUseCase.execute(
+                participantId: values['id'] as String,
+                rawName: entry['name'] as String);
+          break;
+        case 'assistants':
+          if (action == 'delete')
+            await _services.deleteAssistantUseCase
+                .execute(values['id'] as String);
+          if (action == 'create')
+            await _services.createAssistantUseCase
+                .execute(entry['name'] as String);
+          if (action == 'update')
+            await _services.updateAssistantUseCase.execute(
+                assistantId: values['id'] as String,
+                rawName: entry['name'] as String,
+                rawShortName: entry['shortName'] as String?);
+          break;
+        case 'procedureKinds':
+          final kind =
+              _kindFromMap({...entry, 'id': values['id'] as String? ?? 'new'});
+          if (action == 'delete')
+            await _services.deleteProcedureKindUseCase
+                .execute(values['id'] as String);
+          if (action == 'create')
+            await _services.createProcedureKindUseCase.execute(kind);
+          if (action == 'update')
+            await _services.updateProcedureKindUseCase.execute(kind);
+          break;
+        case 'workdays':
+          final day = _workdayFromMap(
+              {...entry, 'id': values['id'] as String? ?? 'new'});
+          if (action == 'delete')
+            await _services.deleteWorkdayUseCase
+                .execute(values['id'] as String);
+          if (action == 'create')
+            await _services.createWorkdayUseCase.execute(day);
+          if (action == 'update')
+            await _services.updateWorkdayUseCase.execute(day);
+          break;
+        default:
+          throw ArgumentError.value(directory, 'directory');
+      }
+      await _notifyDirectoryChanged(directory);
+      return {'ok': true};
+    } catch (error) {
+      return {'ok': false, 'error': error.toString()};
+    }
+  }
+
+  Future<void> _notifyDirectoryChanged(String directory) async {
+    await _sessions.load();
+    for (final controller in await WindowController.getAll()) {
+      if (windowKindFromArguments(controller.arguments) !=
+          DesktopWindowKind.main) {
+        await controller.invokeMethod<void>('directory_changed', directory);
+      }
+    }
+  }
 }
 
 Future<void> configureChildWindow(DesktopWindowKind kind) async {
   await windowManager.ensureInitialized();
   final isStatistics = kind == DesktopWindowKind.procedureStatistics;
   final isFreeTime = kind == DesktopWindowKind.freeTime;
+  final title = switch (kind) {
+    DesktopWindowKind.procedureStatistics => 'Статистика процедур',
+    DesktopWindowKind.freeTime => 'Свободное время',
+    DesktopWindowKind.procedureSession => 'Назначить процедуру',
+    DesktopWindowKind.participants => 'Участники',
+    DesktopWindowKind.assistants => 'Ассистенты',
+    DesktopWindowKind.procedureKinds => 'Процедуры',
+    DesktopWindowKind.workdays => 'Дни',
+    DesktopWindowKind.procedureKindEditor => 'Процедура',
+    DesktopWindowKind.workdayEditor => 'День',
+    DesktopWindowKind.main => 'ПО Расписание Бочки',
+  };
+  final isDirectory = switch (kind) {
+    DesktopWindowKind.participants ||
+    DesktopWindowKind.assistants ||
+    DesktopWindowKind.procedureKinds ||
+    DesktopWindowKind.workdays =>
+      true,
+    _ => false,
+  };
+  final isEditor = kind == DesktopWindowKind.procedureKindEditor ||
+      kind == DesktopWindowKind.workdayEditor;
   final options = WindowOptions(
-    title: isStatistics
-        ? 'Статистика процедур'
-        : isFreeTime
-            ? 'Свободное время'
-            : 'Назначить процедуру',
+    title: title,
     size: isStatistics || isFreeTime
         ? const Size(1065, 514)
-        : const Size(900, 680),
-    minimumSize: isStatistics ? const Size(820, 420) : const Size(850, 600),
+        : isDirectory
+            ? const Size(920, 640)
+            : isEditor
+                ? const Size(650, 500)
+                : const Size(900, 680),
+    minimumSize: isStatistics
+        ? const Size(820, 420)
+        : isEditor
+            ? const Size(600, 420)
+            : const Size(700, 500),
     center: true,
   );
   await windowManager.waitUntilReadyToShow(options, () async {
@@ -267,6 +436,7 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
           await windowManager.close();
           return null;
         case 'statistics_changed':
+        case 'directory_changed':
           await _load();
           return null;
         default:
@@ -430,7 +600,8 @@ class _FreeTimeWindowState extends State<FreeTimeWindow> {
   Future<void> _listen() async {
     final controller = await WindowController.fromCurrentEngine();
     await controller.setWindowMethodHandler((call) async {
-      if (call.method == 'free_time_changed') {
+      if (call.method == 'free_time_changed' ||
+          call.method == 'directory_changed') {
         await _load();
         return null;
       }
@@ -627,7 +798,21 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
   @override
   void initState() {
     super.initState();
+    _listen();
     _load();
+  }
+
+  Future<void> _listen() async {
+    final controller = await WindowController.fromCurrentEngine();
+    await controller.setWindowMethodHandler((call) async {
+      if (call.method == 'directory_changed') {
+        await _load();
+        return null;
+      }
+      if (call.method == 'window_close') return windowManager.close();
+      if (call.method == 'window_focus') return windowManager.focus();
+      throw MissingPluginException('Unknown procedure-session-window method');
+    });
   }
 
   Future<void> _load() async {
@@ -754,3 +939,388 @@ ProcedureSessionRaw _sessionFromMap(Map<String, dynamic> m) =>
         startTime: m['startTime'] as String,
         procedureKindId: m['procedureKindId'] as String,
         assistantId: m['assistantId'] as String?);
+
+/// A lightweight IPC client for directory windows.  Data and mutations stay in
+/// the main engine, which owns the project document and its synchronizer.
+class DirectoryChildWindow extends StatefulWidget {
+  const DirectoryChildWindow({super.key});
+
+  @override
+  State<DirectoryChildWindow> createState() => _DirectoryChildWindowState();
+}
+
+class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
+  DesktopWindowKind? _kind;
+  String? _entryId;
+  List<Map<String, dynamic>> _entries = const [];
+  String? _selectedId;
+  bool _loading = true;
+  bool _saving = false;
+  bool _hasModalChild = false;
+  StreamSubscription<void>? _windowsSubscription;
+  String? _error;
+  final _name = TextEditingController();
+  final _shortName = TextEditingController();
+  final _date = TextEditingController();
+  final _capacity = TextEditingController(text: '1');
+  final _participantTime = TextEditingController();
+  String _patternId = 'curated';
+
+  bool get _isEditor =>
+      _kind == DesktopWindowKind.procedureKindEditor ||
+      _kind == DesktopWindowKind.workdayEditor;
+  String get _directory => switch (_kind) {
+        DesktopWindowKind.participants => 'participants',
+        DesktopWindowKind.assistants => 'assistants',
+        DesktopWindowKind.procedureKinds ||
+        DesktopWindowKind.procedureKindEditor =>
+          'procedureKinds',
+        DesktopWindowKind.workdays ||
+        DesktopWindowKind.workdayEditor =>
+          'workdays',
+        _ => throw StateError('Not a directory window'),
+      };
+
+  @override
+  void initState() {
+    super.initState();
+    _initialize();
+    _windowsSubscription = onWindowsChanged.listen((_) => _refreshModalChild());
+  }
+
+  Future<void> _initialize() async {
+    final controller = await WindowController.fromCurrentEngine();
+    final args =
+        Map<String, dynamic>.from(jsonDecode(controller.arguments) as Map);
+    _kind = DesktopWindowKind.values.byName(args['kind'] as String);
+    _entryId = args['entryId'] as String?;
+    await _refreshModalChild();
+    await controller.setWindowMethodHandler((call) async {
+      switch (call.method) {
+        case 'window_focus':
+          await windowManager.focus();
+          return null;
+        case 'window_close':
+          await windowManager.close();
+          return null;
+        case 'directory_changed':
+          await _load();
+          return null;
+        default:
+          throw MissingPluginException('Unknown directory-window method');
+      }
+    });
+    await _load();
+  }
+
+  Future<void> _load() async {
+    if (_kind == null) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final result = Map<String, dynamic>.from(await _mainChannel.invokeMethod(
+          'directorySnapshot', _directory) as Map);
+      _entries = _maps(result['entries']);
+      if (_isEditor) {
+        final entry = _entryId == null
+            ? null
+            : _entries.where((item) => item['id'] == _entryId).firstOrNull;
+        _fillEditor(entry);
+      }
+    } catch (_) {
+      _error = 'Не удалось загрузить данные.';
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _refreshModalChild() async {
+    if (_isEditor) return;
+    final windows = await WindowController.getAll();
+    final active = windows.any((window) {
+      final kind = windowKindFromArguments(window.arguments);
+      return (_kind == DesktopWindowKind.procedureKinds &&
+              kind == DesktopWindowKind.procedureKindEditor) ||
+          (_kind == DesktopWindowKind.workdays &&
+              kind == DesktopWindowKind.workdayEditor);
+    });
+    if (mounted && active != _hasModalChild)
+      setState(() => _hasModalChild = active);
+  }
+
+  void _fillEditor(Map<String, dynamic>? entry) {
+    _name.text = entry?['name'] as String? ?? '';
+    _shortName.text = entry?['shortName'] as String? ?? '';
+    _date.text = entry?['date'] as String? ?? '';
+    _capacity.text = '${entry?['capacity'] ?? 1}';
+    _participantTime.text = '${entry?['participantBusyTime'] ?? ''}';
+    _patternId = entry?['patternId'] as String? ?? 'curated';
+  }
+
+  Future<void> _mutate(String action,
+      {String? id, Map<String, dynamic>? entry}) async {
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final result = Map<String, dynamic>.from(
+          await _mainChannel.invokeMethod('directoryMutate', {
+        'directory': _directory,
+        'action': action,
+        if (id != null) 'id': id,
+        'entry': entry ?? <String, dynamic>{},
+      }) as Map);
+      if (result['ok'] != true) throw StateError(result['error']);
+      if (_isEditor) {
+        await windowManager.close();
+        return;
+      }
+      _selectedId = id;
+      await _load();
+    } catch (error) {
+      if (mounted)
+        setState(
+            () => _error = error.toString().replaceFirst('Bad state: ', ''));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _openEditor(String editorKind, [String? id]) =>
+      _mainChannel.invokeMethod('openDirectoryEditor',
+          {'kind': editorKind, if (id != null) 'entryId': id});
+
+  @override
+  void dispose() {
+    _windowsSubscription?.cancel();
+    _name.dispose();
+    _shortName.dispose();
+    _date.dispose();
+    _capacity.dispose();
+    _participantTime.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_kind == null || _loading)
+      return const MaterialApp(
+          home: Scaffold(body: Center(child: CircularProgressIndicator())));
+    return MaterialApp(
+      theme: ThemeData(useMaterial3: true),
+      home: Scaffold(
+        appBar: AppBar(title: Text(_title)),
+        body: AbsorbPointer(
+          absorbing: _hasModalChild,
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: _isEditor ? _editor() : _directoryList(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String get _title => switch (_kind) {
+        DesktopWindowKind.participants => 'Участники',
+        DesktopWindowKind.assistants => 'Ассистенты',
+        DesktopWindowKind.procedureKinds => 'Процедуры',
+        DesktopWindowKind.workdays => 'Дни',
+        DesktopWindowKind.procedureKindEditor =>
+          _entryId == null ? 'Новая процедура' : 'Редактирование процедуры',
+        DesktopWindowKind.workdayEditor =>
+          _entryId == null ? 'Новый день' : 'Редактирование дня',
+        _ => '',
+      };
+
+  Widget _directoryList() => Column(children: [
+        Row(children: [
+          FilledButton.tonal(
+              onPressed: _saving
+                  ? null
+                  : () {
+                      if (_kind == DesktopWindowKind.procedureKinds) {
+                        _openEditor(DesktopWindowKind.procedureKindEditor.name);
+                      } else if (_kind == DesktopWindowKind.workdays) {
+                        _openEditor(DesktopWindowKind.workdayEditor.name);
+                      } else {
+                        _name.clear();
+                        _shortName.clear();
+                        _showInlineEditor();
+                      }
+                    },
+              child: Text(_kind == DesktopWindowKind.workdays
+                  ? 'Создать'
+                  : 'Добавить')),
+        ]),
+        if (_error != null)
+          Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(_error!, style: const TextStyle(color: Colors.red))),
+        const SizedBox(height: 12),
+        Expanded(
+            child: ListView.separated(
+                itemCount: _entries.length,
+                separatorBuilder: (_, __) => const Divider(),
+                itemBuilder: (_, i) {
+                  final entry = _entries[i];
+                  final id = entry['id'] as String;
+                  return ListTile(
+                    selected: _selectedId == id,
+                    title: Text(entry['name'] as String),
+                    subtitle: Text(_subtitle(entry)),
+                    onTap: () => setState(() => _selectedId = id),
+                    trailing: Wrap(children: [
+                      TextButton(
+                          onPressed: _saving
+                              ? null
+                              : () {
+                                  if (_kind == DesktopWindowKind.procedureKinds)
+                                    _openEditor(
+                                        DesktopWindowKind
+                                            .procedureKindEditor.name,
+                                        id);
+                                  else if (_kind == DesktopWindowKind.workdays)
+                                    _openEditor(
+                                        DesktopWindowKind.workdayEditor.name,
+                                        id);
+                                  else {
+                                    _name.text = entry['name'] as String;
+                                    _shortName.text =
+                                        entry['shortName'] as String? ?? '';
+                                    _selectedId = id;
+                                    _showInlineEditor();
+                                  }
+                                },
+                          child: const Text('Изменить')),
+                      TextButton(
+                          onPressed:
+                              _saving ? null : () => _mutate('delete', id: id),
+                          child: const Text('Удалить')),
+                    ]),
+                  );
+                })),
+      ]);
+
+  String _subtitle(Map<String, dynamic> entry) => switch (_kind) {
+        DesktopWindowKind.assistants => 'Краткое имя: ${entry['shortName']}',
+        DesktopWindowKind.procedureKinds =>
+          'Емкость: ${entry['capacity']}; время участника: ${entry['participantBusyTime']} мин.',
+        DesktopWindowKind.workdays => entry['date'] as String,
+        _ => '',
+      };
+
+  Future<void> _showInlineEditor() async {
+    await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+              title:
+                  Text(_selectedId == null ? 'Новая запись' : 'Редактирование'),
+              content: Column(mainAxisSize: MainAxisSize.min, children: [
+                TextField(
+                    controller: _name,
+                    decoration: const InputDecoration(labelText: 'Имя')),
+                if (_kind == DesktopWindowKind.assistants)
+                  TextField(
+                      controller: _shortName,
+                      decoration:
+                          const InputDecoration(labelText: 'Краткое имя')),
+              ]),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Отмена')),
+                FilledButton(
+                    onPressed: () async {
+                      await _mutate(_selectedId == null ? 'create' : 'update',
+                          id: _selectedId,
+                          entry: {
+                            'name': _name.text,
+                            'shortName': _shortName.text
+                          });
+                      if (mounted && _error == null)
+                        Navigator.pop(dialogContext);
+                    },
+                    child: const Text('Сохранить'))
+              ],
+            ));
+  }
+
+  Widget _editor() =>
+      Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        TextField(
+            controller: _name,
+            enabled: !_saving,
+            decoration: const InputDecoration(labelText: 'Название')),
+        const SizedBox(height: 12),
+        if (_kind == DesktopWindowKind.procedureKindEditor) ...[
+          DropdownButtonFormField<String>(
+            value: _patternId,
+            decoration: const InputDecoration(labelText: 'Тип процедуры'),
+            items: const [
+              DropdownMenuItem(value: 'curated', child: Text('Кураторская')),
+              DropdownMenuItem(value: 'single', child: Text('Одиночная')),
+              DropdownMenuItem(value: 'grouped', child: Text('Групповая')),
+            ],
+            onChanged: _saving
+                ? null
+                : (value) => setState(() => _patternId = value ?? _patternId),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+              controller: _shortName,
+              enabled: !_saving,
+              decoration: const InputDecoration(labelText: 'Краткое название')),
+          const SizedBox(height: 12),
+          TextField(
+              controller: _capacity,
+              enabled: !_saving,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Емкость')),
+          const SizedBox(height: 12),
+          TextField(
+              controller: _participantTime,
+              enabled: !_saving,
+              keyboardType: TextInputType.number,
+              decoration:
+                  const InputDecoration(labelText: 'Время участника, мин')),
+        ] else
+          TextField(
+              controller: _date,
+              enabled: !_saving,
+              decoration: const InputDecoration(labelText: 'Дата (ISO 8601)')),
+        if (_error != null)
+          Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(_error!, style: const TextStyle(color: Colors.red))),
+        const Spacer(),
+        Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+          TextButton(
+              onPressed: _saving ? null : () => windowManager.close(),
+              child: const Text('Отмена')),
+          const SizedBox(width: 12),
+          FilledButton(
+              onPressed: _saving
+                  ? null
+                  : () => _mutate(_entryId == null ? 'create' : 'update',
+                      id: _entryId, entry: _editorEntry),
+              child: Text(_entryId == null ? 'Создать' : 'Сохранить')),
+        ]),
+      ]);
+
+  Map<String, dynamic> get _editorEntry =>
+      _kind == DesktopWindowKind.procedureKindEditor
+          ? {
+              'name': _name.text,
+              'shortName': _shortName.text,
+              'patternId': _patternId,
+              'capacity': int.tryParse(_capacity.text) ?? 0,
+              'participantBusyTime': int.tryParse(_participantTime.text) ?? 0,
+              'assistantBusyTime': null,
+              'resourceBusyTime': null
+            }
+          : {'name': _name.text, 'date': _date.text};
+}

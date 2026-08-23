@@ -10,6 +10,17 @@ void main() {
       );
     });
 
+    test('reads directory and editor window arguments', () {
+      expect(
+        windowKindFromArguments('{"kind":"participants"}'),
+        DesktopWindowKind.participants,
+      );
+      expect(
+        windowKindFromArguments('{"kind":"procedureKindEditor"}'),
+        DesktopWindowKind.procedureKindEditor,
+      );
+    });
+
     test('treats invalid arguments as the main window', () {
       expect(windowKindFromArguments('invalid'), DesktopWindowKind.main);
     });
