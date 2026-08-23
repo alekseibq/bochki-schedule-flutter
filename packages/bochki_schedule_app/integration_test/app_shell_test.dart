@@ -117,7 +117,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('ПО Расписание Бочки'), findsOneWidget);
-    expect(find.text('Справочники'), findsOneWidget);
+    expect(find.text('Данные'), findsOneWidget);
 
     _openDirectoriesMenu(tester);
     await tester.pumpAndSettle();
