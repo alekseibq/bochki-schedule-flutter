@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:desktop_multi_window/desktop_multi_window.dart';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
@@ -68,6 +70,8 @@ class _BochkiShellState extends State<BochkiShell> {
   int? _participantsCount;
   late final ProcedureSessionsViewModel _procedureSessionsViewModel;
   DesktopWindowCoordinator? _desktopWindows;
+  StreamSubscription<void>? _windowsSubscription;
+  bool _hasChildWindows = false;
 
   @override
   void initState() {
@@ -91,11 +95,15 @@ class _BochkiShellState extends State<BochkiShell> {
     final scheduleGaps = widget.services.buildScheduleGapsUseCase;
     if (statistics != null && scheduleGaps != null) {
       _desktopWindows = DesktopWindowCoordinator(
+        services: widget.services,
         statistics: statistics,
         scheduleGaps: scheduleGaps,
         sessions: _procedureSessionsViewModel,
       );
       unawaited(_startDesktopWindows());
+      _windowsSubscription =
+          onWindowsChanged.listen((_) => _refreshWindowModalState());
+      unawaited(_refreshWindowModalState());
     }
     unawaited(_procedureSessionsViewModel.load());
     unawaited(_loadDirectoryCounts());
@@ -177,10 +185,24 @@ class _BochkiShellState extends State<BochkiShell> {
 
   @override
   void dispose() {
+    _windowsSubscription?.cancel();
     unawaited(_desktopWindows?.closeChildren());
     unawaited(_desktopWindows?.dispose());
     _procedureSessionsViewModel.dispose();
     super.dispose();
+  }
+
+  Future<void> _refreshWindowModalState() async {
+    try {
+      final windows = await WindowController.getAll();
+      final active = windows.any((window) =>
+          windowKindFromArguments(window.arguments) != DesktopWindowKind.main);
+      if (mounted && active != _hasChildWindows) {
+        setState(() => _hasChildWindows = active);
+      }
+    } catch (_) {
+      // Multi-window APIs are intentionally absent from widget tests.
+    }
   }
 
   Future<void> _openProcedureKindsDialog() async {
@@ -630,16 +652,33 @@ class _BochkiShellState extends State<BochkiShell> {
   void _selectDirectorySection(DirectorySection section) {
     switch (section) {
       case DirectorySection.procedureKinds:
-        unawaited(_openProcedureKindsDialog());
+        if (_desktopWindows case final coordinator?) {
+          unawaited(
+              coordinator.openDirectory(DesktopWindowKind.procedureKinds));
+        } else {
+          unawaited(_openProcedureKindsDialog());
+        }
         return;
       case DirectorySection.workdays:
-        unawaited(_openWorkdaysDialog());
+        if (_desktopWindows case final coordinator?) {
+          unawaited(coordinator.openDirectory(DesktopWindowKind.workdays));
+        } else {
+          unawaited(_openWorkdaysDialog());
+        }
         return;
       case DirectorySection.assistants:
-        unawaited(_openAssistantsDialog());
+        if (_desktopWindows case final coordinator?) {
+          unawaited(coordinator.openDirectory(DesktopWindowKind.assistants));
+        } else {
+          unawaited(_openAssistantsDialog());
+        }
         return;
       case DirectorySection.participants:
-        unawaited(_openParticipantsDialog());
+        if (_desktopWindows case final coordinator?) {
+          unawaited(coordinator.openDirectory(DesktopWindowKind.participants));
+        } else {
+          unawaited(_openParticipantsDialog());
+        }
         return;
       case DirectorySection.settings:
         unawaited(_openProgramSettingsDialog());
@@ -726,201 +765,207 @@ class _BochkiShellState extends State<BochkiShell> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      body: Column(
-        children: [
-          Container(
-            height: 56,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: const BoxDecoration(
-              color: Color(0xFFE9EEF2),
-              border: Border(
-                bottom: BorderSide(color: Color(0xFFD0D7DE)),
+    return AbsorbPointer(
+      absorbing: _hasChildWindows,
+      child: Scaffold(
+        body: Column(
+          children: [
+            Container(
+              height: 56,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: const BoxDecoration(
+                color: Color(0xFFE9EEF2),
+                border: Border(
+                  bottom: BorderSide(color: Color(0xFFD0D7DE)),
+                ),
+              ),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    Text(
+                      'ПО Расписание Бочки',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    FilledButton.tonal(
+                      key: const Key('add_procedure_session_button'),
+                      onPressed: () =>
+                          _openProcedureSessionDialog(isEditing: false),
+                      child: const Text('Добавить запись...'),
+                    ),
+                    const SizedBox(width: 12),
+                    PopupMenuButton<DirectorySection>(
+                      key: const Key('directories_menu_button'),
+                      tooltip: 'Данные',
+                      popUpAnimationStyle: AnimationStyle.noAnimation,
+                      onSelected: _selectDirectorySection,
+                      itemBuilder: (context) => [
+                        PopupMenuItem<DirectorySection>(
+                          value: DirectorySection.participants,
+                          child: Text(
+                            _directoryMenuLabel(DirectorySection.participants),
+                          ),
+                        ),
+                        PopupMenuItem<DirectorySection>(
+                          value: DirectorySection.assistants,
+                          child: Text(
+                            _directoryMenuLabel(DirectorySection.assistants),
+                          ),
+                        ),
+                        PopupMenuItem<DirectorySection>(
+                          value: DirectorySection.procedureKinds,
+                          child: Text(
+                            _directoryMenuLabel(
+                                DirectorySection.procedureKinds),
+                          ),
+                        ),
+                        PopupMenuItem<DirectorySection>(
+                          value: DirectorySection.workdays,
+                          child: Text(
+                            _directoryMenuLabel(DirectorySection.workdays),
+                          ),
+                        ),
+                        const PopupMenuItem<DirectorySection>(
+                          value: DirectorySection.settings,
+                          child: Text('Настройки'),
+                        ),
+                      ],
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(6),
+                          color: Colors.white.withOpacity(0.72),
+                          border: Border.all(color: const Color(0xFFD0D7DE)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('Данные'),
+                            SizedBox(width: 6),
+                            Icon(Icons.arrow_drop_down, size: 18),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    PopupMenuButton<ReportsSection>(
+                      key: const Key('reports_menu_button'),
+                      tooltip: 'Отчёты',
+                      onSelected: (section) =>
+                          unawaited(section == ReportsSection.statistics
+                              ? _openStatistics()
+                              : section == ReportsSection.procedureStatistics
+                                  ? _openProcedureStatistics()
+                                  : _openFreeTime()),
+                      itemBuilder: (context) => const [
+                        PopupMenuItem<ReportsSection>(
+                          value: ReportsSection.statistics,
+                          child: Text('Статистика по сопровождениям'),
+                        ),
+                        PopupMenuItem<ReportsSection>(
+                          value: ReportsSection.procedureStatistics,
+                          child: Text('Статистика процедур'),
+                        ),
+                        PopupMenuItem<ReportsSection>(
+                          value: ReportsSection.freeTime,
+                          child: Text('Свободное время'),
+                        ),
+                      ],
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(6),
+                          color: Colors.white.withOpacity(0.72),
+                          border: Border.all(color: const Color(0xFFD0D7DE)),
+                        ),
+                        child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('Отчёты'),
+                              SizedBox(width: 6),
+                              Icon(Icons.arrow_drop_down, size: 18),
+                            ]),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    FilledButton.tonal(
+                      key: const Key('print_preset_params_button'),
+                      onPressed: _openPrintPresetParamsDialog,
+                      child: const Text('Распечатки'),
+                    ),
+                    const SizedBox(width: 12),
+                    FilledButton.tonal(
+                      key: const Key('quick_reassignments_button'),
+                      onPressed: _openQuickReassignments,
+                      child: const Text('Быстрые перестановки'),
+                    ),
+                    const SizedBox(width: 12),
+                    PopupMenuButton<TemplatesSection>(
+                      key: const Key('templates_menu_button'),
+                      tooltip: 'Шаблоны',
+                      popUpAnimationStyle: AnimationStyle.noAnimation,
+                      onSelected: (section) =>
+                          unawaited(_selectTemplateSection(section)),
+                      itemBuilder: (context) => const [
+                        PopupMenuItem(
+                            value: TemplatesSection.create,
+                            child: Text('Создать шаблон')),
+                        PopupMenuItem(
+                            value: TemplatesSection.load,
+                            child: Text('Загрузить данные из шаблона')),
+                        PopupMenuItem(
+                            value: TemplatesSection.delete,
+                            child: Text('Удалить шаблон')),
+                      ],
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(6),
+                          color: Colors.white.withOpacity(0.72),
+                          border: Border.all(color: const Color(0xFFD0D7DE)),
+                        ),
+                        child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('Шаблоны'),
+                              SizedBox(width: 6),
+                              Icon(Icons.arrow_drop_down, size: 18),
+                            ]),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  Text(
-                    'ПО Расписание Бочки',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                  FilledButton.tonal(
-                    key: const Key('add_procedure_session_button'),
-                    onPressed: () =>
-                        _openProcedureSessionDialog(isEditing: false),
-                    child: const Text('Добавить запись...'),
-                  ),
-                  const SizedBox(width: 12),
-                  PopupMenuButton<DirectorySection>(
-                    key: const Key('directories_menu_button'),
-                    tooltip: 'Данные',
-                    popUpAnimationStyle: AnimationStyle.noAnimation,
-                    onSelected: _selectDirectorySection,
-                    itemBuilder: (context) => [
-                      PopupMenuItem<DirectorySection>(
-                        value: DirectorySection.participants,
-                        child: Text(
-                          _directoryMenuLabel(DirectorySection.participants),
-                        ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: _ProcedureSessionsHome(
+                  viewModel: _procedureSessionsViewModel,
+                  onEdit: (entryId) {
+                    unawaited(
+                      _openProcedureSessionDialog(
+                        isEditing: true,
+                        procedureSessionId: entryId,
                       ),
-                      PopupMenuItem<DirectorySection>(
-                        value: DirectorySection.assistants,
-                        child: Text(
-                          _directoryMenuLabel(DirectorySection.assistants),
-                        ),
-                      ),
-                      PopupMenuItem<DirectorySection>(
-                        value: DirectorySection.procedureKinds,
-                        child: Text(
-                          _directoryMenuLabel(DirectorySection.procedureKinds),
-                        ),
-                      ),
-                      PopupMenuItem<DirectorySection>(
-                        value: DirectorySection.workdays,
-                        child: Text(
-                          _directoryMenuLabel(DirectorySection.workdays),
-                        ),
-                      ),
-                      const PopupMenuItem<DirectorySection>(
-                        value: DirectorySection.settings,
-                        child: Text('Настройки'),
-                      ),
-                    ],
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(6),
-                        color: Colors.white.withOpacity(0.72),
-                        border: Border.all(color: const Color(0xFFD0D7DE)),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text('Данные'),
-                          SizedBox(width: 6),
-                          Icon(Icons.arrow_drop_down, size: 18),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  PopupMenuButton<ReportsSection>(
-                    key: const Key('reports_menu_button'),
-                    tooltip: 'Отчёты',
-                    onSelected: (section) =>
-                        unawaited(section == ReportsSection.statistics
-                            ? _openStatistics()
-                            : section == ReportsSection.procedureStatistics
-                                ? _openProcedureStatistics()
-                                : _openFreeTime()),
-                    itemBuilder: (context) => const [
-                      PopupMenuItem<ReportsSection>(
-                        value: ReportsSection.statistics,
-                        child: Text('Статистика по сопровождениям'),
-                      ),
-                      PopupMenuItem<ReportsSection>(
-                        value: ReportsSection.procedureStatistics,
-                        child: Text('Статистика процедур'),
-                      ),
-                      PopupMenuItem<ReportsSection>(
-                        value: ReportsSection.freeTime,
-                        child: Text('Свободное время'),
-                      ),
-                    ],
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(6),
-                        color: Colors.white.withOpacity(0.72),
-                        border: Border.all(color: const Color(0xFFD0D7DE)),
-                      ),
-                      child:
-                          const Row(mainAxisSize: MainAxisSize.min, children: [
-                        Text('Отчёты'),
-                        SizedBox(width: 6),
-                        Icon(Icons.arrow_drop_down, size: 18),
-                      ]),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  FilledButton.tonal(
-                    key: const Key('print_preset_params_button'),
-                    onPressed: _openPrintPresetParamsDialog,
-                    child: const Text('Распечатки'),
-                  ),
-                  const SizedBox(width: 12),
-                  FilledButton.tonal(
-                    key: const Key('quick_reassignments_button'),
-                    onPressed: _openQuickReassignments,
-                    child: const Text('Быстрые перестановки'),
-                  ),
-                  const SizedBox(width: 12),
-                  PopupMenuButton<TemplatesSection>(
-                    key: const Key('templates_menu_button'),
-                    tooltip: 'Шаблоны',
-                    popUpAnimationStyle: AnimationStyle.noAnimation,
-                    onSelected: (section) =>
-                        unawaited(_selectTemplateSection(section)),
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(
-                          value: TemplatesSection.create,
-                          child: Text('Создать шаблон')),
-                      PopupMenuItem(
-                          value: TemplatesSection.load,
-                          child: Text('Загрузить данные из шаблона')),
-                      PopupMenuItem(
-                          value: TemplatesSection.delete,
-                          child: Text('Удалить шаблон')),
-                    ],
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(6),
-                        color: Colors.white.withOpacity(0.72),
-                        border: Border.all(color: const Color(0xFFD0D7DE)),
-                      ),
-                      child:
-                          const Row(mainAxisSize: MainAxisSize.min, children: [
-                        Text('Шаблоны'),
-                        SizedBox(width: 6),
-                        Icon(Icons.arrow_drop_down, size: 18),
-                      ]),
-                    ),
-                  ),
-                ],
+                    );
+                  },
+                  onDelete: (entryId) {
+                    unawaited(_confirmDeleteProcedureSession(entryId));
+                  },
+                ),
               ),
             ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: _ProcedureSessionsHome(
-                viewModel: _procedureSessionsViewModel,
-                onEdit: (entryId) {
-                  unawaited(
-                    _openProcedureSessionDialog(
-                      isEditing: true,
-                      procedureSessionId: entryId,
-                    ),
-                  );
-                },
-                onDelete: (entryId) {
-                  unawaited(_confirmDeleteProcedureSession(entryId));
-                },
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

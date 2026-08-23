@@ -22,7 +22,9 @@ Future<void> main(List<String> args) async {
         ? const ProcedureStatisticsWindow()
         : kind == DesktopWindowKind.freeTime
             ? const FreeTimeWindow()
-            : const ProcedureSessionWindow());
+            : kind == DesktopWindowKind.procedureSession
+                ? const ProcedureSessionWindow()
+                : const DirectoryChildWindow());
     return;
   }
   final diagnostics = StartupDiagnostics();
