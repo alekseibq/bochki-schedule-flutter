@@ -511,7 +511,7 @@ class _BochkiShellState extends State<BochkiShell> {
       return;
     }
 
-    final controller = TextEditingController();
+    var confirmationText = '';
     try {
       final confirmed = await showDialog<bool>(
             context: context,
@@ -519,7 +519,7 @@ class _BochkiShellState extends State<BochkiShell> {
             builder: (dialogContext) => StatefulBuilder(
               builder: (context, setDialogState) {
                 final isConfirmationValid =
-                    controller.text.trim().toLowerCase() == 'очистить';
+                    confirmationText.trim().toLowerCase() == 'очистить';
                 return AlertDialog(
                   key: const Key('clear_schedule_confirmation_dialog'),
                   title: const Text('Очистить расписание?'),
@@ -534,12 +534,13 @@ class _BochkiShellState extends State<BochkiShell> {
                       const SizedBox(height: 16),
                       TextField(
                         key: const Key('clear_schedule_confirmation_field'),
-                        controller: controller,
                         autofocus: true,
                         decoration: const InputDecoration(
                           labelText: 'Введите «очистить» для подтверждения',
                         ),
-                        onChanged: (_) => setDialogState(() {}),
+                        onChanged: (value) => setDialogState(() {
+                          confirmationText = value;
+                        }),
                       ),
                     ],
                   ),
@@ -584,8 +585,6 @@ class _BochkiShellState extends State<BochkiShell> {
       }
     } catch (error) {
       _showError('Не удалось очистить расписание: $error');
-    } finally {
-      controller.dispose();
     }
   }
 
