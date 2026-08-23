@@ -59,7 +59,9 @@ void main() {
 
     await tester.pumpWidget(BochkiScheduleApp(services: context.services));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('templates_menu_button')));
+    final templatesMenu = find.byKey(const Key('templates_menu_button'));
+    await tester.ensureVisible(templatesMenu);
+    await tester.tap(templatesMenu);
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('clear_schedule_menu_item')));
     await tester.pumpAndSettle();
@@ -93,7 +95,9 @@ void main() {
 
     await tester.pumpWidget(BochkiScheduleApp(services: context.services));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('templates_menu_button')));
+    final templatesMenu = find.byKey(const Key('templates_menu_button'));
+    await tester.ensureVisible(templatesMenu);
+    await tester.tap(templatesMenu);
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('clear_schedule_menu_item')));
     await tester.pumpAndSettle();
