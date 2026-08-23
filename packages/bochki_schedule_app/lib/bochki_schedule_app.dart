@@ -37,6 +37,7 @@ export 'src/domain/program_settings/program_settings_repository.dart';
 export 'src/domain/program_settings/program_settings_validation_exception.dart';
 export 'src/domain/program_settings/update_program_settings_use_case.dart';
 export 'src/domain/procedure_sessions/create_procedure_session_use_case.dart';
+export 'src/domain/procedure_sessions/clear_procedure_sessions_use_case.dart';
 export 'src/domain/procedure_sessions/delete_procedure_session_use_case.dart';
 export 'src/domain/procedure_sessions/conflict_resource_type.dart';
 export 'src/domain/procedure_sessions/list_procedure_sessions_with_conflicts_use_case.dart';

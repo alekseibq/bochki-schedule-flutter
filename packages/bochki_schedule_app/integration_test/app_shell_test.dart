@@ -109,6 +109,8 @@ void main() {
       ),
       deleteProcedureSessionUseCase:
           DeleteProcedureSessionUseCase(procedureSessionsRepository),
+      clearProcedureSessionsUseCase:
+          ClearProcedureSessionsUseCase(procedureSessionsRepository),
       flushPending: _noopAsync,
       shutdown: _noopAsync,
     );
@@ -389,6 +391,15 @@ final class _InMemoryHumansRepository implements HumansRepository {
 final class _InMemoryProcedureSessionsRepository
     implements ProcedureSessionsRepository {
   final List<ProcedureSessionRaw> _sessions = <ProcedureSessionRaw>[];
+
+  @override
+  Future<int> clearAll() async {
+    final sessions = await list();
+    for (final session in sessions) {
+      await delete(session.id);
+    }
+    return sessions.length;
+  }
 
   @override
   Future<ProcedureSessionRaw> create(

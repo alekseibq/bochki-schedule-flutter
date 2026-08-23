@@ -8,6 +8,7 @@ import 'domain/participants/delete_participant_use_case.dart';
 import 'domain/participants/list_participants_use_case.dart';
 import 'domain/participants/update_participant_use_case.dart';
 import 'domain/procedure_sessions/create_procedure_session_use_case.dart';
+import 'domain/procedure_sessions/clear_procedure_sessions_use_case.dart';
 import 'domain/procedure_sessions/delete_procedure_session_use_case.dart';
 import 'domain/procedure_sessions/list_procedure_sessions_use_case.dart';
 import 'domain/procedure_sessions/list_rich_procedure_sessions_use_case.dart';
@@ -73,6 +74,7 @@ final class AppServices {
     required this.createProcedureSessionUseCase,
     required this.updateProcedureSessionUseCase,
     required this.deleteProcedureSessionUseCase,
+    required this.clearProcedureSessionsUseCase,
     this.quickReassignmentsUseCase,
     required this.flushPending,
     required this.shutdown,
@@ -115,6 +117,7 @@ final class AppServices {
   final CreateProcedureSessionUseCase createProcedureSessionUseCase;
   final UpdateProcedureSessionUseCase updateProcedureSessionUseCase;
   final DeleteProcedureSessionUseCase deleteProcedureSessionUseCase;
+  final ClearProcedureSessionsUseCase clearProcedureSessionsUseCase;
   final QuickReassignmentsUseCase? quickReassignmentsUseCase;
   final Future<void> Function() flushPending;
   final Future<void> Function() shutdown;

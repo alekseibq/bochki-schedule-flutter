@@ -111,6 +111,23 @@ final class ProjectDocumentProcedureSessionsRepository
   }
 
   @override
+  Future<int> clearAll() async {
+    var removedCount = 0;
+    for (var index = 0; index < _entries.length; index += 1) {
+      final entry = _entries[index];
+      if (entry.deleted) {
+        continue;
+      }
+      _entries[index] = entry.copyWith(deleted: true);
+      removedCount += 1;
+    }
+    if (removedCount > 0) {
+      _markRepositoryChanged();
+    }
+    return removedCount;
+  }
+
+  @override
   ProjectDocument applyToDocument(ProjectDocument document) {
     final sortedEntries = [
       for (final entry in _entries)

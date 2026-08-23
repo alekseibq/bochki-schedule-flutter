@@ -39,7 +39,7 @@ enum DirectorySection {
 
 enum ReportsSection { statistics, procedureStatistics, freeTime }
 
-enum TemplatesSection { create, load, delete }
+enum TemplatesSection { create, load, delete, clearSchedule }
 
 class BochkiShell extends StatefulWidget {
   const BochkiShell({
@@ -478,7 +478,6 @@ class _BochkiShellState extends State<BochkiShell> {
   }
 
   Future<void> _selectTemplateSection(TemplatesSection section) async {
-    if (widget.services.templateService == null) return;
     if (_templatesDialogOpen) return;
     setState(() => _templatesDialogOpen = true);
     try {
@@ -492,9 +491,100 @@ class _BochkiShellState extends State<BochkiShell> {
         case TemplatesSection.delete:
           await _chooseTemplate(isDelete: true);
           return;
+        case TemplatesSection.clearSchedule:
+          await _clearSchedule();
+          return;
       }
     } finally {
       if (mounted) setState(() => _templatesDialogOpen = false);
+    }
+  }
+
+  Future<void> _clearSchedule() async {
+    final procedureSessions =
+        await widget.services.listProcedureSessionsUseCase.execute();
+    if (!mounted) return;
+    if (procedureSessions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Назначенных процедур нет.')),
+      );
+      return;
+    }
+
+    var confirmationText = '';
+    try {
+      final confirmed = await showDialog<bool>(
+            context: context,
+            barrierDismissible: false,
+            builder: (dialogContext) => StatefulBuilder(
+              builder: (context, setDialogState) {
+                final isConfirmationValid =
+                    confirmationText.trim().toLowerCase() == 'очистить';
+                return AlertDialog(
+                  key: const Key('clear_schedule_confirmation_dialog'),
+                  title: const Text('Очистить расписание?'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Будут удалены все назначенные процедуры на все дни. '
+                        'Дни, справочники и виды процедур сохранятся.',
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        key: const Key('clear_schedule_confirmation_field'),
+                        autofocus: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Введите «очистить» для подтверждения',
+                        ),
+                        onChanged: (value) => setDialogState(() {
+                          confirmationText = value;
+                        }),
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext, false),
+                      child: const Text('Отмена'),
+                    ),
+                    FilledButton(
+                      key: const Key('clear_schedule_confirm_button'),
+                      style:
+                          FilledButton.styleFrom(backgroundColor: Colors.red),
+                      onPressed: isConfirmationValid
+                          ? () => Navigator.pop(dialogContext, true)
+                          : null,
+                      child: const Text('Ok'),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ) ??
+          false;
+      if (!confirmed) return;
+
+      final removedCount =
+          await widget.services.clearProcedureSessionsUseCase.execute();
+      if (removedCount == 0) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Назначенных процедур нет.')),
+          );
+        }
+        return;
+      }
+      await widget.services.flushPending();
+      await _procedureSessionsViewModel.load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Удалено процедур: $removedCount')),
+        );
+      }
+    } catch (error) {
+      _showError('Не удалось очистить расписание: $error');
     }
   }
 
@@ -923,6 +1013,15 @@ class _BochkiShellState extends State<BochkiShell> {
                         PopupMenuItem(
                             value: TemplatesSection.delete,
                             child: Text('Удалить шаблон')),
+                        PopupMenuDivider(),
+                        PopupMenuItem(
+                          key: Key('clear_schedule_menu_item'),
+                          value: TemplatesSection.clearSchedule,
+                          child: Text(
+                            'Очистить расписание',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
                       ],
                       child: Container(
                         padding: const EdgeInsets.symmetric(

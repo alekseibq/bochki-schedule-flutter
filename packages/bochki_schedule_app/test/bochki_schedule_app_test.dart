@@ -29,6 +29,84 @@ void main() {
     expect(find.text('Список назначенных процедур пуст.'), findsOneWidget);
   });
 
+  testWidgets('clear schedule requires typed confirmation and removes sessions',
+      (tester) async {
+    final context = _buildTestContext(
+      participants: [Participant(id: '1', name: 'Участник')],
+      procedureKinds: [
+        ProcedureKind(
+          id: '1',
+          patternId: ProcedureKindPatterns.single.patternId,
+          name: 'Процедура',
+          capacity: 1,
+          participantBusyTime: 30,
+          resourceBusyTime: 30,
+        ),
+      ],
+      workdays: [
+        Workday(id: '1', name: 'День', calendarDate: DateTime(2026, 1, 1)),
+      ],
+      procedureSessions: [
+        ProcedureSessionRaw(
+          id: '1',
+          dayId: '1',
+          participantId: '1',
+          startTime: '09:00',
+          procedureKindId: '1',
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    final templatesMenu = find.byKey(const Key('templates_menu_button'));
+    await tester.ensureVisible(templatesMenu);
+    await tester.tap(templatesMenu);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clear_schedule_menu_item')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('clear_schedule_confirmation_dialog')),
+        findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.byKey(const Key('clear_schedule_confirm_button')),
+          )
+          .onPressed,
+      isNull,
+    );
+
+    await tester.enterText(
+      find.byKey(const Key('clear_schedule_confirmation_field')),
+      ' Очистить ',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('clear_schedule_confirm_button')));
+    await tester.pumpAndSettle();
+
+    expect(context.procedureSessionsRepository.sessions, isEmpty);
+    expect(find.text('Удалено процедур: 1'), findsOneWidget);
+  });
+
+  testWidgets('clear schedule reports when there are no sessions',
+      (tester) async {
+    final context = _buildTestContext();
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    final templatesMenu = find.byKey(const Key('templates_menu_button'));
+    await tester.ensureVisible(templatesMenu);
+    await tester.tap(templatesMenu);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clear_schedule_menu_item')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('clear_schedule_confirmation_dialog')),
+        findsNothing);
+    expect(find.text('Назначенных процедур нет.'), findsOneWidget);
+  });
+
   testWidgets('shell orders header actions from left to right', (tester) async {
     final context = _buildTestContext();
 
@@ -2199,6 +2277,8 @@ _TestContext _buildTestContext({
       ),
       deleteProcedureSessionUseCase:
           DeleteProcedureSessionUseCase(procedureSessionsRepository),
+      clearProcedureSessionsUseCase:
+          ClearProcedureSessionsUseCase(procedureSessionsRepository),
       flushPending: _noopAsync,
       shutdown: _noopAsync,
     ),
@@ -2384,6 +2464,15 @@ final class _InMemoryProcedureSessionsRepository
   }
 
   final List<ProcedureSessionRaw> _sessions;
+
+  @override
+  Future<int> clearAll() async {
+    final sessions = await list();
+    for (final session in sessions) {
+      await delete(session.id);
+    }
+    return sessions.length;
+  }
 
   @override
   Future<void> updateMany(List<ProcedureSessionRaw> sessions) async {

@@ -5,6 +5,54 @@ import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('repository clears active procedure sessions in one change', () async {
+    var changeNotifications = 0;
+    final repository = ProjectDocumentProcedureSessionsRepository(
+      initialDocument: const ProjectDocument(
+        nextId: 4,
+        procedureSessions: <Map<String, Object?>>[
+          <String, Object?>{
+            'id': 1,
+            'dayId': 1,
+            'participantId': 10,
+            'startTime': '09:00',
+            'procedureKindId': 100,
+            'deleted': false,
+          },
+          <String, Object?>{
+            'id': 2,
+            'dayId': 1,
+            'participantId': 11,
+            'startTime': '10:00',
+            'procedureKindId': 101,
+            'deleted': true,
+          },
+          <String, Object?>{
+            'id': 3,
+            'dayId': 2,
+            'participantId': 12,
+            'startTime': '11:00',
+            'procedureKindId': 102,
+            'deleted': false,
+          },
+        ],
+      ),
+      idAllocator: ProjectDocumentIdAllocator(nextId: 4, onChanged: () {}),
+      onChanged: () => changeNotifications += 1,
+    );
+
+    expect(await repository.clearAll(), 2);
+    expect(await repository.list(), isEmpty);
+    expect(changeNotifications, 1);
+    expect(
+      repository
+          .applyToDocument(const ProjectDocument(nextId: 4))
+          .procedureSessions
+          .every((entry) => entry['deleted'] == true),
+      isTrue,
+    );
+  });
+
   test('repository create update and delete persist procedure sessions',
       () async {
     var changeNotifications = 0;
