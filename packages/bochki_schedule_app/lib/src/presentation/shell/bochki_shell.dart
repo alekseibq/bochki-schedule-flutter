@@ -550,7 +550,8 @@ class _BochkiShellState extends State<BochkiShell> {
                     ),
                     FilledButton(
                       key: const Key('clear_schedule_confirm_button'),
-                      style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                      style:
+                          FilledButton.styleFrom(backgroundColor: Colors.red),
                       onPressed: isConfirmationValid
                           ? () => Navigator.pop(dialogContext, true)
                           : null,

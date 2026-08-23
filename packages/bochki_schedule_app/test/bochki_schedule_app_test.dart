@@ -87,7 +87,8 @@ void main() {
     expect(find.text('Удалено процедур: 1'), findsOneWidget);
   });
 
-  testWidgets('clear schedule reports when there are no sessions', (tester) async {
+  testWidgets('clear schedule reports when there are no sessions',
+      (tester) async {
     final context = _buildTestContext();
 
     await tester.pumpWidget(BochkiScheduleApp(services: context.services));
@@ -97,7 +98,8 @@ void main() {
     await tester.tap(find.byKey(const Key('clear_schedule_menu_item')));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('clear_schedule_confirmation_dialog')), findsNothing);
+    expect(find.byKey(const Key('clear_schedule_confirmation_dialog')),
+        findsNothing);
     expect(find.text('Назначенных процедур нет.'), findsOneWidget);
   });
 
