@@ -121,7 +121,7 @@ void main() {
 
     _openDirectoriesMenu(tester);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Ассистенты').last);
+    await tester.tap(find.text('Ассистенты (0)').last);
     await tester.pumpAndSettle();
 
     expect(
@@ -133,7 +133,7 @@ void main() {
 
     _openDirectoriesMenu(tester);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Участники').last);
+    await tester.tap(find.text('Участники (0)').last);
     await tester.pumpAndSettle();
 
     final participantsDialog = find.byKey(
