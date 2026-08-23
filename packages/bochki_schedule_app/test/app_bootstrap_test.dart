@@ -191,13 +191,37 @@ void main() {
       (await reloaded.listProcedureSessionsUseCase.execute()).single.id,
       '14',
     );
+    final reloadedProgramSettings =
+        await reloaded.getProgramSettingsUseCase.execute();
+    expect(reloadedProgramSettings.lunchStart.hour,
+        templateDocument.programSettings.lunchStart.hour);
+    expect(reloadedProgramSettings.lunchStart.minute,
+        templateDocument.programSettings.lunchStart.minute);
+    expect(reloadedProgramSettings.lunchEnd.hour,
+        templateDocument.programSettings.lunchEnd.hour);
+    expect(reloadedProgramSettings.lunchEnd.minute,
+        templateDocument.programSettings.lunchEnd.minute);
+    expect(reloadedProgramSettings.minimumTime.hour,
+        templateDocument.programSettings.minimumTime.hour);
+    expect(reloadedProgramSettings.minimumTime.minute,
+        templateDocument.programSettings.minimumTime.minute);
+    expect(reloadedProgramSettings.maximumTime.hour,
+        templateDocument.programSettings.maximumTime.hour);
+    expect(reloadedProgramSettings.maximumTime.minute,
+        templateDocument.programSettings.maximumTime.minute);
+    final reloadedPrintPresetParams =
+        await reloaded.getPrintPresetParamsUseCase.execute();
     expect(
-      await reloaded.getProgramSettingsUseCase.execute(),
-      templateDocument.programSettings,
+      reloadedPrintPresetParams.workdayId,
+      templateDocument.printPresetParams.workdayId,
     );
     expect(
-      await reloaded.getPrintPresetParamsUseCase.execute(),
-      templateDocument.printPresetParams,
+      reloadedPrintPresetParams.textBefore,
+      templateDocument.printPresetParams.textBefore,
+    );
+    expect(
+      reloadedPrintPresetParams.textAfter,
+      templateDocument.printPresetParams.textAfter,
     );
     expect(
       (await reloaded.createParticipantUseCase.execute('Следующий')).id,

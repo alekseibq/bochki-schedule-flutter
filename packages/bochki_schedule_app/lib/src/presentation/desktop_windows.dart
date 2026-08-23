@@ -35,6 +35,8 @@ enum DesktopWindowKind {
   workdayEditor,
 }
 
+typedef DirectoryChangedCallback = Future<void> Function(String directory);
+
 const _mainChannel = WindowMethodChannel(
   'bochki_schedule/main_window',
   mode: ChannelMode.unidirectional,
@@ -57,15 +59,18 @@ final class DesktopWindowCoordinator {
     required BuildProcedureStatisticsTableUseCase statistics,
     required BuildScheduleGapsUseCase scheduleGaps,
     required ProcedureSessionsViewModel sessions,
+    required DirectoryChangedCallback onDirectoryChanged,
   })  : _services = services,
         _statistics = statistics,
         _scheduleGaps = scheduleGaps,
-        _sessions = sessions;
+        _sessions = sessions,
+        _onDirectoryChanged = onDirectoryChanged;
 
   final AppServices _services;
   final BuildProcedureStatisticsTableUseCase _statistics;
   final BuildScheduleGapsUseCase _scheduleGaps;
   final ProcedureSessionsViewModel _sessions;
+  final DirectoryChangedCallback _onDirectoryChanged;
   ProcedureSessionRaw? _sessionDraft;
 
   Future<void> start() => _mainChannel.setMethodCallHandler(_handleCall);
@@ -332,6 +337,7 @@ final class DesktopWindowCoordinator {
   }
 
   Future<void> _notifyDirectoryChanged(String directory) async {
+    await _onDirectoryChanged(directory);
     await _sessions.load();
     for (final controller in await WindowController.getAll()) {
       if (windowKindFromArguments(controller.arguments) !=
