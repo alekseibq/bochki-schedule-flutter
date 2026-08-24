@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.12.0
+
+Release date: 2026-08-24
+
+### Highlights
+
+- Added an action to clear the schedule.
+- Added separate desktop windows for directory management and active-record counts in the Directories menu.
+- Added minute-level precision to program time limits.
+
+### Details
+
+- `feat(schedule): add schedule clearing (#114)`
+- `feat(directories): open CRUD in desktop windows (#113)`
+- `feat(directories): show active record counts in menu (#111)`
+- `feat: add minute precision to program time limits (#115)`
+- `fix(directories): restore people table CRUD (#117)`
+- `fix(directories): refresh menu counts after mutations (#119)`
+- `fix(templates): rebuild runtime after loading (#110)`
+- `fix(schedule): retain confirmation state through dialog close`
+
 ## v0.11.0
 
 Release date: 2026-08-15
