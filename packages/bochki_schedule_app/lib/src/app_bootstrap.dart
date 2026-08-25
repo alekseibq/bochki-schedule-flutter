@@ -175,6 +175,8 @@ final class AppBootstrap {
     );
     final deleteParticipantUseCase = DeleteParticipantUseCase(
       participantsRepository,
+      humansRepository: humansRepository,
+      procedureSessionsRepository: procedureSessionsRepository,
     );
     final listAssistantsUseCase = ListAssistantsUseCase(
       assistantsRepository,
@@ -187,6 +189,8 @@ final class AppBootstrap {
     );
     final deleteAssistantUseCase = DeleteAssistantUseCase(
       assistantsRepository,
+      humansRepository: humansRepository,
+      procedureSessionsRepository: procedureSessionsRepository,
     );
     final listProcedureKindsUseCase = ListProcedureKindsUseCase(
       procedureKindsRepository,

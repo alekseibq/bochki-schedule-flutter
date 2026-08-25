@@ -1586,7 +1586,10 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
   }
 
   String _participantText(dynamic entry) {
-    return entry.participant?.name ?? 'Ошибка: участник не найден';
+    if (entry.participant != null) return entry.participant!.name;
+    return entry.participantId == null
+        ? 'Не назначен'
+        : 'Ошибка: участник не найден';
   }
 
   String _procedureText(dynamic entry) {
@@ -1597,7 +1600,10 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
     if (!entry.requiresAssistant) {
       return '';
     }
-    return entry.assistant?.name ?? 'Ошибка: ассистент не найден';
+    if (entry.assistant != null) return entry.assistant!.name;
+    return entry.assistantId == null
+        ? 'Не назначен'
+        : 'Ошибка: ассистент не найден';
   }
 
   Widget _buildPersonSummaryCell({

@@ -13,7 +13,7 @@ final class ProcedureSessionConflictMessageFormatter {
     required Iterable<Human> humans,
     required Iterable<ProcedureKind> procedureKinds,
   }) {
-    if (conflict.type == ScheduleConflictType.timeBoundary) {
+    if (conflict.type != ScheduleConflictType.resourceOverload) {
       return conflict.message ?? 'Нарушены границы времени программы.';
     }
     switch (conflict.resourceType!) {

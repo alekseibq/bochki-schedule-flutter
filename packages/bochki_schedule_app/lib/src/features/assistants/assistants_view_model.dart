@@ -26,6 +26,7 @@ final class AssistantsViewModel extends NamedDirectoryViewModel<Assistant> {
             );
           },
           deleteEntry: deleteAssistantUseCase.execute,
+          countReferences: deleteAssistantUseCase.countReferences,
           loadErrorMessageText: 'Не удалось загрузить ассистентов.',
           saveErrorMessageText: 'Не удалось сохранить изменения.',
           deleteErrorMessageText: 'Не удалось удалить ассистента.',

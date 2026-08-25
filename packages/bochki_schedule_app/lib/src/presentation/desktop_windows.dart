@@ -946,7 +946,7 @@ ProcedureSessionRaw _sessionFromMap(Map<String, dynamic> m) =>
     ProcedureSessionRaw(
         id: m['id'] as String,
         dayId: m['dayId'] as String,
-        participantId: m['participantId'] as String,
+        participantId: m['participantId'] as String?,
         startTime: m['startTime'] as String,
         procedureKindId: m['procedureKindId'] as String,
         assistantId: m['assistantId'] as String?);
