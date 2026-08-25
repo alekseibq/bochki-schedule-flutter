@@ -90,6 +90,7 @@ Future<void> _configureWindow() async {
   }
 
   await windowManager.ensureInitialized();
+  await initializeDesktopWindowLifecycle();
   const windowOptions = WindowOptions(
     title: 'ПО Расписание Бочки',
     size: Size(1200, 800),

@@ -213,7 +213,6 @@ class _BochkiShellState extends State<BochkiShell> {
   @override
   void dispose() {
     _windowsSubscription?.cancel();
-    unawaited(_desktopWindows?.closeChildren());
     unawaited(_desktopWindows?.dispose());
     _procedureSessionsViewModel.dispose();
     super.dispose();
