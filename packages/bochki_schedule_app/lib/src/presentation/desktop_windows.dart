@@ -910,11 +910,19 @@ Assistant _assistantFromMap(Map<String, dynamic> m) => Assistant(
     name: m['name'] as String,
     shortName: m['shortName'] as String);
 Map<String, dynamic> _workdayMap(Workday d) =>
-    {'id': d.id, 'name': d.name, 'date': d.calendarDate.toIso8601String()};
+    {'id': d.id, 'name': d.name, 'date': _formatCalendarDate(d.calendarDate)};
 Workday _workdayFromMap(Map<String, dynamic> m) => Workday(
     id: m['id'] as String,
     name: m['name'] as String,
     calendarDate: DateTime.parse(m['date'] as String));
+
+String _formatCalendarDate(DateTime value) {
+  final year = value.year.toString().padLeft(4, '0');
+  final month = value.month.toString().padLeft(2, '0');
+  final day = value.day.toString().padLeft(2, '0');
+  return '$year-$month-$day';
+}
+
 Map<String, dynamic> _kindMap(ProcedureKind k) => {
       'id': k.id,
       'patternId': k.patternId,

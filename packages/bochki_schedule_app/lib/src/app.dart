@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'app_services.dart';
 import 'presentation/shell/bochki_shell.dart';
@@ -57,6 +58,9 @@ class _BochkiScheduleAppState extends State<BochkiScheduleApp> {
     return MaterialApp(
       title: 'ПО Расписание Бочки',
       debugShowCheckedModeBanner: false,
+      locale: const Locale('ru', 'RU'),
+      supportedLocales: const [Locale('ru', 'RU')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
