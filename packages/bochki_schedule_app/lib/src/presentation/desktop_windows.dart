@@ -1332,7 +1332,10 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
             value: _patternId,
             decoration: const InputDecoration(labelText: 'Тип процедуры'),
             items: const [
-              DropdownMenuItem(value: 'curated', child: Text('Кураторская')),
+              DropdownMenuItem(
+                value: 'curated',
+                child: Text('С сопровождением'),
+              ),
               DropdownMenuItem(value: 'single', child: Text('Одиночная')),
               DropdownMenuItem(value: 'grouped', child: Text('Групповая')),
             ],

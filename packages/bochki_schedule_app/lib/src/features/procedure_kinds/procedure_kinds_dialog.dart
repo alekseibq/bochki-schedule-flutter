@@ -50,7 +50,10 @@ class _ProcedureKindsDialogState extends State<ProcedureKindsDialog> {
       context: context,
       barrierDismissible: false,
       builder: (context) {
-        return ProcedureKindDialog(viewModel: widget.viewModel);
+        return ProcedureKindDialog(
+          viewModel: widget.viewModel,
+          procedureKinds: widget.viewModel.procedureKinds,
+        );
       },
     );
     if (!mounted || createdProcedureKind == null) {
@@ -70,6 +73,7 @@ class _ProcedureKindsDialogState extends State<ProcedureKindsDialog> {
         return ProcedureKindDialog(
           viewModel: widget.viewModel,
           initialProcedureKind: procedureKind,
+          procedureKinds: widget.viewModel.procedureKinds,
         );
       },
     );

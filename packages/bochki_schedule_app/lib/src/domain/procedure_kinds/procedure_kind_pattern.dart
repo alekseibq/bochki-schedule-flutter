@@ -15,9 +15,9 @@ final class ProcedureKindPattern {
 abstract final class ProcedureKindPatterns {
   static const ProcedureKindPattern curated = ProcedureKindPattern(
     patternId: 'curated',
-    name: 'Основная процедура',
-    shortName: 'Основная',
-    longName: 'Основная (ванна, бочка и т.д.)',
+    name: 'С сопровождением',
+    shortName: 'С сопровождением',
+    longName: 'С сопровождением (ванна, бочка и т.д.)',
   );
 
   static const ProcedureKindPattern single = ProcedureKindPattern(
