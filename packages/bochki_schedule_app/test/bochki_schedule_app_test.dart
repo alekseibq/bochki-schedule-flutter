@@ -1451,7 +1451,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Удалить').last);
+    await tester.tap(find.text('Продолжить'));
     await tester.pumpAndSettle();
 
     expect(
