@@ -296,7 +296,7 @@ final class DesktopWindowCoordinator {
       await existing.first.invokeMethod<void>('window_focus');
       return;
     }
-    final controller = await WindowController.create(
+    await WindowController.create(
       childWindowConfiguration(
         jsonEncode(await _windowArguments(
           kind: kind,
