@@ -1243,6 +1243,35 @@ ProcedureSessionRaw _sessionFromMap(Map<String, dynamic> m) =>
 
 /// A lightweight IPC client for directory windows.  Data and mutations stay in
 /// the main engine, which owns the project document and its synchronizer.
+class DirectoryChildWindowScaffold extends StatelessWidget {
+  const DirectoryChildWindowScaffold({
+    required this.title,
+    required this.absorbing,
+    required this.builder,
+    super.key,
+  });
+
+  final String title;
+  final bool absorbing;
+  final Widget Function(BuildContext contentContext) builder;
+
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+        debugShowCheckedModeBanner: false,
+        locale: const Locale('ru', 'RU'),
+        supportedLocales: const [Locale('ru', 'RU')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        theme: ThemeData(useMaterial3: true),
+        home: Scaffold(
+          appBar: AppBar(title: Text(title)),
+          body: AbsorbPointer(
+            absorbing: absorbing,
+            child: Builder(builder: builder),
+          ),
+        ),
+      );
+}
+
 class DirectoryChildWindow extends StatefulWidget {
   const DirectoryChildWindow({super.key});
 
@@ -1424,21 +1453,14 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
     if (_kind == null || _loading)
       return const MaterialApp(
           home: Scaffold(body: Center(child: CircularProgressIndicator())));
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      locale: const Locale('ru', 'RU'),
-      supportedLocales: const [Locale('ru', 'RU')],
-      localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      theme: ThemeData(useMaterial3: true),
-      home: Scaffold(
-        appBar: AppBar(title: Text(_title)),
-        body: AbsorbPointer(
-          absorbing: _hasModalChild,
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: _isEditor ? _editor() : _directoryList(),
-          ),
-        ),
+    return DirectoryChildWindowScaffold(
+      title: _title,
+      absorbing: _hasModalChild,
+      builder: (contentContext) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: _isEditor
+            ? _editor(contentContext)
+            : _directoryList(contentContext),
       ),
     );
   }
@@ -1455,7 +1477,7 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
         _ => '',
       };
 
-  Widget _directoryList() {
+  Widget _directoryList(BuildContext contentContext) {
     if (_isPeopleDirectory) {
       return PeopleDirectoryTable(
         type: _kind == DesktopWindowKind.participants
@@ -1478,11 +1500,11 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
         onChanged: _load,
       );
     }
-    if (_isWorkdaysDirectory) return _workdaysList();
-    return _legacyDirectoryList();
+    if (_isWorkdaysDirectory) return _workdaysList(contentContext);
+    return _legacyDirectoryList(contentContext);
   }
 
-  Widget _workdaysList() => Column(
+  Widget _workdaysList(BuildContext contentContext) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Align(
@@ -1555,7 +1577,8 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
                                     TextButton(
                                       onPressed: _saving
                                           ? null
-                                          : () => _deleteWorkday(entry),
+                                          : () => _deleteWorkday(
+                                              contentContext, entry),
                                       child: const Text('Удалить'),
                                     ),
                                   ],
@@ -1574,10 +1597,13 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
         ],
       );
 
-  Future<void> _deleteWorkday(Map<String, dynamic> entry) async {
+  Future<void> _deleteWorkday(
+    BuildContext contentContext,
+    Map<String, dynamic> entry,
+  ) async {
     final name = entry['name'] as String;
     final confirmed = await showDialog<bool>(
-      context: context,
+      context: contentContext,
       builder: (context) => AlertDialog(
         title: const Text('Удалить день?'),
         content: Text('День "$name" будет скрыт из списка.'),
@@ -1603,7 +1629,7 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
     if (!mounted) return;
     if (referencesCount > 0) {
       await showDialog<void>(
-        context: context,
+        context: contentContext,
         builder: (context) => AlertDialog(
           title: const Text('Невозможно удалить день'),
           content: Text(
@@ -1624,11 +1650,11 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
     await _mutate('delete', id: entry['id'] as String);
   }
 
-  Future<void> _selectWorkdayDate() async {
+  Future<void> _selectWorkdayDate(BuildContext contentContext) async {
     if (_saving) return;
     final initialDate = DateTime.tryParse(_date.text) ?? DateTime.now();
     final selectedDate = await showDatePicker(
-      context: context,
+      context: contentContext,
       initialDate: initialDate,
       firstDate: DateTime(1900),
       lastDate: DateTime(2100, 12, 31),
@@ -1690,7 +1716,7 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
     }
   }
 
-  Widget _legacyDirectoryList() => Column(children: [
+  Widget _legacyDirectoryList(BuildContext contentContext) => Column(children: [
         Row(children: [
           FilledButton.tonal(
               onPressed: _saving
@@ -1703,7 +1729,7 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
                       } else {
                         _name.clear();
                         _shortName.clear();
-                        _showInlineEditor();
+                        _showInlineEditor(contentContext);
                       }
                     },
               child: Text(_kind == DesktopWindowKind.workdays
@@ -1746,7 +1772,7 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
                                     _shortName.text =
                                         entry['shortName'] as String? ?? '';
                                     _selectedId = id;
-                                    _showInlineEditor();
+                                    _showInlineEditor(contentContext);
                                   }
                                 },
                           child: const Text('Изменить')),
@@ -1754,7 +1780,10 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
                           onPressed: _saving
                               ? null
                               : _kind == DesktopWindowKind.procedureKinds
-                                  ? () => _deleteProcedureKind(entry)
+                                  ? () => _deleteProcedureKind(
+                                        contentContext,
+                                        entry,
+                                      )
                                   : () => _mutate('delete', id: id),
                           child: const Text('Удалить')),
                     ]),
@@ -1770,7 +1799,10 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
         _ => '',
       };
 
-  Future<void> _deleteProcedureKind(Map<String, dynamic> entry) async {
+  Future<void> _deleteProcedureKind(
+    BuildContext contentContext,
+    Map<String, dynamic> entry,
+  ) async {
     final id = entry['id'] as String;
     final referencesCount = await _mainChannel.invokeMethod<int>(
           'directoryReferences',
@@ -1780,7 +1812,7 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
     if (!mounted) return;
     if (referencesCount > 0) {
       await showDialog<void>(
-        context: context,
+        context: contentContext,
         builder: (context) => AlertDialog(
           title: const Text('Невозможно удалить процедуру'),
           content: Text(
@@ -1801,9 +1833,9 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
     await _mutate('delete', id: id);
   }
 
-  Future<void> _showInlineEditor() async {
+  Future<void> _showInlineEditor(BuildContext contentContext) async {
     await showDialog<void>(
-        context: context,
+        context: contentContext,
         builder: (dialogContext) => AlertDialog(
               title:
                   Text(_selectedId == null ? 'Новая запись' : 'Редактирование'),
@@ -1837,7 +1869,7 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
             ));
   }
 
-  Widget _editor() =>
+  Widget _editor(BuildContext contentContext) =>
       Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         TextField(
             controller: _name,
@@ -1882,7 +1914,8 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
           const Text('Дата'),
           const SizedBox(height: 4),
           OutlinedButton.icon(
-            onPressed: _saving ? null : _selectWorkdayDate,
+            onPressed:
+                _saving ? null : () => _selectWorkdayDate(contentContext),
             icon: const Icon(Icons.calendar_month),
             label: Text(
               _date.text.isEmpty

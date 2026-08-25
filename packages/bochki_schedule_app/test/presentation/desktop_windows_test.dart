@@ -166,4 +166,30 @@ void main() {
 
     expect(verticalScrollView.controller!.offset, 50);
   });
+
+  testWidgets('directory child content opens a localized date picker',
+      (tester) async {
+    await tester.pumpWidget(
+      DirectoryChildWindowScaffold(
+        title: 'Дни',
+        absorbing: false,
+        builder: (contentContext) => Center(
+          child: FilledButton(
+            onPressed: () => showDatePicker(
+              context: contentContext,
+              initialDate: DateTime(2026, 8, 25),
+              firstDate: DateTime(1900),
+              lastDate: DateTime(2100),
+            ),
+            child: const Text('Выбрать дату'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Выбрать дату'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DatePickerDialog), findsOneWidget);
+  });
 }
