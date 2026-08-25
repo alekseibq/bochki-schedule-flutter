@@ -132,9 +132,8 @@ final class DocxPrintScheduleExporter implements PrintScheduleExporter {
       final after = spacingAfter == null ? '' : ' w:after="$spacingAfter"';
       properties.add('<w:spacing$before$after/>');
     }
-    final paragraphProperties = properties.isEmpty
-        ? ''
-        : '<w:pPr>${properties.join()}</w:pPr>';
+    final paragraphProperties =
+        properties.isEmpty ? '' : '<w:pPr>${properties.join()}</w:pPr>';
     return '<w:p>'
         '$paragraphProperties${_runXml(text, fontSize: fontSize)}</w:p>';
   }
