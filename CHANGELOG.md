@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.13.1
+
+Release date: 2026-08-25
+
+### Highlights
+
+- Unified shared statistics content between the fallback dialog and desktop window.
+- Completed the workday-directory delete confirmation and reference protection flow.
+
+### Details
+
+- `refactor(directory): share desktop directory behavior (#144)`
+- `fix(workdays): align desktop directory UX (#142)`
+
 ## v0.13.0
 
 Release date: 2026-08-25
