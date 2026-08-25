@@ -14,6 +14,18 @@ class ProcedureKindsDialog extends StatefulWidget {
 
   final ProcedureKindsViewModel viewModel;
 
+  static String assignedProcedureWord(int count) {
+    final remainder100 = count % 100;
+    if (remainder100 >= 11 && remainder100 <= 14) {
+      return 'назначенных процедур';
+    }
+    return switch (count % 10) {
+      1 => 'назначенная процедура',
+      2 || 3 || 4 => 'назначенные процедуры',
+      _ => 'назначенных процедур',
+    };
+  }
+
   @override
   State<ProcedureKindsDialog> createState() => _ProcedureKindsDialogState();
 }
@@ -161,18 +173,6 @@ class _ProcedureKindsDialogState extends State<ProcedureKindsDialog> {
         ],
       ),
     );
-  }
-
-  static String assignedProcedureWord(int count) {
-    final remainder100 = count % 100;
-    if (remainder100 >= 11 && remainder100 <= 14) {
-      return 'назначенных процедур';
-    }
-    return switch (count % 10) {
-      1 => 'назначенная процедура',
-      2 || 3 || 4 => 'назначенные процедуры',
-      _ => 'назначенных процедур',
-    };
   }
 
   @override

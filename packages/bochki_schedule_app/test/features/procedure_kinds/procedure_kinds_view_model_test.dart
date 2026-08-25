@@ -152,11 +152,25 @@ final class _InMemoryProcedureSessionsRepository
   }
 
   @override
+  Future<int> clearAll() async {
+    final count = sessions.length;
+    sessions.clear();
+    return count;
+  }
+
+  @override
   Future<List<ProcedureSessionRaw>> list() async => [...sessions];
 
   @override
   Future<ProcedureSessionRaw> update(ProcedureSessionRaw procedureSession) =>
       Future.value(procedureSession);
+
+  @override
+  Future<void> updateMany(List<ProcedureSessionRaw> procedureSessions) async {
+    for (final procedureSession in procedureSessions) {
+      await update(procedureSession);
+    }
+  }
 }
 
 final class _InMemoryProcedureKindsRepository

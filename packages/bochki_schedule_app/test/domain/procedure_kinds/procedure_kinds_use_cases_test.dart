@@ -284,6 +284,15 @@ final class _InMemoryProcedureSessionsRepository
   }
 
   @override
+  Future<int> clearAll() async {
+    final count = (await list()).length;
+    for (final session in await list()) {
+      await delete(session.id);
+    }
+    return count;
+  }
+
+  @override
   Future<List<ProcedureSessionRaw>> list() async => _sessions
       .where((entry) => !entry.deleted)
       .map((entry) => entry.session)
@@ -292,6 +301,13 @@ final class _InMemoryProcedureSessionsRepository
   @override
   Future<ProcedureSessionRaw> update(ProcedureSessionRaw procedureSession) =>
       Future.value(procedureSession);
+
+  @override
+  Future<void> updateMany(List<ProcedureSessionRaw> procedureSessions) async {
+    for (final procedureSession in procedureSessions) {
+      await update(procedureSession);
+    }
+  }
 }
 
 final class _StoredSession {
