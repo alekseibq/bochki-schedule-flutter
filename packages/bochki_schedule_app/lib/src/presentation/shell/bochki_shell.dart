@@ -669,7 +669,7 @@ class _BochkiShellState extends State<BochkiShell> {
     final templates = await templateService.list();
     if (!mounted) return;
     TemplateFile? selected;
-    await showDialog<void>(
+    final template = await showDialog<TemplateFile>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
@@ -704,14 +704,15 @@ class _BochkiShellState extends State<BochkiShell> {
                   ? FilledButton.styleFrom(backgroundColor: Colors.red)
                   : null,
               onPressed:
-                  selected == null ? null : () => Navigator.pop(dialogContext),
+                  selected == null
+                      ? null
+                      : () => Navigator.pop(dialogContext, selected),
               child: Text(isDelete ? 'Удалить' : 'Загрузить'),
             ),
           ],
         ),
       ),
     );
-    final template = selected;
     if (template == null || !mounted) return;
     if (isDelete) {
       if (!await _confirm('Удалить шаблон?',
