@@ -25,6 +25,7 @@ final class ParticipantsViewModel extends NamedDirectoryViewModel<Participant> {
             );
           },
           deleteEntry: deleteParticipantUseCase.execute,
+          countReferences: deleteParticipantUseCase.countReferences,
           loadErrorMessageText: 'Не удалось загрузить участников.',
           saveErrorMessageText: 'Не удалось сохранить изменения.',
           deleteErrorMessageText: 'Не удалось удалить участника.',

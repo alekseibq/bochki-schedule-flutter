@@ -13,7 +13,7 @@ final class ProcedureSessionWithConflicts {
 
   String get id => rich.id;
   String get dayId => rich.dayId;
-  String get participantId => rich.participantId;
+  String? get participantId => rich.participantId;
   String get startTime => rich.startTime;
   String? get finishTime => rich.finishTime;
   String get procedureKindId => rich.procedureKindId;

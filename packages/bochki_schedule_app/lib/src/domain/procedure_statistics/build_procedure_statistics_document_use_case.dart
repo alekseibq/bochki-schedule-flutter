@@ -34,13 +34,13 @@ final class BuildProcedureStatisticsDocumentUseCase {
       final procedureName = kind?.shortName ?? 'Не найден';
       final assistantName = session.assistant?.shortName ?? 'Не найден';
       final pattern = kind?.patternId;
-      if (pattern == 'single') {
+      if (participantId != null && pattern == 'single') {
         final countKey = '$participantId/${session.procedureKindId}';
         final next = (participantCounts[countKey] ?? 0) + 1;
         participantCounts[countKey] = next;
         _add(cells, key, ProcedureStatisticsTextLine('$next $procedureName'),
             section: _Section.participantSingle);
-      } else if (pattern == 'curated') {
+      } else if (participantId != null && pattern == 'curated') {
         _add(cells, key,
             ProcedureStatisticsTextLine('$procedureName - $assistantName'),
             section: _Section.participantCurated);
@@ -51,7 +51,7 @@ final class BuildProcedureStatisticsDocumentUseCase {
             ProcedureStatisticsTextLine(procedureName),
             section: _Section.assistedCurated);
       }
-      if (pattern == 'grouped') {
+      if (participantId != null && pattern == 'grouped') {
         final countKey = '$participantId/${session.procedureKindId}';
         final next = (groupedCounts[countKey] ?? 0) + 1;
         groupedCounts[countKey] = next;

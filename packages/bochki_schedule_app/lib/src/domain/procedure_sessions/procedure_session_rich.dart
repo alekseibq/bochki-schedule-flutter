@@ -23,7 +23,7 @@ final class ProcedureSessionRich {
 
   String get id => raw.id;
   String get dayId => raw.dayId;
-  String get participantId => raw.participantId;
+  String? get participantId => raw.participantId;
   String get startTime => raw.startTime;
   String get procedureKindId => raw.procedureKindId;
   String? get assistantId => raw.assistantId;

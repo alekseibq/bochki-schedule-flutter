@@ -15,7 +15,7 @@ final class ProcedureSessionDto {
     return ProcedureSessionDto(
       id: (json['id'] as num?)?.toInt() ?? 0,
       dayId: (json['dayId'] as num?)?.toInt() ?? 0,
-      participantId: (json['participantId'] as num?)?.toInt() ?? 0,
+      participantId: (json['participantId'] as num?)?.toInt(),
       startTime: (json['startTime'] as String? ?? '').trim(),
       procedureKindId: (json['procedureKindId'] as num?)?.toInt() ?? 0,
       assistantId: (json['assistantId'] as num?)?.toInt(),
@@ -30,7 +30,9 @@ final class ProcedureSessionDto {
     return ProcedureSessionDto(
       id: int.parse(procedureSession.id),
       dayId: int.parse(procedureSession.dayId),
-      participantId: int.parse(procedureSession.participantId),
+      participantId: procedureSession.participantId == null
+          ? null
+          : int.parse(procedureSession.participantId!),
       startTime: procedureSession.startTime,
       procedureKindId: int.parse(procedureSession.procedureKindId),
       assistantId: procedureSession.assistantId == null
@@ -42,7 +44,7 @@ final class ProcedureSessionDto {
 
   final int id;
   final int dayId;
-  final int participantId;
+  final int? participantId;
   final String startTime;
   final int procedureKindId;
   final int? assistantId;
@@ -52,7 +54,7 @@ final class ProcedureSessionDto {
     return ProcedureSessionRaw(
       id: '$id',
       dayId: '$dayId',
-      participantId: '$participantId',
+      participantId: participantId?.toString(),
       startTime: startTime,
       procedureKindId: '$procedureKindId',
       assistantId: assistantId?.toString(),
@@ -63,6 +65,7 @@ final class ProcedureSessionDto {
     int? id,
     int? dayId,
     int? participantId,
+    bool clearParticipantId = false,
     String? startTime,
     int? procedureKindId,
     int? assistantId,
@@ -72,7 +75,8 @@ final class ProcedureSessionDto {
     return ProcedureSessionDto(
       id: id ?? this.id,
       dayId: dayId ?? this.dayId,
-      participantId: participantId ?? this.participantId,
+      participantId:
+          clearParticipantId ? null : participantId ?? this.participantId,
       startTime: startTime ?? this.startTime,
       procedureKindId: procedureKindId ?? this.procedureKindId,
       assistantId: clearAssistantId ? null : assistantId ?? this.assistantId,
@@ -87,7 +91,7 @@ final class ProcedureSessionDto {
       'participantId': participantId,
       'startTime': startTime,
       'procedureKindId': procedureKindId,
-      if (assistantId != null) 'assistantId': assistantId,
+      'assistantId': assistantId,
       'deleted': deleted,
     };
   }

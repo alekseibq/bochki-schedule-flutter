@@ -14,6 +14,7 @@ typedef NamedDirectoryUpdater<T extends NamedDirectoryEntry> = Future<T>
   required String fieldId,
 });
 typedef NamedDirectoryDeleter = Future<void> Function(String entryId);
+typedef NamedDirectoryReferenceCounter = Future<int> Function(String entryId);
 
 class NamedDirectoryViewModel<T extends NamedDirectoryEntry>
     extends ChangeNotifier {
@@ -22,18 +23,21 @@ class NamedDirectoryViewModel<T extends NamedDirectoryEntry>
     required NamedDirectoryCreator<T> createEntry,
     required NamedDirectoryUpdater<T> updateEntry,
     required NamedDirectoryDeleter deleteEntry,
+    NamedDirectoryReferenceCounter? countReferences,
     required this.loadErrorMessageText,
     required this.saveErrorMessageText,
     required this.deleteErrorMessageText,
   })  : _loadEntries = loadEntries,
         _createEntry = createEntry,
         _updateEntry = updateEntry,
-        _deleteEntry = deleteEntry;
+        _deleteEntry = deleteEntry,
+        _countReferences = countReferences;
 
   final NamedDirectoryLoader<T> _loadEntries;
   final NamedDirectoryCreator<T> _createEntry;
   final NamedDirectoryUpdater<T> _updateEntry;
   final NamedDirectoryDeleter _deleteEntry;
+  final NamedDirectoryReferenceCounter? _countReferences;
   final String loadErrorMessageText;
   final String saveErrorMessageText;
   final String deleteErrorMessageText;
@@ -51,6 +55,10 @@ class NamedDirectoryViewModel<T extends NamedDirectoryEntry>
   String? get loadErrorMessage => _loadErrorMessage;
   String? get formErrorMessage => _formErrorMessage;
   String? get actionErrorMessage => _actionErrorMessage;
+
+  Future<int> countReferences(String entryId) async {
+    return _countReferences?.call(entryId) ?? 0;
+  }
 
   Future<void> loadEntries() async {
     _isLoading = true;

@@ -331,6 +331,49 @@ void main() {
       expect(noConflicts, isEmpty);
     });
 
+    test('conflict calculator reports missing required assignments', () {
+      const calculator = ProcedureSessionConflictCalculator();
+      final kind = ProcedureKind(
+        id: '100',
+        patternId: ProcedureKindPatterns.curated.patternId,
+        name: 'Бочка',
+        capacity: 1,
+        participantBusyTime: 30,
+        assistantBusyTime: 30,
+      );
+      final session = ProcedureSessionRich(
+        raw: ProcedureSessionRaw(
+          id: '1',
+          dayId: '1',
+          startTime: '10:00',
+          procedureKindId: kind.id,
+        ),
+        day: Workday(
+          id: '1',
+          name: 'День 1',
+          calendarDate: DateTime(2026, 7, 11),
+        ),
+        participant: null,
+        procedureKind: kind,
+        assistant: null,
+      );
+
+      final conflicts = calculator.calculate(
+        [session],
+        programSettings: ProgramSettings.defaults,
+      );
+
+      expect(
+        conflicts
+            .where(
+              (conflict) =>
+                  conflict.type == ScheduleConflictType.missingAssignment,
+            )
+            .map((conflict) => conflict.message),
+        containsAll(['Не назначен участник.', 'Не назначен ассистент.']),
+      );
+    });
+
     test('conflict calculator reports exact time-boundary violations', () {
       const calculator = ProcedureSessionConflictCalculator();
       const settings = ProgramSettings(

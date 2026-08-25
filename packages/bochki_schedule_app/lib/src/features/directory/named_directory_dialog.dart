@@ -356,6 +356,37 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
       return;
     }
 
+    final referencesCount = await widget.viewModel.countReferences(entry.id);
+    if (!mounted) {
+      return;
+    }
+    if (referencesCount > 0) {
+      final referencesConfirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Удалить связанные назначения?'),
+          content: Text(
+            'Запись используется в $referencesCount '
+            '${_procedureWord(referencesCount)}. После удаления ссылки '
+            'будут очищены, а назначения помечены конфликтными.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Отмена'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('ОК'),
+            ),
+          ],
+        ),
+      );
+      if (referencesConfirmed != true || !mounted) {
+        return;
+      }
+    }
+
     final isSuccess = await widget.viewModel.deleteEntry(entry.id);
     if (!mounted) {
       return;
@@ -378,6 +409,19 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
         entryId: nextEntries[nextSelectionIndex].id,
       ),
     );
+  }
+
+  String _procedureWord(int count) {
+    final remainder100 = count % 100;
+    final remainder10 = count % 10;
+    if (remainder100 >= 11 && remainder100 <= 14) {
+      return 'назначенных процедурах';
+    }
+    if (remainder10 == 1) return 'назначенной процедуре';
+    if (remainder10 >= 2 && remainder10 <= 4) {
+      return 'назначенных процедурах';
+    }
+    return 'назначенных процедурах';
   }
 
   bool _handleTableKeyEvent(KeyEvent event) {

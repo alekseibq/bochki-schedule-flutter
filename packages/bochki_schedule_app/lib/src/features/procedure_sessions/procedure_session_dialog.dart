@@ -44,7 +44,7 @@ class ProcedureSessionDialog extends StatefulWidget {
 
 class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
   late String _dayId;
-  late String _participantId;
+  late String? _participantId;
   late String _procedureKindId;
   late String? _assistantId;
   late String _hour;
@@ -154,10 +154,11 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
           child: Text(participant.name),
         ),
     ];
-    if (!items.any((item) => item.value == _participantId)) {
+    if (_participantId != null &&
+        !items.any((item) => item.value == _participantId)) {
       items.add(
         DropdownMenuItem<String>(
-          value: _participantId,
+          value: _participantId!,
           child: Text('Ошибка: участник не найден ($_participantId)'),
         ),
       );
@@ -375,6 +376,7 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
                       child: DropdownButtonFormField<String>(
                         key: const Key('procedure_session_participant_field'),
                         value: _participantId,
+                        hint: const Text('Выберите участника'),
                         isExpanded: true,
                         items: _buildParticipantItems(),
                         onChanged: _isBusy

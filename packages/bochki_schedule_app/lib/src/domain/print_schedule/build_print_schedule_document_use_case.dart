@@ -57,10 +57,14 @@ final class BuildPrintScheduleDocumentUseCase {
             participantSortKey: _sortKey(session.participant?.name),
             procedureSortKey: _sortKey(session.procedureKind?.name),
             row: PrintScheduleRow(
-              participantName: session.participant?.name ?? 'Не найден',
+              participantName: session.participant?.name ??
+                  (session.participantId == null ? 'Не назначен' : 'Не найден'),
               startTime: session.startTime,
               procedureName: session.procedureKind?.name ?? 'Не найдено',
-              assistantName: session.assistant?.name ?? '',
+              assistantName: session.assistant?.name ??
+                  (session.requiresAssistant && session.assistantId == null
+                      ? 'Не назначен'
+                      : ''),
             ),
           ),
     ];

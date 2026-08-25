@@ -27,6 +27,9 @@ final class ProcedureSessionConflictCalculator {
     }
 
     final conflicts = <ScheduleConflict>[];
+    for (final session in sessions) {
+      conflicts.addAll(_calculateAssignmentConflicts(session));
+    }
     for (final group in grouped.values) {
       conflicts.addAll(_calculateGroup(group));
     }
@@ -35,6 +38,34 @@ final class ProcedureSessionConflictCalculator {
           .addAll(_calculateTimeBoundaryConflicts(session, programSettings));
     }
     return _mergeAdjacentConflicts(conflicts);
+  }
+
+  List<ScheduleConflict> _calculateAssignmentConflicts(
+    ProcedureSessionRich session,
+  ) {
+    final conflicts = <ScheduleConflict>[];
+    void add(String message) => conflicts.add(ScheduleConflict(
+          type: ScheduleConflictType.missingAssignment,
+          workdayId: session.dayId,
+          timeStart: session.startTime,
+          timeFinish: session.startTime,
+          procedureSessionId: session.id,
+          message: message,
+        ));
+
+    if (session.participantId == null) {
+      add('Не назначен участник.');
+    } else if (session.participant == null) {
+      add('Участник не найден.');
+    }
+    if (session.requiresAssistant) {
+      if (session.assistantId == null) {
+        add('Не назначен ассистент.');
+      } else if (session.assistant == null) {
+        add('Ассистент не найден.');
+      }
+    }
+    return conflicts;
   }
 
   List<ScheduleConflict> _calculateTimeBoundaryConflicts(
@@ -71,8 +102,9 @@ final class ProcedureSessionConflictCalculator {
     }
 
     addEnd('участник', kind.participantBusyTime);
-    if (session.assistantId != null)
+    if (session.assistantId != null) {
       addEnd('ассистент', kind.assistantBusyTime);
+    }
     addEnd('ресурс', kind.resourceBusyTime);
     if (ends.isNotEmpty) {
       conflicts.add(ScheduleConflict(
@@ -104,15 +136,16 @@ final class ProcedureSessionConflictCalculator {
     }
 
     final records = <ProcedureSessionOccupancyRecord>[
-      ProcedureSessionOccupancyRecord(
-        resourceType: ConflictResourceType.human,
-        resourceId: session.participantId,
-        workdayId: session.dayId,
-        timeStart: session.startTime,
-        timeFinish: session.finishTime ?? session.startTime,
-        procedureSessionId: session.id,
-        capacityAllowed: 1,
-      ),
+      if (session.participantId != null && session.participant != null)
+        ProcedureSessionOccupancyRecord(
+          resourceType: ConflictResourceType.human,
+          resourceId: session.participantId!,
+          workdayId: session.dayId,
+          timeStart: session.startTime,
+          timeFinish: session.finishTime ?? session.startTime,
+          procedureSessionId: session.id,
+          capacityAllowed: 1,
+        ),
       ProcedureSessionOccupancyRecord(
         resourceType: ConflictResourceType.item,
         resourceId: session.procedureKindId,

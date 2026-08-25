@@ -21,10 +21,10 @@ abstract final class ProcedureSessionValidator {
       throw const ProcedureSessionsValidationException('Выберите день.');
     }
 
-    final participant = _findHuman(
-      existingHumans,
-      procedureSession.participantId,
-    );
+    final participantId = procedureSession.participantId;
+    final participant = participantId == null
+        ? null
+        : _findHuman(existingHumans, participantId);
     if (participant == null) {
       throw const ProcedureSessionsValidationException('Выберите участника.');
     }
