@@ -60,6 +60,7 @@ final class BuildPrintScheduleDocumentUseCase {
               participantName: session.participant?.name ??
                   (session.participantId == null ? 'Не назначен' : 'Не найден'),
               startTime: session.startTime,
+              finishTime: session.finishTime,
               procedureName: session.procedureKind?.name ?? 'Не найдено',
               assistantName: session.assistant?.name ??
                   (session.requiresAssistant && session.assistantId == null

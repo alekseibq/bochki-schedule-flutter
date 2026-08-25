@@ -61,6 +61,10 @@ void main() {
         document.rows.map((row) => row.participantName).toList(),
         ['Иванов Иван', 'Петров Петр'],
       );
+      expect(
+        document.rows.map((row) => row.finishTime).toList(),
+        ['10:30', '09:30'],
+      );
     });
 
     test('builds rows sorted by time and fills missing values', () async {
@@ -105,6 +109,7 @@ void main() {
       );
       expect(document.rows.first.participantName, 'Не найден');
       expect(document.rows.first.procedureName, 'Не найдено');
+      expect(document.rows.first.finishTime, isNull);
       expect(document.rows.first.assistantName, isEmpty);
     });
   });
