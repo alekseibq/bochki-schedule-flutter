@@ -19,9 +19,11 @@ scripts:
 
   test:
     description: Run tests for every package in the workspace.
-    steps:
-      - dart run melos exec --scope="bochki_schedule_app" -- "flutter test"
-      - dart run melos exec --scope="bochki_schedule_domain" --scope="bochki_schedule_infra" -- "dart test"
+    run: |
+      status=0
+      dart run melos exec --scope="bochki_schedule_app" -- "flutter test" || status=1
+      dart run melos exec --scope="bochki_schedule_domain" --scope="bochki_schedule_infra" -- "dart test" || status=1
+      exit "$status"
 
   format-check:
     description: Validate formatting for every package in the workspace.

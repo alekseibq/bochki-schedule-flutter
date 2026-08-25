@@ -121,7 +121,7 @@ void main() {
       safeFileWriter: const AtomicFileWriter(),
     );
     const document = ProjectDocument(
-      schemaVersion: 1,
+      schemaVersion: SchemaVersion.current,
       nextId: 4,
       humans: <Map<String, Object?>>[
         <String, Object?>{
@@ -155,7 +155,7 @@ void main() {
     final restored = await repository.load();
 
     expect(restored, isNotNull);
-    expect(restored.schemaVersion, 1);
+    expect(restored.schemaVersion, SchemaVersion.current);
     expect(restored.nextId, 4);
     expect(restored.humans.first['name'], 'Assistant One');
     expect(restored.humans.last['name'], 'Participant One');

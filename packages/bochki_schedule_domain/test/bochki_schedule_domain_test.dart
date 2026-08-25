@@ -32,7 +32,7 @@ void main() {
 
   test('project document serializes and deserializes predictably', () {
     final document = ProjectDocument(
-      schemaVersion: 1,
+      schemaVersion: SchemaVersion.current,
       nextId: 7,
       humans: const [
         <String, Object?>{
@@ -64,9 +64,9 @@ void main() {
     final json = document.toJson();
     final restored = ProjectDocument.fromJson(json);
 
-    expect(json['schemaVersion'], 1);
+    expect(json['schemaVersion'], SchemaVersion.current);
     expect(json['nextId'], 7);
-    expect(restored.schemaVersion, 1);
+    expect(restored.schemaVersion, SchemaVersion.current);
     expect(restored.nextId, 7);
     expect(restored.humans.first['name'], 'Assistant One');
     expect(restored.humans.last['name'], 'Participant One');

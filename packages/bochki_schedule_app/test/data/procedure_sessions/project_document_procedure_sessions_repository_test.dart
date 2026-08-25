@@ -109,19 +109,19 @@ void main() {
       <String, Object?>{
         'id': 1,
         'dayId': 1,
-        'participantId': 10,
+        'clientId': 10,
         'startTime': '09:00',
         'procedureKindId': 100,
-        'assistantId': 20,
+        'companionId': 20,
         'deleted': true,
       },
       <String, Object?>{
         'id': 3,
         'dayId': 2,
-        'participantId': 11,
+        'clientId': 11,
         'startTime': '11:00',
         'procedureKindId': 101,
-        'assistantId': null,
+        'companionId': null,
         'deleted': false,
       },
     ]);
@@ -172,8 +172,8 @@ void main() {
           'id': 10,
           'name': 'Анна',
           'shortName': 'Анна',
-          'isParticipant': true,
-          'isAssistant': true,
+          'seminarRole': 'participant',
+          'procedureRoles': ['client', 'companion'],
           'deleted': false,
         },
       ],
@@ -222,6 +222,6 @@ void main() {
     expect(active.participantId, isNull);
     expect(active.assistantId, isNull);
     final persisted = sessions.applyToDocument(document).procedureSessions;
-    expect(persisted.last['participantId'], 10);
+    expect(persisted.last['clientId'], 10);
   });
 }
