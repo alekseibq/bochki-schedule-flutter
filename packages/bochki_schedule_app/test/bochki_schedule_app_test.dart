@@ -1747,10 +1747,7 @@ void main() {
     );
   });
 
-  testWidgets('procedure kind form restricts numeric values',
-      (
-    tester,
-  ) async {
+  testWidgets('procedure kind form restricts numeric values', (tester) async {
     final context = _buildTestContext(
       procedureKinds: [
         ProcedureKind(
