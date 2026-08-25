@@ -1451,7 +1451,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Продолжить'));
+    await tester.tap(find.text('Удалить').last);
     await tester.pumpAndSettle();
 
     expect(
@@ -1889,7 +1889,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('workday_delete_2')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Удалить').last);
+    await tester.tap(find.text('Продолжить'));
     await tester.pumpAndSettle();
 
     expect(
