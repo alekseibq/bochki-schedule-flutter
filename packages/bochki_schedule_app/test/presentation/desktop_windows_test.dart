@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bochki_schedule_app/src/presentation/desktop_windows.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -62,6 +64,50 @@ void main() {
         ),
         isEmpty,
       );
+    });
+  });
+
+  group('closeDescendantWindows', () {
+    test('requests every descendant in close order', () async {
+      final requestedIds = <String>[];
+
+      await closeDescendantWindows(
+        windowIds: const ['editor', 'directory'],
+        requestClose: (id) async => requestedIds.add(id),
+      );
+
+      expect(requestedIds, ['editor', 'directory']);
+    });
+
+    test('continues when a descendant has already disappeared', () async {
+      final requestedIds = <String>[];
+
+      await closeDescendantWindows(
+        windowIds: const ['editor', 'directory'],
+        requestClose: (id) async {
+          requestedIds.add(id);
+          if (id == 'editor') throw StateError('window not found');
+        },
+      );
+
+      expect(requestedIds, ['editor', 'directory']);
+    });
+
+    test('does not block parent closure on an unresponsive descendant',
+        () async {
+      final requestedIds = <String>[];
+      final neverCompletes = Completer<void>();
+
+      await closeDescendantWindows(
+        windowIds: const ['editor', 'directory'],
+        requestClose: (id) {
+          requestedIds.add(id);
+          return id == 'editor' ? neverCompletes.future : Future<void>.value();
+        },
+        timeout: const Duration(milliseconds: 10),
+      );
+
+      expect(requestedIds, ['editor', 'directory']);
     });
   });
 
