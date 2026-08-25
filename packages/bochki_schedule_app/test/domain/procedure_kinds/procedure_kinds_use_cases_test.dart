@@ -182,8 +182,7 @@ void main() {
       expect(await repository.list(), isEmpty);
     });
 
-    test('delete is blocked and returns the active assignment count',
-        () async {
+    test('delete is blocked and returns the active assignment count', () async {
       final repository = _InMemoryProcedureKindsRepository(
         procedureKinds: [_procedureKind('1')],
       );

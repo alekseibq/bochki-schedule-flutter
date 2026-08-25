@@ -121,8 +121,7 @@ class _ProcedureKindsDialogState extends State<ProcedureKindsDialog> {
       return;
     }
 
-    final result =
-        await widget.viewModel.deleteProcedureKind(procedureKind.id);
+    final result = await widget.viewModel.deleteProcedureKind(procedureKind.id);
     if (!mounted) {
       return;
     }

@@ -107,11 +107,11 @@ class QuickReassignmentsDialog extends StatelessWidget {
       Row(children: [
         Expanded(
             child: _personDropdown(
-              value,
-              candidates,
-              change,
-              assistant: assistant,
-            )),
+          value,
+          candidates,
+          change,
+          assistant: assistant,
+        )),
         Tooltip(message: label, child: const Icon(Icons.info_outline, size: 18))
       ]);
 
@@ -123,9 +123,8 @@ class QuickReassignmentsDialog extends StatelessWidget {
   }) {
     final candidatesById = <String, dynamic>{};
     for (final candidate in candidates) {
-      final id = assistant
-          ? candidate.human.id as String
-          : candidate.id as String;
+      final id =
+          assistant ? candidate.human.id as String : candidate.id as String;
       candidatesById.putIfAbsent(id, () => candidate);
     }
     return DropdownButton<String>(

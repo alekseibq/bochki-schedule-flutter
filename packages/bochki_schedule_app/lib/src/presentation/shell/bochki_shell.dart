@@ -703,10 +703,9 @@ class _BochkiShellState extends State<BochkiShell> {
               style: isDelete
                   ? FilledButton.styleFrom(backgroundColor: Colors.red)
                   : null,
-              onPressed:
-                  selected == null
-                      ? null
-                      : () => Navigator.pop(dialogContext, selected),
+              onPressed: selected == null
+                  ? null
+                  : () => Navigator.pop(dialogContext, selected),
               child: Text(isDelete ? 'Удалить' : 'Загрузить'),
             ),
           ],

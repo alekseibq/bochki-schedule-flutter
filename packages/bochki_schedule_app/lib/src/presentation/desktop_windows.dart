@@ -767,14 +767,14 @@ class _FreeTimeWindowState extends State<FreeTimeWindow> {
                               Map<String, dynamic>.from(gap['day'] as Map));
                           final human = _humanFromMap(
                               Map<String, dynamic>.from(gap['human'] as Map));
-                          return _mainChannel.invokeMethod<void>(
-                              'openProcedureSession', {
+                          return _mainChannel
+                              .invokeMethod<void>('openProcedureSession', {
                             'dayId': day.id,
                             'participantId': human.id,
                             'startTime': gap['start'] as String,
                           });
                         },
-                      ),
+                      )),
       ])));
 }
 
