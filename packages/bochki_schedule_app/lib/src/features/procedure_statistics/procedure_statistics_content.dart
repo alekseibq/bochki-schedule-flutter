@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../domain/humans/human.dart';
 import '../../domain/procedure_kinds/procedure_kind.dart';
-import '../../domain/procedure_statistics/build_procedure_statistics_table_use_case.dart';
 import '../../domain/procedure_statistics/procedure_statistics_table.dart';
 import '../../domain/workdays/workday.dart';
 

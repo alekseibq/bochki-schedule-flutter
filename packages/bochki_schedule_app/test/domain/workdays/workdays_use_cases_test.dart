@@ -205,4 +205,18 @@ final class _ProcedureSessionsRepository
     if (index != -1) _sessions[index] = procedureSession;
     return Future.value(procedureSession);
   }
+
+  @override
+  Future<void> updateMany(List<ProcedureSessionRaw> procedureSessions) async {
+    for (final session in procedureSessions) {
+      await update(session);
+    }
+  }
+
+  @override
+  Future<int> clearAll() async {
+    final count = _sessions.length;
+    _sessions.clear();
+    return count;
+  }
 }
