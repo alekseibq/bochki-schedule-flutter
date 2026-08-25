@@ -484,10 +484,13 @@ final class DesktopWindowCoordinator {
     }
   }
 
-  Future<int> _directoryReferences(String directory, String id) => switch (directory) {
-        'participants' => _services.deleteParticipantUseCase.countReferences(id),
+  Future<int> _directoryReferences(String directory, String id) =>
+      switch (directory) {
+        'participants' =>
+          _services.deleteParticipantUseCase.countReferences(id),
         'assistants' => _services.deleteAssistantUseCase.countReferences(id),
-        'procedureKinds' => _services.deleteProcedureKindUseCase.countReferences(id),
+        'procedureKinds' =>
+          _services.deleteProcedureKindUseCase.countReferences(id),
         'workdays' => _services.deleteWorkdayUseCase.countReferences(id),
         _ => throw ArgumentError.value(directory, 'directory'),
       };
@@ -773,29 +776,29 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
         debugShowCheckedModeBanner: false,
         home: Scaffold(
             body: ProcedureStatisticsContent(
-              workdays: _workdays,
-              people: _humans,
-              kinds: _kinds,
-              countFor: (person, kind) => _counts['${person.id}/${kind.id}'] ?? 0,
-              isLoading: _loading,
-              error: _error,
-              dayId: _dayId,
-              peopleFilter: _people,
-              mode: _mode,
-              onDayChanged: (value) {
-                _dayId = value;
-                _load();
-              },
-              onPeopleChanged: (value) {
-                _people = value;
-                _load();
-              },
-              onModeChanged: (value) {
-                _mode = value;
-                _load();
-              },
-              onAdd: () => _mainChannel.invokeMethod<void>('openProcedureSession'),
-            )),
+          workdays: _workdays,
+          people: _humans,
+          kinds: _kinds,
+          countFor: (person, kind) => _counts['${person.id}/${kind.id}'] ?? 0,
+          isLoading: _loading,
+          error: _error,
+          dayId: _dayId,
+          peopleFilter: _people,
+          mode: _mode,
+          onDayChanged: (value) {
+            _dayId = value;
+            _load();
+          },
+          onPeopleChanged: (value) {
+            _people = value;
+            _load();
+          },
+          onModeChanged: (value) {
+            _mode = value;
+            _load();
+          },
+          onAdd: () => _mainChannel.invokeMethod<void>('openProcedureSession'),
+        )),
       );
 }
 
@@ -1469,8 +1472,9 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
             .toList(growable: false),
         onMutate: _mutatePeople,
         onCountReferences: (id) => _mainChannel.invokeMethod<int>(
-              'directoryReferences', {'directory': _directory, 'id': id},
-            ).then((value) => value ?? 0),
+          'directoryReferences',
+          {'directory': _directory, 'id': id},
+        ).then((value) => value ?? 0),
         onChanged: _load,
       );
     }
@@ -1747,12 +1751,11 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
                                 },
                           child: const Text('Изменить')),
                       TextButton(
-                          onPressed:
-                              _saving
-                                  ? null
-                                  : _kind == DesktopWindowKind.procedureKinds
-                                      ? () => _deleteProcedureKind(entry)
-                                      : () => _mutate('delete', id: id),
+                          onPressed: _saving
+                              ? null
+                              : _kind == DesktopWindowKind.procedureKinds
+                                  ? () => _deleteProcedureKind(entry)
+                                  : () => _mutate('delete', id: id),
                           child: const Text('Удалить')),
                     ]),
                   );
@@ -1770,7 +1773,8 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
   Future<void> _deleteProcedureKind(Map<String, dynamic> entry) async {
     final id = entry['id'] as String;
     final referencesCount = await _mainChannel.invokeMethod<int>(
-          'directoryReferences', {'directory': 'procedureKinds', 'id': id},
+          'directoryReferences',
+          {'directory': 'procedureKinds', 'id': id},
         ) ??
         0;
     if (!mounted) return;

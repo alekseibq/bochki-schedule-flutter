@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../domain/humans/human.dart';
 import '../../domain/procedure_kinds/procedure_kind.dart';
 import '../../domain/procedure_statistics/build_procedure_statistics_table_use_case.dart';
+import '../../domain/procedure_statistics/procedure_statistics_table.dart';
 import '../../domain/workdays/workday.dart';
 
 /// Shared statistics UI. Containers supply data and commands; this widget does
@@ -62,7 +63,8 @@ class ProcedureStatisticsContent extends StatelessWidget {
                 items: [
                   const DropdownMenuItem(value: null, child: Text('Все дни')),
                   ...workdays.map(
-                    (day) => DropdownMenuItem(value: day.id, child: Text(day.name)),
+                    (day) =>
+                        DropdownMenuItem(value: day.id, child: Text(day.name)),
                   ),
                 ],
                 onChanged: onDayChanged,
@@ -74,9 +76,15 @@ class ProcedureStatisticsContent extends StatelessWidget {
                 value: peopleFilter,
                 decoration: const InputDecoration(labelText: 'Участники'),
                 items: const [
-                  DropdownMenuItem(value: ProcedureStatisticsPeopleFilter.all, child: Text('Все')),
-                  DropdownMenuItem(value: ProcedureStatisticsPeopleFilter.participants, child: Text('Участники')),
-                  DropdownMenuItem(value: ProcedureStatisticsPeopleFilter.assistants, child: Text('Ассистенты')),
+                  DropdownMenuItem(
+                      value: ProcedureStatisticsPeopleFilter.all,
+                      child: Text('Все')),
+                  DropdownMenuItem(
+                      value: ProcedureStatisticsPeopleFilter.participants,
+                      child: Text('Участники')),
+                  DropdownMenuItem(
+                      value: ProcedureStatisticsPeopleFilter.assistants,
+                      child: Text('Ассистенты')),
                 ],
                 onChanged: (value) {
                   if (value != null) onPeopleChanged(value);
@@ -89,8 +97,12 @@ class ProcedureStatisticsContent extends StatelessWidget {
                 value: mode,
                 decoration: const InputDecoration(labelText: 'Режим'),
                 items: const [
-                  DropdownMenuItem(value: ProcedureStatisticsMode.participation, child: Text('Участие')),
-                  DropdownMenuItem(value: ProcedureStatisticsMode.assisting, child: Text('Ассистирование')),
+                  DropdownMenuItem(
+                      value: ProcedureStatisticsMode.participation,
+                      child: Text('Участие')),
+                  DropdownMenuItem(
+                      value: ProcedureStatisticsMode.assisting,
+                      child: Text('Ассистирование')),
                 ],
                 onChanged: (value) {
                   if (value != null) onModeChanged(value);
@@ -105,20 +117,23 @@ class ProcedureStatisticsContent extends StatelessWidget {
               : error != null
                   ? Center(child: Text(error!))
                   : people.isEmpty
-                      ? const Center(child: Text('Нет данных по выбранным фильтрам'))
+                      ? const Center(
+                          child: Text('Нет данных по выбранным фильтрам'))
                       : SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
                           child: SingleChildScrollView(
                             child: DataTable(
                               columns: [
                                 const DataColumn(label: Text('Человек')),
-                                ...kinds.map((kind) => DataColumn(label: Text(kind.name))),
+                                ...kinds.map((kind) =>
+                                    DataColumn(label: Text(kind.name))),
                               ],
                               rows: [
                                 for (final person in people)
                                   DataRow(cells: [
                                     DataCell(Text(person.shortName)),
-                                    ...kinds.map((kind) => DataCell(Text('${countFor(person, kind)}'))),
+                                    ...kinds.map((kind) => DataCell(
+                                        Text('${countFor(person, kind)}'))),
                                   ]),
                               ],
                             ),
