@@ -125,6 +125,39 @@ List<String> descendantWindowIdsInCloseOrder({
   return result;
 }
 
+const _descendantCloseTimeout = Duration(seconds: 2);
+
+/// Requests that every descendant close, without allowing a stale or
+/// unresponsive window to block closure of its parent.
+Future<void> closeDescendantWindows({
+  required Iterable<String> windowIds,
+  required Future<void> Function(String windowId) requestClose,
+  Duration timeout = _descendantCloseTimeout,
+}) async {
+  final requests = <Future<void>>[
+    for (final windowId in windowIds)
+      () async {
+        try {
+          await requestClose(windowId);
+        } catch (error) {
+          // A native close may have destroyed the child after the window-list
+          // snapshot was read. Its parent must still be allowed to close.
+          debugPrint('Unable to close descendant window $windowId: $error');
+        }
+      }(),
+  ];
+  if (requests.isEmpty) return;
+
+  try {
+    await Future.wait(requests).timeout(timeout);
+  } on TimeoutException {
+    debugPrint(
+      'Timed out after ${timeout.inMilliseconds} ms while closing '
+      'descendant windows.',
+    );
+  }
+}
+
 DesktopWindowLifecycle? _windowLifecycle;
 
 Future<void> initializeDesktopWindowLifecycle() async {
@@ -181,6 +214,12 @@ final class DesktopWindowLifecycle with WindowListener {
         await _closeDescendants(current.windowId);
         if (!cascade) await _activateParent(current.windowId);
       }
+    } catch (error) {
+      // Cleanup is best effort: the native close requested by the user must
+      // continue even if another window disappeared mid-operation.
+      debugPrint('Unable to prepare desktop window for closing: $error');
+    }
+    try {
       await windowManager.setPreventClose(false);
       await windowManager.close();
     } catch (_) {
@@ -198,12 +237,14 @@ final class DesktopWindowLifecycle with WindowListener {
             case final parentId?)
           window.windowId: parentId,
     };
-    for (final id in descendantWindowIdsInCloseOrder(
-      parentWindowId: parentWindowId,
-      parentWindowIds: parentIds,
-    )) {
-      await byId[id]?.invokeMethod<void>('window_close', {'cascade': true});
-    }
+    await closeDescendantWindows(
+      windowIds: descendantWindowIdsInCloseOrder(
+        parentWindowId: parentWindowId,
+        parentWindowIds: parentIds,
+      ),
+      requestClose: (id) =>
+          byId[id]!.invokeMethod<void>('window_close', {'cascade': true}),
+    );
   }
 
   Future<void> _activateParent(String currentWindowId) async {
