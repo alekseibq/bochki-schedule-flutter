@@ -19,7 +19,8 @@ final class ProjectDocumentProcedureSessionsRepository
             .map(ProcedureSessionDto.fromJson)
             .toList(growable: true),
         _needsTerminologyMigration = initialDocument.procedureSessions.any(
-          (entry) => !entry.containsKey('clientId') ||
+          (entry) =>
+              !entry.containsKey('clientId') ||
               !entry.containsKey('companionId'),
         );
 

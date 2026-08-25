@@ -18,7 +18,8 @@ final class ProcedureSessionDto {
       clientId: ((json['clientId'] ?? json['participantId']) as num?)?.toInt(),
       startTime: (json['startTime'] as String? ?? '').trim(),
       procedureKindId: (json['procedureKindId'] as num?)?.toInt() ?? 0,
-      companionId: ((json['companionId'] ?? json['assistantId']) as num?)?.toInt(),
+      companionId:
+          ((json['companionId'] ?? json['assistantId']) as num?)?.toInt(),
       deleted: json['deleted'] as bool? ?? false,
     );
   }

@@ -158,7 +158,8 @@ final class AppBootstrap {
     final didNormalizeLegacyProcedureSessions =
         await procedureSessionsRepository.normalizeLegacyTerminology();
     if (didNormalizeLegacyProcedureSessions) {
-      diagnostics?.info('Миграция данных', 'Нормализация назначенных процедур.');
+      diagnostics?.info(
+          'Миграция данных', 'Нормализация назначенных процедур.');
       await logger.info('Normalized legacy procedure session terminology.');
       await syncCoordinator.flushPending();
     }

@@ -23,7 +23,8 @@ final class ProjectDocumentHumansRepository
           (human) => !human.containsKey('shortName'),
         ),
         _needsRoleMigration = initialDocument.humans.any(
-          (human) => !human.containsKey('seminarRole') ||
+          (human) =>
+              !human.containsKey('seminarRole') ||
               !human.containsKey('procedureRoles'),
         );
 
@@ -62,7 +63,8 @@ final class ProjectDocumentHumansRepository
     final human = Human(
       id: _idAllocator.nextId().toString(),
       name: name,
-      seminarRole: isAssistant ? SeminarRole.assistant : SeminarRole.participant,
+      seminarRole:
+          isAssistant ? SeminarRole.assistant : SeminarRole.participant,
       procedureRoles: isAssistant
           ? const [ProcedureRole.client, ProcedureRole.companion]
           : const [ProcedureRole.client],
@@ -87,7 +89,8 @@ final class ProjectDocumentHumansRepository
       if (current.name != human.name ||
           current.shortName != shortName ||
           current.seminarRole != human.seminarRole ||
-          current.procedureRoles.toString() != human.procedureRoles.toString() ||
+          current.procedureRoles.toString() !=
+              human.procedureRoles.toString() ||
           current.deleted) {
         _entries[index] = current.copyWith(
           name: human.name,

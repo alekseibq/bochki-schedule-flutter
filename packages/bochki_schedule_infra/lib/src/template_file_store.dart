@@ -110,19 +110,17 @@ final class TemplateFileStore {
   TemplateFile _fromDocument(String title, ProjectDocument document) {
     final workdays = _active(document.workdays).length;
     final humans = _active(document.humans);
-    final participants =
-        humans
-            .where((entry) =>
-                entry['seminarRole'] == 'participant' ||
-                (entry['seminarRole'] == null &&
-                    entry['isParticipant'] == true &&
-                    entry['isAssistant'] != true))
-            .length;
-    final assistants =
-        humans
-            .where((entry) =>
-                entry['seminarRole'] == 'assistant' || entry['isAssistant'] == true)
-            .length;
+    final participants = humans
+        .where((entry) =>
+            entry['seminarRole'] == 'participant' ||
+            (entry['seminarRole'] == null &&
+                entry['isParticipant'] == true &&
+                entry['isAssistant'] != true))
+        .length;
+    final assistants = humans
+        .where((entry) =>
+            entry['seminarRole'] == 'assistant' || entry['isAssistant'] == true)
+        .length;
     final name = '$title -- $workdays-$participants-$assistants.json';
     return TemplateFile(
         file: File(p.join(_directory.path, name)),
