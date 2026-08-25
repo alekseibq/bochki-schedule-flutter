@@ -58,6 +58,9 @@ final class WorkdaysViewModel extends ChangeNotifier {
 
   Workday suggestDraftWorkday() => _defaults.createDraft(_workdays);
 
+  Future<int> countReferences(String workdayId) =>
+      _deleteWorkdayUseCase.countReferences(workdayId);
+
   void clearFormError() {
     if (_formErrorMessage == null) {
       return;

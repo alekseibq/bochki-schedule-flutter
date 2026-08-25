@@ -1889,7 +1889,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('workday_delete_2')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Удалить').last);
+    await tester.tap(find.text('Продолжить'));
     await tester.pumpAndSettle();
 
     expect(
@@ -2349,7 +2349,10 @@ _TestContext _buildTestContext({
       listWorkdaysUseCase: ListWorkdaysUseCase(workdaysRepository),
       createWorkdayUseCase: CreateWorkdayUseCase(workdaysRepository),
       updateWorkdayUseCase: UpdateWorkdayUseCase(workdaysRepository),
-      deleteWorkdayUseCase: DeleteWorkdayUseCase(workdaysRepository),
+      deleteWorkdayUseCase: DeleteWorkdayUseCase(
+        workdaysRepository,
+        procedureSessionsRepository: procedureSessionsRepository,
+      ),
       getPrintPresetParamsUseCase:
           GetPrintPresetParamsUseCase(printPresetParamsRepository),
       updatePrintPresetParamsUseCase:

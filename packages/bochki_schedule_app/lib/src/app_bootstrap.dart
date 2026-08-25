@@ -224,6 +224,7 @@ final class AppBootstrap {
     );
     final deleteWorkdayUseCase = DeleteWorkdayUseCase(
       workdaysRepository,
+      procedureSessionsRepository: procedureSessionsRepository,
     );
     final getProgramSettingsUseCase = GetProgramSettingsUseCase(
       programSettingsRepository,
