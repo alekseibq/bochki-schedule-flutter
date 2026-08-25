@@ -5,19 +5,22 @@ final class ProcedureSessionRaw {
   ProcedureSessionRaw({
     required String id,
     required String dayId,
+    String? clientId,
     String? participantId,
     required String startTime,
     required String procedureKindId,
+    String? companionId,
     String? assistantId,
   })  : id = id.trim(),
         dayId = dayId.trim(),
-        participantId = participantId?.trim().isEmpty ?? true
+        clientId = (clientId ?? participantId)?.trim().isEmpty ?? true
             ? null
-            : participantId!.trim(),
+            : (clientId ?? participantId)!.trim(),
         startTime = startTime.trim(),
         procedureKindId = procedureKindId.trim(),
-        assistantId =
-            assistantId?.trim().isEmpty ?? true ? null : assistantId!.trim() {
+        companionId = (companionId ?? assistantId)?.trim().isEmpty ?? true
+            ? null
+            : (companionId ?? assistantId)!.trim() {
     if (this.id.isEmpty) {
       throw const ProcedureSessionsValidationException(
         'Идентификатор назначенной процедуры не должен быть пустым.',
@@ -42,29 +45,40 @@ final class ProcedureSessionRaw {
 
   final String id;
   final String dayId;
-  final String? participantId;
+  final String? clientId;
+  @Deprecated('Use clientId.')
+  String? get participantId => clientId;
   final String startTime;
   final String procedureKindId;
-  final String? assistantId;
+  final String? companionId;
+  @Deprecated('Use companionId.')
+  String? get assistantId => companionId;
 
   ProcedureSessionRaw copyWith({
     String? id,
     String? dayId,
+    String? clientId,
     String? participantId,
     String? startTime,
     String? procedureKindId,
+    String? companionId,
     String? assistantId,
+    bool clearClientId = false,
+    bool clearCompanionId = false,
     bool clearParticipantId = false,
     bool clearAssistantId = false,
   }) {
     return ProcedureSessionRaw(
       id: id ?? this.id,
       dayId: dayId ?? this.dayId,
-      participantId:
-          clearParticipantId ? null : participantId ?? this.participantId,
+      clientId: clearClientId || clearParticipantId
+          ? null
+          : clientId ?? participantId ?? this.clientId,
       startTime: startTime ?? this.startTime,
       procedureKindId: procedureKindId ?? this.procedureKindId,
-      assistantId: clearAssistantId ? null : assistantId ?? this.assistantId,
+      companionId: clearCompanionId || clearAssistantId
+          ? null
+          : companionId ?? assistantId ?? this.companionId,
     );
   }
 }

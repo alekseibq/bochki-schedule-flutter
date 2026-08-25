@@ -60,7 +60,8 @@ final class ProjectDocumentAssistantsRepository
     await _humansRepository.update(current.copyWith(
       name: entry.name,
       shortName: shortName,
-      isAssistant: true,
+      seminarRole: SeminarRole.assistant,
+      procedureRoles: const [ProcedureRole.client, ProcedureRole.companion],
     ));
     return entry;
   }
@@ -79,15 +80,6 @@ final class ProjectDocumentAssistantsRepository
       return;
     }
 
-    await _humansRepository.update(
-      current.copyWith(
-        isParticipant: current.isParticipant,
-        isAssistant: false,
-      ),
-    );
-
-    if (!current.isParticipant) {
-      await _humansRepository.delete(entryId);
-    }
+    await _humansRepository.delete(entryId);
   }
 }

@@ -20,8 +20,13 @@ final class ProcedureKindDto {
       name: (json['name'] as String?) ?? '',
       shortName: (json['shortName'] as String?) ?? '',
       capacity: (json['capacity'] as num?)?.toInt() ?? 0,
-      participantBusyTime: (json['participantBusyTime'] as num?)?.toInt() ?? 0,
-      assistantBusyTime: (json['assistantBusyTime'] as num?)?.toInt(),
+      participantBusyTime:
+          ((json['clientBusyTime'] ?? json['participantBusyTime']) as num?)
+                  ?.toInt() ??
+              0,
+      assistantBusyTime:
+          ((json['companionBusyTime'] ?? json['assistantBusyTime']) as num?)
+              ?.toInt(),
       resourceBusyTime: (json['resourceBusyTime'] as num?)?.toInt(),
       deleted: json['deleted'] as bool? ?? false,
     );
@@ -105,11 +110,11 @@ final class ProcedureKindDto {
       'name': name,
       'shortName': shortName,
       'capacity': capacity,
-      'participantBusyTime': participantBusyTime,
+      'clientBusyTime': participantBusyTime,
       'deleted': deleted,
     };
     if (assistantBusyTime != null) {
-      json['assistantBusyTime'] = assistantBusyTime;
+      json['companionBusyTime'] = assistantBusyTime;
     }
     if (resourceBusyTime != null) {
       json['resourceBusyTime'] = resourceBusyTime;

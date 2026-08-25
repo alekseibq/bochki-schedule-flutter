@@ -78,7 +78,7 @@ abstract final class ProcedureSessionValidator {
 
   static Human? _findHuman(Iterable<Human> humans, String id) {
     for (final human in humans) {
-      if (human.id == id) {
+      if (human.id == id && human.hasProcedureRole(ProcedureRole.client)) {
         return human;
       }
     }

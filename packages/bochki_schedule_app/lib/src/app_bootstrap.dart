@@ -148,11 +148,18 @@ final class AppBootstrap {
     syncCoordinator.registerPart(printPresetParamsRepository);
     syncCoordinator.registerPart(programSettingsRepository);
     syncCoordinator.registerPart(procedureSessionsRepository);
-    final didNormalizeLegacyHumanShortNames =
-        await humansRepository.normalizeLegacyShortNames();
-    if (didNormalizeLegacyHumanShortNames) {
-      diagnostics?.info('Миграция данных', 'Нормализация кратких имён людей.');
-      await logger.info('Normalized legacy human short names.');
+    final didNormalizeLegacyHumans =
+        await humansRepository.normalizeLegacyHumans();
+    if (didNormalizeLegacyHumans) {
+      diagnostics?.info('Миграция данных', 'Нормализация людей и их ролей.');
+      await logger.info('Normalized legacy human roles and short names.');
+      await syncCoordinator.flushPending();
+    }
+    final didNormalizeLegacyProcedureSessions =
+        await procedureSessionsRepository.normalizeLegacyTerminology();
+    if (didNormalizeLegacyProcedureSessions) {
+      diagnostics?.info('Миграция данных', 'Нормализация назначенных процедур.');
+      await logger.info('Normalized legacy procedure session terminology.');
       await syncCoordinator.flushPending();
     }
     final didNormalizeLegacyProcedureKinds =

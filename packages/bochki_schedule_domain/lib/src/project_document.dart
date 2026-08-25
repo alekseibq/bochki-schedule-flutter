@@ -31,8 +31,7 @@ final class ProjectDocument {
   factory ProjectDocument.fromJson(Map<String, Object?> json) {
     final decodedHumans = _decodeCollection(json['humans']);
     return ProjectDocument(
-      schemaVersion:
-          (json['schemaVersion'] as num?)?.toInt() ?? SchemaVersion.current,
+      schemaVersion: SchemaVersion.current,
       nextId: (json['nextId'] as num?)?.toInt() ?? 1,
       humans: decodedHumans.isNotEmpty
           ? decodedHumans
