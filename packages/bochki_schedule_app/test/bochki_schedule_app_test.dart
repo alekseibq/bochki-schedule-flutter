@@ -1704,7 +1704,8 @@ void main() {
     );
   });
 
-  testWidgets('procedure kind form restricts numeric values and suggests times', (
+  testWidgets('procedure kind form restricts numeric values and suggests times',
+      (
     tester,
   ) async {
     final context = _buildTestContext(
@@ -1777,7 +1778,8 @@ void main() {
     );
     await tester.pumpAndSettle();
     await tester.tap(
-      find.byKey(const Key('procedure_kind_assistant_busy_time_suggestion_skip')),
+      find.byKey(
+          const Key('procedure_kind_assistant_busy_time_suggestion_skip')),
     );
     await tester.pumpAndSettle();
     expect(tester.widget<TextField>(assistantField).controller!.text, '7');

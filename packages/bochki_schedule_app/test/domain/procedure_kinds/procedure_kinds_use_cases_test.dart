@@ -53,7 +53,8 @@ void main() {
       expect(createdProcedureKind.resourceBusyTime, 20);
     });
 
-    test('create accepts zero values for a complete curated procedure', () async {
+    test('create accepts zero values for a complete curated procedure',
+        () async {
       final repository = _InMemoryProcedureKindsRepository();
 
       final createdProcedureKind =
