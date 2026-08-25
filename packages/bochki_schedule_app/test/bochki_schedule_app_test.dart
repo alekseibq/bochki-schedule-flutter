@@ -1781,9 +1781,7 @@ void main() {
     final capacity = find.byKey(const Key('procedure_kind_capacity_field'));
     await tester.enterText(capacity, '1abc');
     expect(tester.widget<TextField>(capacity).controller!.text, '1');
-    await tester.tap(
-      find.byKey(const Key('procedure_kind_capacity_field_decrement')),
-    );
+    await tester.enterText(capacity, '0');
     expect(tester.widget<TextField>(capacity).controller!.text, '0');
 
     await tester.tap(

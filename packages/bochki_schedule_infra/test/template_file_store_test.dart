@@ -63,7 +63,7 @@ void main() {
     await templatesDirectory.create(recursive: true);
     await File('${templatesDirectory.path}/other.json').writeAsString('{}');
     final future = File('${templatesDirectory.path}/Новый -- 1-2-3.json');
-    await future.writeAsString('{"schemaVersion": 2}');
+    await future.writeAsString('{"schemaVersion": ${SchemaVersion.current + 1}}');
 
     final templates = await store.list();
     expect(templates, hasLength(1));

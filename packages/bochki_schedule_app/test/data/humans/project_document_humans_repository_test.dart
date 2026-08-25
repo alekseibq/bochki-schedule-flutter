@@ -37,16 +37,16 @@ void main() {
         'id': 1,
         'name': 'Анна',
         'shortName': 'Анна',
-        'isParticipant': true,
-        'isAssistant': false,
+        'seminarRole': 'participant',
+        'procedureRoles': ['client'],
         'deleted': false,
       },
       <String, Object?>{
         'id': 2,
         'name': 'Борис',
         'shortName': 'Борис',
-        'isParticipant': false,
-        'isAssistant': true,
+        'seminarRole': 'assistant',
+        'procedureRoles': ['client', 'companion'],
         'deleted': true,
       },
     ]);
@@ -92,7 +92,7 @@ void main() {
     expect(humans, hasLength(1));
     expect(humans.single.isParticipant, isTrue);
     expect(humans.single.isAssistant, isTrue);
-    expect(exportedDocument.humans.first['isAssistant'], isTrue);
+    expect(exportedDocument.humans.first['seminarRole'], 'assistant');
     expect(repository.isDirty, isFalse);
     expect(changeNotifications, 0);
   });
@@ -151,16 +151,16 @@ void main() {
         'id': 1,
         'name': 'Анна',
         'shortName': 'Анна',
-        'isParticipant': false,
-        'isAssistant': false,
+        'seminarRole': 'participant',
+        'procedureRoles': ['client'],
         'deleted': true,
       },
       <String, Object?>{
         'id': 2,
         'name': 'Борис Общий',
         'shortName': 'Борис Общий',
-        'isParticipant': true,
-        'isAssistant': true,
+        'seminarRole': 'participant',
+        'procedureRoles': ['client', 'companion'],
         'deleted': false,
       },
     ]);
