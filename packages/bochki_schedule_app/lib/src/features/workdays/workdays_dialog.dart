@@ -117,17 +117,40 @@ class _WorkdaysDialogState extends State<WorkdaysDialog> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Отмена'),
+              child: const Text('Нет'),
             ),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Удалить'),
+              child: const Text('Продолжить'),
             ),
           ],
         );
       },
     );
     if (confirmed != true) {
+      return;
+    }
+
+    final referencesCount = await widget.viewModel.countReferences(workday.id);
+    if (!mounted) return;
+    if (referencesCount > 0) {
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Невозможно удалить день'),
+          content: Text(
+            'День "${workday.name}" используется в $referencesCount '
+            '${_assignedProcedureWord(referencesCount)}. '
+            'Сначала удалите или переназначьте эти процедуры.',
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Понятно'),
+            ),
+          ],
+        ),
+      );
       return;
     }
 
@@ -141,6 +164,18 @@ class _WorkdaysDialogState extends State<WorkdaysDialog> {
         _selectedWorkdayId = null;
       }
     });
+  }
+
+  String _assignedProcedureWord(int count) {
+    final remainder100 = count % 100;
+    if (remainder100 >= 11 && remainder100 <= 14) {
+      return 'назначенных процедур';
+    }
+    return switch (count % 10) {
+      1 => 'назначенная процедура',
+      2 || 3 || 4 => 'назначенные процедуры',
+      _ => 'назначенных процедур',
+    };
   }
 
   @override

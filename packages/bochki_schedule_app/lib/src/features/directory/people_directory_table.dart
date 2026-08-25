@@ -29,6 +29,7 @@ class PeopleDirectoryTable extends StatefulWidget {
     required this.type,
     required this.entries,
     required this.onMutate,
+    required this.onCountReferences,
     required this.onChanged,
     super.key,
   });
@@ -36,6 +37,7 @@ class PeopleDirectoryTable extends StatefulWidget {
   final PeopleDirectoryType type;
   final List<PeopleDirectoryEntry> entries;
   final PeopleDirectoryMutation onMutate;
+  final Future<int> Function(String entryId) onCountReferences;
   final Future<void> Function() onChanged;
 
   @override
@@ -152,6 +154,32 @@ class _PeopleDirectoryTableState extends State<PeopleDirectoryTable> {
       ),
     );
     if (confirmed != true || !mounted) return;
+    final referencesCount = await widget.onCountReferences(entry.id);
+    if (!mounted) return;
+    if (referencesCount > 0) {
+      final referencesConfirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Удалить связанные назначения?'),
+          content: Text(
+            'Запись используется в $referencesCount '
+            '${_procedureWord(referencesCount)}. После удаления ссылки '
+            'будут очищены, а назначения помечены конфликтными.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Отмена'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('ОК'),
+            ),
+          ],
+        ),
+      );
+      if (referencesConfirmed != true || !mounted) return;
+    }
     setState(() => _saving = true);
     final error = await widget.onMutate('delete', id: entry.id);
     if (!mounted) return;
@@ -160,6 +188,17 @@ class _PeopleDirectoryTableState extends State<PeopleDirectoryTable> {
       _error = error;
     });
     if (error == null) await widget.onChanged();
+  }
+
+  String _procedureWord(int count) {
+    final remainder100 = count % 100;
+    if (remainder100 >= 11 && remainder100 <= 14) {
+      return 'назначенных процедурах';
+    }
+    return switch (count % 10) {
+      1 => 'назначенной процедуре',
+      _ => 'назначенных процедурах',
+    };
   }
 
   bool _onKey(FocusNode _, KeyEvent event) {

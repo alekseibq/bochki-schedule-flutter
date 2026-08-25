@@ -23,6 +23,7 @@ import '../features/procedure_sessions/procedure_session_dialog.dart';
 import '../features/procedure_sessions/procedure_session_submit_result.dart';
 import '../features/procedure_sessions/procedure_sessions_view_model.dart';
 import '../features/directory/people_directory_table.dart';
+import '../features/procedure_statistics/procedure_statistics_content.dart';
 
 enum DesktopWindowKind {
   main,
@@ -380,6 +381,12 @@ final class DesktopWindowCoordinator {
       case 'workdayReferences':
         return _services.deleteWorkdayUseCase
             .countReferences(call.arguments as String);
+      case 'directoryReferences':
+        final values = Map<String, dynamic>.from(call.arguments as Map);
+        return _directoryReferences(
+          values['directory'] as String,
+          values['id'] as String,
+        );
       case 'openDirectoryEditor':
         final values = Map<String, dynamic>.from(call.arguments as Map);
         await openDirectoryEditor(
@@ -476,6 +483,14 @@ final class DesktopWindowCoordinator {
         throw ArgumentError.value(directory, 'directory');
     }
   }
+
+  Future<int> _directoryReferences(String directory, String id) => switch (directory) {
+        'participants' => _services.deleteParticipantUseCase.countReferences(id),
+        'assistants' => _services.deleteAssistantUseCase.countReferences(id),
+        'procedureKinds' => _services.deleteProcedureKindUseCase.countReferences(id),
+        'workdays' => _services.deleteWorkdayUseCase.countReferences(id),
+        _ => throw ArgumentError.value(directory, 'directory'),
+      };
 
   Future<Map<String, dynamic>> _directoryMutate(
       Map<String, dynamic> values) async {
@@ -757,102 +772,30 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
   Widget build(BuildContext context) => MaterialApp(
         debugShowCheckedModeBanner: false,
         home: Scaffold(
-            body: Column(children: [
-          Container(
-              height: 56,
-              color: const Color(0xFFE9EEF2),
-              alignment: Alignment.centerLeft,
-              padding: const EdgeInsets.all(8),
-              child: FilledButton.tonal(
-                onPressed: () =>
-                    _mainChannel.invokeMethod<void>('openProcedureSession'),
-                child: const Text('Добавить запись'),
-              )),
-          Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(children: [
-                Expanded(
-                    child: DropdownButtonFormField<String?>(
-                        value: _dayId,
-                        decoration: const InputDecoration(labelText: 'День'),
-                        items: [
-                          const DropdownMenuItem(
-                              value: null, child: Text('Все дни')),
-                          ..._workdays.map((d) => DropdownMenuItem(
-                              value: d.id, child: Text(d.name)))
-                        ],
-                        onChanged: (v) {
-                          _dayId = v;
-                          _load();
-                        })),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: DropdownButtonFormField(
-                        value: _people,
-                        decoration:
-                            const InputDecoration(labelText: 'Участники'),
-                        items: const [
-                          DropdownMenuItem(
-                              value: ProcedureStatisticsPeopleFilter.all,
-                              child: Text('Все')),
-                          DropdownMenuItem(
-                              value:
-                                  ProcedureStatisticsPeopleFilter.participants,
-                              child: Text('Участники')),
-                          DropdownMenuItem(
-                              value: ProcedureStatisticsPeopleFilter.assistants,
-                              child: Text('Ассистенты'))
-                        ],
-                        onChanged: (v) {
-                          if (v != null) {
-                            _people = v;
-                            _load();
-                          }
-                        })),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: DropdownButtonFormField(
-                        value: _mode,
-                        decoration: const InputDecoration(labelText: 'Режим'),
-                        items: const [
-                          DropdownMenuItem(
-                              value: ProcedureStatisticsMode.participation,
-                              child: Text('Участие')),
-                          DropdownMenuItem(
-                              value: ProcedureStatisticsMode.assisting,
-                              child: Text('Ассистирование'))
-                        ],
-                        onChanged: (v) {
-                          if (v != null) {
-                            _mode = v;
-                            _load();
-                          }
-                        })),
-              ])),
-          Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _error != null
-                      ? Center(child: Text(_error!))
-                      : _humans.isEmpty
-                          ? const Center(
-                              child: Text('Нет данных по выбранным фильтрам'))
-                          : SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: SingleChildScrollView(
-                                  child: DataTable(columns: [
-                                const DataColumn(label: Text('Человек')),
-                                ..._kinds
-                                    .map((k) => DataColumn(label: Text(k.name)))
-                              ], rows: [
-                                for (final human in _humans)
-                                  DataRow(cells: [
-                                    DataCell(Text(human.shortName)),
-                                    ..._kinds.map((kind) => DataCell(Text(
-                                        '${_counts['${human.id}/${kind.id}'] ?? 0}')))
-                                  ])
-                              ])))),
-        ])),
+            body: ProcedureStatisticsContent(
+              workdays: _workdays,
+              people: _humans,
+              kinds: _kinds,
+              countFor: (person, kind) => _counts['${person.id}/${kind.id}'] ?? 0,
+              isLoading: _loading,
+              error: _error,
+              dayId: _dayId,
+              peopleFilter: _people,
+              mode: _mode,
+              onDayChanged: (value) {
+                _dayId = value;
+                _load();
+              },
+              onPeopleChanged: (value) {
+                _people = value;
+                _load();
+              },
+              onModeChanged: (value) {
+                _mode = value;
+                _load();
+              },
+              onAdd: () => _mainChannel.invokeMethod<void>('openProcedureSession'),
+            )),
       );
 }
 
@@ -1525,6 +1468,9 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
             )
             .toList(growable: false),
         onMutate: _mutatePeople,
+        onCountReferences: (id) => _mainChannel.invokeMethod<int>(
+              'directoryReferences', {'directory': _directory, 'id': id},
+            ).then((value) => value ?? 0),
         onChanged: _load,
       );
     }
@@ -1802,7 +1748,11 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
                           child: const Text('Изменить')),
                       TextButton(
                           onPressed:
-                              _saving ? null : () => _mutate('delete', id: id),
+                              _saving
+                                  ? null
+                                  : _kind == DesktopWindowKind.procedureKinds
+                                      ? () => _deleteProcedureKind(entry)
+                                      : () => _mutate('delete', id: id),
                           child: const Text('Удалить')),
                     ]),
                   );
@@ -1816,6 +1766,36 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
         DesktopWindowKind.workdays => entry['date'] as String,
         _ => '',
       };
+
+  Future<void> _deleteProcedureKind(Map<String, dynamic> entry) async {
+    final id = entry['id'] as String;
+    final referencesCount = await _mainChannel.invokeMethod<int>(
+          'directoryReferences', {'directory': 'procedureKinds', 'id': id},
+        ) ??
+        0;
+    if (!mounted) return;
+    if (referencesCount > 0) {
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Невозможно удалить процедуру'),
+          content: Text(
+            'Процедура используется в $referencesCount '
+            '${_assignedProcedureWord(referencesCount)}. '
+            'Сначала удалите эти назначения.',
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Понятно'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    await _mutate('delete', id: id);
+  }
 
   Future<void> _showInlineEditor() async {
     await showDialog<void>(

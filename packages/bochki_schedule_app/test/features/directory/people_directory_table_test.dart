@@ -71,6 +71,7 @@ Widget _table({
             PeopleDirectoryEntry(id: '1', name: 'Анна', shortName: 'Анна'),
           ],
           onMutate: onMutate,
+          onCountReferences: (_) async => 0,
           onChanged: () async {},
         ),
       ),
