@@ -60,15 +60,15 @@ final class DocxPrintScheduleExporter implements PrintScheduleExporter {
 
   String _buildDocumentXml(PrintScheduleDocument document) {
     final sections = <String>[
-      _paragraphXml(document.title, bold: true),
+      _paragraphXml(
+        document.title,
+        fontSize: 36,
+        alignment: 'center',
+      ),
     ];
-    if (document.textBefore.trim().isNotEmpty) {
-      sections.add(_paragraphXml(document.textBefore));
-    }
+    sections.addAll(_textBeforeParagraphsXml(document.textBefore));
     sections.add(_tableXml(document));
-    if (document.textAfter.trim().isNotEmpty) {
-      sections.add(_paragraphXml(document.textAfter));
-    }
+    sections.addAll(_textAfterParagraphsXml(document.textAfter));
     sections.add(_sectionPropertiesXml);
 
     return '''
@@ -96,12 +96,59 @@ final class DocxPrintScheduleExporter implements PrintScheduleExporter {
 ''';
   }
 
-  String _paragraphXml(String text, {bool bold = false}) {
-    final runs = [
+  List<String> _textBeforeParagraphsXml(String text) {
+    if (text.trim().isEmpty) {
+      return const [];
+    }
+    return [
       for (final line in text.split('\n'))
-        '<w:r>${bold ? '<w:rPr><w:b/></w:rPr>' : ''}<w:t xml:space="preserve">${_escapeXml(line)}</w:t></w:r>',
+        _paragraphXml(line, fontSize: 34, spacingAfter: 360),
     ];
-    return '<w:p>${runs.join('<w:r><w:br/></w:r>')}</w:p>';
+  }
+
+  List<String> _textAfterParagraphsXml(String text) {
+    if (text.trim().isEmpty) {
+      return const [];
+    }
+    return [
+      for (final line in text.split('\n'))
+        _paragraphXml(line, fontSize: 34, spacingBefore: 360),
+    ];
+  }
+
+  String _paragraphXml(
+    String text, {
+    required int fontSize,
+    String? alignment,
+    int? spacingBefore,
+    int? spacingAfter,
+  }) {
+    final properties = <String>[];
+    if (alignment != null) {
+      properties.add('<w:jc w:val="$alignment"/>');
+    }
+    if (spacingBefore != null || spacingAfter != null) {
+      final before = spacingBefore == null ? '' : ' w:before="$spacingBefore"';
+      final after = spacingAfter == null ? '' : ' w:after="$spacingAfter"';
+      properties.add('<w:spacing$before$after/>');
+    }
+    final paragraphProperties = properties.isEmpty
+        ? ''
+        : '<w:pPr>${properties.join()}</w:pPr>';
+    return '<w:p>$paragraphProperties${_runXml(text, fontSize: fontSize)}</w:p>';
+  }
+
+  String _runXml(String text, {required int fontSize}) {
+    return '''
+<w:r>
+  <w:rPr>
+    <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>
+    <w:b/>
+    <w:sz w:val="$fontSize"/>
+    <w:szCs w:val="$fontSize"/>
+  </w:rPr>
+  <w:t xml:space="preserve">${_escapeXml(text)}</w:t>
+</w:r>''';
   }
 
   String _tableXml(PrintScheduleDocument document) {
@@ -113,7 +160,7 @@ final class DocxPrintScheduleExporter implements PrintScheduleExporter {
       for (final row in document.rows)
         _tableRowXml([
           row.participantName,
-          row.startTime,
+          _formatTimeRange(row.startTime, row.finishTime),
           row.procedureName,
           row.assistantName,
         ]),
@@ -121,21 +168,20 @@ final class DocxPrintScheduleExporter implements PrintScheduleExporter {
     return '''
 <w:tbl>
   <w:tblPr>
-    <w:tblW w:w="0" w:type="auto"/>
-    <w:tblBorders>
-      <w:top w:val="single" w:sz="8" w:space="0" w:color="000000"/>
-      <w:left w:val="single" w:sz="8" w:space="0" w:color="000000"/>
-      <w:bottom w:val="single" w:sz="8" w:space="0" w:color="000000"/>
-      <w:right w:val="single" w:sz="8" w:space="0" w:color="000000"/>
-      <w:insideH w:val="single" w:sz="8" w:space="0" w:color="000000"/>
-      <w:insideV w:val="single" w:sz="8" w:space="0" w:color="000000"/>
-    </w:tblBorders>
+    <w:tblStyle w:val="TableGrid"/>
+    <w:tblInd w:w="108" w:type="dxa"/>
+    <w:tblW w:w="10897" w:type="dxa"/>
+    <w:tblCellMar>
+      <w:left w:w="108" w:type="dxa"/>
+      <w:right w:w="108" w:type="dxa"/>
+    </w:tblCellMar>
+    <w:tblLayout w:type="fixed"/>
   </w:tblPr>
   <w:tblGrid>
-    <w:gridCol w:w="3600"/>
-    <w:gridCol w:w="1200"/>
-    <w:gridCol w:w="3600"/>
-    <w:gridCol w:w="2600"/>
+    <w:gridCol w:w="3067"/>
+    <w:gridCol w:w="2160"/>
+    <w:gridCol w:w="2610"/>
+    <w:gridCol w:w="3060"/>
   </w:tblGrid>
   ${rows.join('\n  ')}
 </w:tbl>
@@ -143,20 +189,37 @@ final class DocxPrintScheduleExporter implements PrintScheduleExporter {
   }
 
   String _tableRowXml(List<String> cells, {bool isHeader = false}) {
-    final cellsXml = cells.map((cell) => _tableCellXml(cell, isHeader)).join();
-    return '<w:tr>$cellsXml</w:tr>';
+    final cellsXml = [
+      for (var index = 0; index < cells.length; index++)
+        _tableCellXml(cells[index], isHeader, _columnWidths[index]),
+    ].join();
+    return '<w:tr><w:trPr><w:cantSplit/></w:trPr>$cellsXml</w:tr>';
   }
 
-  String _tableCellXml(String text, bool isHeader) {
-    final paragraph = _paragraphXml(text, bold: isHeader);
+  String _tableCellXml(String text, bool isHeader, int width) {
+    final paragraph = _paragraphXml(
+      text,
+      fontSize: 34,
+      alignment: isHeader ? 'center' : null,
+    );
     return '''
 <w:tc>
   <w:tcPr>
-    <w:tcW w:w="0" w:type="auto"/>
+    <w:tcW w:w="$width" w:type="dxa"/>
+    ${isHeader ? '<w:vAlign w:val="center"/>' : ''}
   </w:tcPr>
   $paragraph
 </w:tc>
 ''';
+  }
+
+  static const List<int> _columnWidths = [3067, 2160, 2610, 3060];
+
+  String _formatTimeRange(String startTime, String? finishTime) {
+    if (finishTime == null || finishTime.isEmpty) {
+      return startTime;
+    }
+    return '$startTime - $finishTime';
   }
 
   String _escapeXml(String value) {
@@ -200,9 +263,29 @@ const String _documentRelsXml = '''
 const String _stylesXml = '''
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults>
+    <w:rPrDefault>
+      <w:rPr>
+        <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>
+      </w:rPr>
+    </w:rPrDefault>
+  </w:docDefaults>
   <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
     <w:name w:val="Normal"/>
     <w:qFormat/>
+  </w:style>
+  <w:style w:type="table" w:styleId="TableGrid">
+    <w:name w:val="Table Grid"/>
+    <w:tblPr>
+      <w:tblBorders>
+        <w:top w:val="single" w:color="auto" w:sz="4" w:space="0"/>
+        <w:left w:val="single" w:color="auto" w:sz="4" w:space="0"/>
+        <w:bottom w:val="single" w:color="auto" w:sz="4" w:space="0"/>
+        <w:right w:val="single" w:color="auto" w:sz="4" w:space="0"/>
+        <w:insideH w:val="single" w:color="auto" w:sz="4" w:space="0"/>
+        <w:insideV w:val="single" w:color="auto" w:sz="4" w:space="0"/>
+      </w:tblBorders>
+    </w:tblPr>
   </w:style>
 </w:styles>
 ''';
@@ -229,7 +312,9 @@ const String _appXml = '''
 
 const String _sectionPropertiesXml = '''
 <w:sectPr>
-  <w:pgSz w:w="11906" w:h="16838"/>
-  <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708" w:gutter="0"/>
+  <w:pgSz w:w="12240" w:h="15840"/>
+  <w:pgMar w:top="1138" w:right="720" w:bottom="1138" w:left="720" w:header="720" w:footer="720" w:gutter="0"/>
+  <w:cols w:space="720"/>
+  <w:docGrid w:linePitch="360"/>
 </w:sectPr>
 ''';
