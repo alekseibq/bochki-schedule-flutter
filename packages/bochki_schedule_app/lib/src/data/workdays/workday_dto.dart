@@ -9,10 +9,11 @@ final class WorkdayDto {
   });
 
   factory WorkdayDto.fromJson(Map<String, Object?> json) {
+    final rawCalendarDate = (json['calendarDate'] as String? ?? '').trim();
     return WorkdayDto(
       id: (json['id'] as num?)?.toInt() ?? 0,
       name: (json['name'] as String? ?? '').trim(),
-      calendarDateIso: (json['calendarDate'] as String? ?? '').trim(),
+      calendarDateIso: _formatIsoDate(_parseIsoDate(rawCalendarDate)),
       deleted: json['deleted'] as bool? ?? false,
     );
   }
@@ -66,14 +67,23 @@ final class WorkdayDto {
   }
 
   static DateTime _parseIsoDate(String value) {
-    final parts = value.split('-');
+    final dateOnly = value.length >= 10 ? value.substring(0, 10) : value;
+    final parts = dateOnly.split('-');
     if (parts.length != 3) {
       return DateTime(1970, 1, 1);
     }
-    final year = int.tryParse(parts[0]) ?? 1970;
-    final month = int.tryParse(parts[1]) ?? 1;
-    final day = int.tryParse(parts[2]) ?? 1;
-    return DateTime(year, month, day);
+    final year = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    final day = int.tryParse(parts[2]);
+    if (year == null || month == null || day == null) {
+      return DateTime(1970, 1, 1);
+    }
+    final parsedDate = DateTime(year, month, day);
+    return parsedDate.year == year &&
+            parsedDate.month == month &&
+            parsedDate.day == day
+        ? parsedDate
+        : DateTime(1970, 1, 1);
   }
 
   static String _formatIsoDate(DateTime value) {

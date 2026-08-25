@@ -20,7 +20,7 @@ void main() {
           <String, Object?>{
             'id': 1,
             'name': 'День 1',
-            'calendarDate': '2026-07-11',
+            'calendarDate': '2026-07-11T14:30:00',
             'deleted': false,
           },
         ],
@@ -29,6 +29,11 @@ void main() {
       onChanged: () {
         changeNotifications += 1;
       },
+    );
+
+    expect(
+      (await repository.list()).single.calendarDate,
+      DateTime(2026, 7, 11),
     );
 
     final createdWorkday = await repository.create(

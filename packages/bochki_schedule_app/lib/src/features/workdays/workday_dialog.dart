@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../domain/workdays/workday.dart';
 import 'workday_date_format.dart';
@@ -27,13 +26,15 @@ class _WorkdayDialogState extends State<WorkdayDialog> {
 
   late final TextEditingController _nameController;
   late final TextEditingController _dateController;
+  late DateTime _selectedDate;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.initialWorkday.name);
+    _selectedDate = widget.initialWorkday.calendarDate;
     _dateController = TextEditingController(
-      text: formatWorkdayDate(widget.initialWorkday.calendarDate),
+      text: formatWorkdayDate(_selectedDate),
     );
   }
 
@@ -49,17 +50,37 @@ class _WorkdayDialogState extends State<WorkdayDialog> {
         ? await widget.viewModel.updateWorkday(
             workdayId: widget.initialWorkday.id,
             rawName: _nameController.text,
-            rawCalendarDate: _dateController.text,
+            rawCalendarDate: formatWorkdayDate(_selectedDate),
           )
         : await widget.viewModel.createWorkday(
             rawName: _nameController.text,
-            rawCalendarDate: _dateController.text,
+            rawCalendarDate: formatWorkdayDate(_selectedDate),
           );
     if (!mounted || savedWorkday == null) {
       return;
     }
 
     Navigator.of(context).pop(savedWorkday);
+  }
+
+  Future<void> _selectDate() async {
+    if (widget.viewModel.isSaving) {
+      return;
+    }
+    final selectedDate = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(1900),
+      lastDate: DateTime(2100, 12, 31),
+    );
+    if (!mounted || selectedDate == null) {
+      return;
+    }
+    setState(() {
+      _selectedDate = selectedDate;
+      _dateController.text = formatWorkdayDate(selectedDate);
+    });
+    widget.viewModel.clearFormError();
   }
 
   @override
@@ -97,10 +118,12 @@ class _WorkdayDialogState extends State<WorkdayDialog> {
                     key: const Key('workday_date_field'),
                     controller: _dateController,
                     enabled: !widget.viewModel.isSaving,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                    ],
-                    onChanged: (_) => widget.viewModel.clearFormError(),
+                    readOnly: true,
+                    showCursor: false,
+                    onTap: _selectDate,
+                    decoration: const InputDecoration(
+                      suffixIcon: Icon(Icons.calendar_month),
+                    ),
                   ),
                 ),
                 if (widget.viewModel.formErrorMessage case final message?) ...[

@@ -1738,10 +1738,30 @@ void main() {
       find.byKey(const Key('workday_name_field')),
       '  День   22 ',
     );
-    await tester.enterText(
-      find.byKey(const Key('workday_date_field')),
-      '15.07.2026',
+    final dateField = find.byKey(const Key('workday_date_field'));
+    expect(tester.widget<TextField>(dateField).readOnly, isTrue);
+    await tester.tap(dateField);
+    await tester.pumpAndSettle();
+    expect(find.byType(CalendarDatePicker), findsOneWidget);
+    await tester.tap(
+      find
+          .descendant(
+            of: find.byType(DatePickerDialog),
+            matching: find.byType(TextButton),
+          )
+          .first,
     );
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: dateField, matching: find.text('12.07.2026')),
+      findsOneWidget,
+    );
+
+    await tester.tap(dateField);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('15').last);
+    await tester.tap(find.text('ОК'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Создать').last);
     await tester.pumpAndSettle();
 
@@ -1755,10 +1775,11 @@ void main() {
       find.byKey(const Key('workday_name_field')),
       'День 3',
     );
-    await tester.enterText(
-      find.byKey(const Key('workday_date_field')),
-      '16.07.2026',
-    );
+    await tester.tap(find.byKey(const Key('workday_date_field')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('16').last);
+    await tester.tap(find.text('ОК'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Сохранить'));
     await tester.pumpAndSettle();
 
