@@ -135,7 +135,8 @@ final class DocxPrintScheduleExporter implements PrintScheduleExporter {
     final paragraphProperties = properties.isEmpty
         ? ''
         : '<w:pPr>${properties.join()}</w:pPr>';
-    return '<w:p>$paragraphProperties${_runXml(text, fontSize: fontSize)}</w:p>';
+    return '<w:p>'
+        '$paragraphProperties${_runXml(text, fontSize: fontSize)}</w:p>';
   }
 
   String _runXml(String text, {required int fontSize}) {
