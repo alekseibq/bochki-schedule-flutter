@@ -1645,15 +1645,21 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.descendant(of: dialog, matching: find.text('Время участн.(мин)')),
+      find.descendant(
+        of: dialog,
+        matching: find.text('Время участника (мин)'),
+      ),
       findsOneWidget,
     );
     expect(
-      find.descendant(of: dialog, matching: find.text('Время ассит.(мин)')),
+      find.descendant(
+        of: dialog,
+        matching: find.text('Время сопровождающего (мин)'),
+      ),
       findsOneWidget,
     );
     expect(
-      find.descendant(of: dialog, matching: find.text('Время ресурс.(мин)')),
+      find.descendant(of: dialog, matching: find.text('Время ресурса (мин)')),
       findsOneWidget,
     );
 
@@ -1696,6 +1702,87 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('procedure kind form restricts numeric values and suggests times',
+      (
+    tester,
+  ) async {
+    final context = _buildTestContext(
+      procedureKinds: [
+        ProcedureKind(
+          id: '1',
+          patternId: ProcedureKindPatterns.curated.patternId,
+          name: 'Парение',
+          capacity: 1,
+          participantBusyTime: 30,
+          assistantBusyTime: 10,
+          resourceBusyTime: 0,
+        ),
+        ProcedureKind(
+          id: '2',
+          patternId: ProcedureKindPatterns.single.patternId,
+          name: 'Бег',
+          capacity: 2,
+          participantBusyTime: 20,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openProcedureKindsDialog(tester);
+    await tester.tap(find.byKey(const Key('procedure_kind_add_button')));
+    await tester.pumpAndSettle();
+
+    final capacity = find.byKey(const Key('procedure_kind_capacity_field'));
+    await tester.enterText(capacity, '1abc');
+    expect(tester.widget<TextField>(capacity).controller!.text, '1');
+    await tester.tap(
+      find.byKey(const Key('procedure_kind_capacity_field_decrement')),
+    );
+    expect(tester.widget<TextField>(capacity).controller!.text, '0');
+
+    await tester.tap(
+      find.byKey(
+        const Key('procedure_kind_assistant_busy_time_field_popular_values'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('procedure_kind_assistant_busy_time_suggestion_10')),
+      findsOneWidget,
+    );
+    await tester.tap(
+      find.byKey(const Key('procedure_kind_assistant_busy_time_suggestion_10')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<TextField>(
+            find.byKey(const Key('procedure_kind_assistant_busy_time_field')),
+          )
+          .controller!
+          .text,
+      '10',
+    );
+
+    final assistantField = find.byKey(
+      const Key('procedure_kind_assistant_busy_time_field'),
+    );
+    await tester.enterText(assistantField, '7');
+    await tester.tap(
+      find.byKey(
+        const Key('procedure_kind_assistant_busy_time_field_popular_values'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(
+          const Key('procedure_kind_assistant_busy_time_suggestion_skip')),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(assistantField).controller!.text, '7');
   });
 
   testWidgets('workdays dialog supports create edit delete and reorder stub', (

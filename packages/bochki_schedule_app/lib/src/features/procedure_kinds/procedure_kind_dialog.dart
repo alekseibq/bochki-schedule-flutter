@@ -8,11 +8,13 @@ import 'procedure_kinds_view_model.dart';
 class ProcedureKindDialog extends StatefulWidget {
   const ProcedureKindDialog({
     required this.viewModel,
+    required this.procedureKinds,
     this.initialProcedureKind,
     super.key,
   });
 
   final ProcedureKindsViewModel viewModel;
+  final List<ProcedureKind> procedureKinds;
   final ProcedureKind? initialProcedureKind;
 
   bool get isEditing => initialProcedureKind != null;
@@ -101,7 +103,45 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
     if (nextValue < 0 || nextValue > 999) {
       return;
     }
-    controller.text = nextValue == 0 ? '' : '$nextValue';
+    controller.text = '$nextValue';
+    widget.viewModel.clearFormError();
+  }
+
+  Future<void> _showPopularValues({
+    required TextEditingController controller,
+    required Iterable<int?> values,
+    required String fieldName,
+  }) async {
+    final popularValues = values.whereType<int>().toSet().toList()..sort();
+    final selectedValue = await showDialog<int>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Популярные значения: $fieldName'),
+        content: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final value in popularValues)
+              OutlinedButton(
+                key: Key('procedure_kind_${fieldName}_suggestion_$value'),
+                onPressed: () => Navigator.of(context).pop(value),
+                child: Text('$value'),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            key: Key('procedure_kind_${fieldName}_suggestion_skip'),
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Skip'),
+          ),
+        ],
+      ),
+    );
+    if (selectedValue == null) {
+      return;
+    }
+    controller.text = '$selectedValue';
     widget.viewModel.clearFormError();
   }
 
@@ -223,7 +263,7 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
                   ),
                   const SizedBox(height: 12),
                   _FormRow(
-                    label: 'Время участн.(мин)',
+                    label: 'Время участника (мин)',
                     labelWidth: _labelColumnWidth,
                     child: _NumericField(
                       fieldKey: const Key(
@@ -241,12 +281,19 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
                         _participantBusyTimeController,
                         -1,
                       ),
+                      onShowPopularValues: () => _showPopularValues(
+                        controller: _participantBusyTimeController,
+                        values: widget.procedureKinds.map(
+                          (procedureKind) => procedureKind.participantBusyTime,
+                        ),
+                        fieldName: 'participant_busy_time',
+                      ),
                     ),
                   ),
                   if (_isCurated) ...[
                     const SizedBox(height: 12),
                     _FormRow(
-                      label: 'Время ассит.(мин)',
+                      label: 'Время сопровождающего (мин)',
                       labelWidth: _labelColumnWidth,
                       child: _NumericField(
                         fieldKey: const Key(
@@ -264,11 +311,18 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
                           _assistantBusyTimeController,
                           -1,
                         ),
+                        onShowPopularValues: () => _showPopularValues(
+                          controller: _assistantBusyTimeController,
+                          values: widget.procedureKinds.map(
+                            (procedureKind) => procedureKind.assistantBusyTime,
+                          ),
+                          fieldName: 'assistant_busy_time',
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
                     _FormRow(
-                      label: 'Время ресурс.(мин)',
+                      label: 'Время ресурса (мин)',
                       labelWidth: _labelColumnWidth,
                       child: _NumericField(
                         fieldKey: const Key(
@@ -285,6 +339,13 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
                         onDecrement: () => _adjustNumericField(
                           _resourceBusyTimeController,
                           -1,
+                        ),
+                        onShowPopularValues: () => _showPopularValues(
+                          controller: _resourceBusyTimeController,
+                          values: widget.procedureKinds.map(
+                            (procedureKind) => procedureKind.resourceBusyTime,
+                          ),
+                          fieldName: 'resource_busy_time',
                         ),
                       ),
                     ),
@@ -359,6 +420,7 @@ class _NumericField extends StatelessWidget {
     required this.onChanged,
     required this.onIncrement,
     required this.onDecrement,
+    this.onShowPopularValues,
   });
 
   final Key fieldKey;
@@ -368,6 +430,7 @@ class _NumericField extends StatelessWidget {
   final VoidCallback onChanged;
   final VoidCallback onIncrement;
   final VoidCallback onDecrement;
+  final VoidCallback? onShowPopularValues;
 
   @override
   Widget build(BuildContext context) {
@@ -409,6 +472,13 @@ class _NumericField extends StatelessWidget {
             ),
           ],
         ),
+        if (onShowPopularValues case final callback?)
+          IconButton(
+            key: Key('${fieldKey}_popular_values'),
+            onPressed: enabled ? callback : null,
+            icon: const Icon(Icons.history),
+            tooltip: 'Популярные значения',
+          ),
       ],
     );
   }

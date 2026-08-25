@@ -29,23 +29,23 @@ abstract final class ProcedureKindValidator {
 
     _validateRequiredRange(
       value: procedureKind.capacity,
-      emptyMessage: 'Укажите емкость.',
-      rangeMessage: 'Емкость должна быть от 1 до 999.',
+      rangeMessage: 'Емкость должна быть от 0 до 999.',
     );
     _validateRequiredRange(
       value: procedureKind.participantBusyTime,
-      emptyMessage: 'Укажите время участника.',
-      rangeMessage: 'Время участника должно быть от 1 до 999 минут.',
+      rangeMessage: 'Время участника должно быть от 0 до 999 минут.',
     );
 
     if (procedureKind.patternId == ProcedureKindPatterns.curated.patternId) {
-      _validateOptionalRange(
+      _validateRequiredNullableRange(
         value: procedureKind.assistantBusyTime,
-        rangeMessage: 'Время ассистента должно быть от 1 до 999 минут.',
+        emptyMessage: 'Укажите время сопровождающего.',
+        rangeMessage: 'Время сопровождающего должно быть от 0 до 999 минут.',
       );
-      _validateOptionalRange(
+      _validateRequiredNullableRange(
         value: procedureKind.resourceBusyTime,
-        rangeMessage: 'Время ресурса должно быть от 1 до 999 минут.',
+        emptyMessage: 'Укажите время ресурса.',
+        rangeMessage: 'Время ресурса должно быть от 0 до 999 минут.',
       );
       return procedureKind.copyWith(name: normalizedName);
     }
@@ -65,25 +65,22 @@ abstract final class ProcedureKindValidator {
 
   static void _validateRequiredRange({
     required int value,
-    required String emptyMessage,
     required String rangeMessage,
   }) {
-    if (value <= 0) {
-      throw ProcedureKindsValidationException(emptyMessage);
-    }
-    if (value < 1 || value > 999) {
+    if (value < 0 || value > 999) {
       throw ProcedureKindsValidationException(rangeMessage);
     }
   }
 
-  static void _validateOptionalRange({
+  static void _validateRequiredNullableRange({
     required int? value,
+    required String emptyMessage,
     required String rangeMessage,
   }) {
     if (value == null) {
-      return;
+      throw ProcedureKindsValidationException(emptyMessage);
     }
-    if (value < 1 || value > 999) {
+    if (value < 0 || value > 999) {
       throw ProcedureKindsValidationException(rangeMessage);
     }
   }

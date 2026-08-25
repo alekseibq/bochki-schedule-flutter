@@ -53,6 +53,87 @@ void main() {
       expect(createdProcedureKind.resourceBusyTime, 20);
     });
 
+    test('create accepts zero values for a complete curated procedure',
+        () async {
+      final repository = _InMemoryProcedureKindsRepository();
+
+      final createdProcedureKind =
+          await CreateProcedureKindUseCase(repository).execute(
+        ProcedureKind(
+          id: 'draft',
+          patternId: ProcedureKindPatterns.curated.patternId,
+          name: 'Парение',
+          capacity: 0,
+          participantBusyTime: 0,
+          assistantBusyTime: 0,
+          resourceBusyTime: 0,
+        ),
+      );
+
+      expect(createdProcedureKind.capacity, 0);
+      expect(createdProcedureKind.resourceBusyTime, 0);
+    });
+
+    test('create requires curated companion and resource times', () async {
+      final repository = _InMemoryProcedureKindsRepository();
+
+      expect(
+        () => CreateProcedureKindUseCase(repository).execute(
+          ProcedureKind(
+            id: 'draft',
+            patternId: ProcedureKindPatterns.curated.patternId,
+            name: 'Парение',
+            capacity: 1,
+            participantBusyTime: 20,
+            resourceBusyTime: 10,
+          ),
+        ),
+        throwsA(
+          isA<ProcedureKindsValidationException>().having(
+            (error) => error.message,
+            'message',
+            'Укажите время сопровождающего.',
+          ),
+        ),
+      );
+    });
+
+    test('update requires curated resource time', () async {
+      final repository = _InMemoryProcedureKindsRepository(
+        procedureKinds: [
+          ProcedureKind(
+            id: '1',
+            patternId: ProcedureKindPatterns.curated.patternId,
+            name: 'Парение',
+            capacity: 1,
+            participantBusyTime: 20,
+            assistantBusyTime: 10,
+            resourceBusyTime: 10,
+          ),
+        ],
+      );
+
+      expect(
+        () => UpdateProcedureKindUseCase(repository).execute(
+          ProcedureKind(
+            id: '1',
+            patternId: ProcedureKindPatterns.curated.patternId,
+            name: 'Парение',
+            capacity: 1,
+            participantBusyTime: 20,
+            assistantBusyTime: 10,
+          ),
+        ),
+        throwsA(
+          isA<ProcedureKindsValidationException>().having(
+            (error) => error.message,
+            'message',
+            'Укажите время ресурса.',
+          ),
+        ),
+      );
+    });
+
     test('duplicate name does not pass validation', () async {
       final repository = _InMemoryProcedureKindsRepository(
         procedureKinds: [
