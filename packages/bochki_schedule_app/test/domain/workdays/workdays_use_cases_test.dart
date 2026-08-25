@@ -89,6 +89,44 @@ void main() {
       expect(draft.name, 'День 1');
       expect(draft.calendarDate, DateTime(2026, 7, 11));
     });
+
+    test('delete is blocked when active procedures reference the workday',
+        () async {
+      final repository = _InMemoryWorkdaysRepository(
+        workdays: [
+          Workday(
+            id: '1',
+            name: 'День 1',
+            calendarDate: DateTime(2026, 7, 11),
+          ),
+        ],
+      );
+      final sessions = _ProcedureSessionsRepository([
+        ProcedureSessionRaw(
+          id: '2',
+          dayId: '1',
+          startTime: '10:00',
+          procedureKindId: '3',
+        ),
+      ]);
+      final useCase = DeleteWorkdayUseCase(
+        repository,
+        procedureSessionsRepository: sessions,
+      );
+
+      expect(await useCase.countReferences('1'), 1);
+      await expectLater(
+        useCase.execute('1'),
+        throwsA(
+          isA<WorkdayInUseException>().having(
+            (error) => error.referencesCount,
+            'referencesCount',
+            1,
+          ),
+        ),
+      );
+      expect((await repository.list()).single.id, '1');
+    });
   });
 }
 
@@ -137,5 +175,33 @@ final class _InMemoryWorkdaysRepository implements WorkdaysRepository {
       _workdays[index] = workday;
     }
     return workday;
+  }
+}
+
+final class _ProcedureSessionsRepository
+    implements ProcedureSessionsRepository {
+  _ProcedureSessionsRepository(this._sessions);
+
+  final List<ProcedureSessionRaw> _sessions;
+
+  @override
+  Future<ProcedureSessionRaw> create(ProcedureSessionRaw procedureSession) {
+    _sessions.add(procedureSession);
+    return Future.value(procedureSession);
+  }
+
+  @override
+  Future<void> delete(String procedureSessionId) async {
+    _sessions.removeWhere((session) => session.id == procedureSessionId);
+  }
+
+  @override
+  Future<List<ProcedureSessionRaw>> list() async => [..._sessions];
+
+  @override
+  Future<ProcedureSessionRaw> update(ProcedureSessionRaw procedureSession) {
+    final index = _sessions.indexWhere((entry) => entry.id == procedureSession.id);
+    if (index != -1) _sessions[index] = procedureSession;
+    return Future.value(procedureSession);
   }
 }

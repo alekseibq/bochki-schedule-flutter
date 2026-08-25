@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 import 'package:window_manager/window_manager.dart';
@@ -376,6 +377,9 @@ final class DesktopWindowCoordinator {
       case 'directoryMutate':
         return _directoryMutate(
             Map<String, dynamic>.from(call.arguments as Map));
+      case 'workdayReferences':
+        return _services.deleteWorkdayUseCase
+            .countReferences(call.arguments as String);
       case 'openDirectoryEditor':
         final values = Map<String, dynamic>.from(call.arguments as Map);
         await openDirectoryEditor(
@@ -520,15 +524,18 @@ final class DesktopWindowCoordinator {
             await _services.updateProcedureKindUseCase.execute(kind);
           break;
         case 'workdays':
-          final day = _workdayFromMap(
-              {...entry, 'id': values['id'] as String? ?? 'new'});
-          if (action == 'delete')
+          if (action == 'delete') {
             await _services.deleteWorkdayUseCase
                 .execute(values['id'] as String);
-          if (action == 'create')
+          } else if (action == 'create') {
+            final day = _workdayFromMap({...entry, 'id': 'new'});
             await _services.createWorkdayUseCase.execute(day);
-          if (action == 'update')
+          } else if (action == 'update') {
+            final day = _workdayFromMap(
+              {...entry, 'id': values['id'] as String},
+            );
             await _services.updateWorkdayUseCase.execute(day);
+          }
           break;
         default:
           throw ArgumentError.value(directory, 'directory');
@@ -1244,6 +1251,14 @@ String _formatCalendarDate(DateTime value) {
   return '$year-$month-$day';
 }
 
+String _formatWorkdayDate(String value) {
+  final date = DateTime.tryParse(value);
+  if (date == null) return value;
+  final day = date.day.toString().padLeft(2, '0');
+  final month = date.month.toString().padLeft(2, '0');
+  return '$day.$month.${date.year}';
+}
+
 Map<String, dynamic> _kindMap(ProcedureKind k) => {
       'id': k.id,
       'patternId': k.patternId,
@@ -1312,6 +1327,7 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
   bool get _isPeopleDirectory =>
       _kind == DesktopWindowKind.participants ||
       _kind == DesktopWindowKind.assistants;
+  bool get _isWorkdaysDirectory => _kind == DesktopWindowKind.workdays;
   String get _directory => switch (_kind) {
         DesktopWindowKind.participants => 'participants',
         DesktopWindowKind.assistants => 'assistants',
@@ -1400,7 +1416,8 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
   void _fillEditor(Map<String, dynamic>? entry) {
     _name.text = entry?['name'] as String? ?? '';
     _shortName.text = entry?['shortName'] as String? ?? '';
-    _date.text = entry?['date'] as String? ?? '';
+    _date.text = entry?['date'] as String? ??
+        (_kind == DesktopWindowKind.workdayEditor ? _nextWorkdayDate() : '');
     _capacity.text = '${entry?['capacity'] ?? 1}';
     _participantTime.text = '${entry?['participantBusyTime'] ?? ''}';
     _patternId = entry?['patternId'] as String? ?? 'curated';
@@ -1463,6 +1480,9 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
           home: Scaffold(body: Center(child: CircularProgressIndicator())));
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      locale: const Locale('ru', 'RU'),
+      supportedLocales: const [Locale('ru', 'RU')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       theme: ThemeData(useMaterial3: true),
       home: Scaffold(
         appBar: AppBar(title: Text(_title)),
@@ -1508,7 +1528,190 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
         onChanged: _load,
       );
     }
+    if (_isWorkdaysDirectory) return _workdaysList();
     return _legacyDirectoryList();
+  }
+
+  Widget _workdaysList() => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.tonal(
+              onPressed: _saving
+                  ? null
+                  : () => _openEditor(DesktopWindowKind.workdayEditor.name),
+              child: const Text('Создать'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFFD0D7DE)),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    child: Row(children: [
+                      Expanded(flex: 3, child: Text('Название')),
+                      Expanded(flex: 2, child: Text('Дата')),
+                      SizedBox(width: 180),
+                    ]),
+                  ),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: _entries.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (_, index) {
+                        final entry = _entries[index];
+                        final id = entry['id'] as String;
+                        return InkWell(
+                          onTap: () => setState(() => _selectedId = id),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            child: Row(children: [
+                              Expanded(
+                                flex: 3,
+                                child: Text(entry['name'] as String),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: Text(
+                                  _formatWorkdayDate(entry['date'] as String),
+                                ),
+                              ),
+                              SizedBox(
+                                width: 180,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    TextButton(
+                                      onPressed: _saving
+                                          ? null
+                                          : () => _openEditor(
+                                                DesktopWindowKind
+                                                    .workdayEditor.name,
+                                                id,
+                                              ),
+                                      child: const Text('Изменить'),
+                                    ),
+                                    TextButton(
+                                      onPressed: _saving
+                                          ? null
+                                          : () => _deleteWorkday(entry),
+                                      child: const Text('Удалить'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ]),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+
+  Future<void> _deleteWorkday(Map<String, dynamic> entry) async {
+    final name = entry['name'] as String;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Удалить день?'),
+        content: Text('День "$name" будет скрыт из списка.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Нет'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Продолжить'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final referencesCount = await _mainChannel.invokeMethod<int>(
+          'workdayReferences',
+          entry['id'] as String,
+        ) ??
+        0;
+    if (!mounted) return;
+    if (referencesCount > 0) {
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Невозможно удалить день'),
+          content: Text(
+            'День "$name" используется в $referencesCount '
+            '${_assignedProcedureWord(referencesCount)}. '
+            'Сначала удалите или переназначьте эти процедуры.',
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Понятно'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    await _mutate('delete', id: entry['id'] as String);
+  }
+
+  Future<void> _selectWorkdayDate() async {
+    if (_saving) return;
+    final initialDate = DateTime.tryParse(_date.text) ?? DateTime.now();
+    final selectedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(1900),
+      lastDate: DateTime(2100, 12, 31),
+    );
+    if (selectedDate == null || !mounted) return;
+    setState(() => _date.text = _formatCalendarDate(selectedDate));
+  }
+
+  String _nextWorkdayDate() {
+    final dates = _entries
+        .map((entry) => DateTime.tryParse(entry['date'] as String? ?? ''))
+        .whereType<DateTime>();
+    if (dates.isEmpty) {
+      return _formatCalendarDate(
+        DateTime.now().add(const Duration(days: 1)),
+      );
+    }
+    final latest = dates.reduce(
+      (left, right) => left.isAfter(right) ? left : right,
+    );
+    return _formatCalendarDate(latest.add(const Duration(days: 1)));
+  }
+
+  String _assignedProcedureWord(int count) {
+    final remainder100 = count % 100;
+    if (remainder100 >= 11 && remainder100 <= 14) {
+      return 'назначенных процедур';
+    }
+    return switch (count % 10) {
+      1 => 'назначенная процедура',
+      2 || 3 || 4 => 'назначенные процедуры',
+      _ => 'назначенных процедур',
+    };
   }
 
   Future<String?> _mutatePeople(
@@ -1691,11 +1894,19 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
               keyboardType: TextInputType.number,
               decoration:
                   const InputDecoration(labelText: 'Время участника, мин')),
-        ] else
-          TextField(
-              controller: _date,
-              enabled: !_saving,
-              decoration: const InputDecoration(labelText: 'Дата (ISO 8601)')),
+        ] else ...[
+          const Text('Дата'),
+          const SizedBox(height: 4),
+          OutlinedButton.icon(
+            onPressed: _saving ? null : _selectWorkdayDate,
+            icon: const Icon(Icons.calendar_month),
+            label: Text(
+              _date.text.isEmpty
+                  ? 'Выберите дату'
+                  : _formatWorkdayDate(_date.text),
+            ),
+          ),
+        ],
         if (_error != null)
           Padding(
               padding: const EdgeInsets.only(top: 12),

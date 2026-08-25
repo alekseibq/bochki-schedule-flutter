@@ -78,6 +78,7 @@ export 'src/domain/workdays/list_workdays_use_case.dart';
 export 'src/domain/workdays/update_workday_use_case.dart';
 export 'src/domain/workdays/workday.dart';
 export 'src/domain/workdays/workday_defaults.dart';
+export 'src/domain/workdays/workday_in_use_exception.dart';
 export 'src/domain/workdays/workdays_repository.dart';
 export 'src/domain/workdays/workdays_validation_exception.dart';
 export 'src/features/participants/participants_dialog.dart';

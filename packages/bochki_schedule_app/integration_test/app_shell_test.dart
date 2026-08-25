@@ -73,7 +73,10 @@ void main() {
       listWorkdaysUseCase: ListWorkdaysUseCase(workdaysRepository),
       createWorkdayUseCase: CreateWorkdayUseCase(workdaysRepository),
       updateWorkdayUseCase: UpdateWorkdayUseCase(workdaysRepository),
-      deleteWorkdayUseCase: DeleteWorkdayUseCase(workdaysRepository),
+      deleteWorkdayUseCase: DeleteWorkdayUseCase(
+        workdaysRepository,
+        procedureSessionsRepository: procedureSessionsRepository,
+      ),
       getPrintPresetParamsUseCase:
           GetPrintPresetParamsUseCase(printPresetParamsRepository),
       updatePrintPresetParamsUseCase:
