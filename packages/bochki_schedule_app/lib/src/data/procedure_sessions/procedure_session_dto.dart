@@ -4,10 +4,10 @@ final class ProcedureSessionDto {
   const ProcedureSessionDto({
     required this.id,
     required this.dayId,
-    required this.participantId,
+    required this.clientId,
     required this.startTime,
     required this.procedureKindId,
-    required this.assistantId,
+    required this.companionId,
     required this.deleted,
   });
 
@@ -15,10 +15,11 @@ final class ProcedureSessionDto {
     return ProcedureSessionDto(
       id: (json['id'] as num?)?.toInt() ?? 0,
       dayId: (json['dayId'] as num?)?.toInt() ?? 0,
-      participantId: (json['participantId'] as num?)?.toInt(),
+      clientId: ((json['clientId'] ?? json['participantId']) as num?)?.toInt(),
       startTime: (json['startTime'] as String? ?? '').trim(),
       procedureKindId: (json['procedureKindId'] as num?)?.toInt() ?? 0,
-      assistantId: (json['assistantId'] as num?)?.toInt(),
+      companionId:
+          ((json['companionId'] ?? json['assistantId']) as num?)?.toInt(),
       deleted: json['deleted'] as bool? ?? false,
     );
   }
@@ -30,56 +31,67 @@ final class ProcedureSessionDto {
     return ProcedureSessionDto(
       id: int.parse(procedureSession.id),
       dayId: int.parse(procedureSession.dayId),
-      participantId: procedureSession.participantId == null
+      clientId: procedureSession.clientId == null
           ? null
-          : int.parse(procedureSession.participantId!),
+          : int.parse(procedureSession.clientId!),
       startTime: procedureSession.startTime,
       procedureKindId: int.parse(procedureSession.procedureKindId),
-      assistantId: procedureSession.assistantId == null
+      companionId: procedureSession.companionId == null
           ? null
-          : int.parse(procedureSession.assistantId!),
+          : int.parse(procedureSession.companionId!),
       deleted: deleted,
     );
   }
 
   final int id;
   final int dayId;
-  final int? participantId;
+  final int? clientId;
+  @Deprecated('Use clientId.')
+  int? get participantId => clientId;
   final String startTime;
   final int procedureKindId;
-  final int? assistantId;
+  final int? companionId;
+  @Deprecated('Use companionId.')
+  int? get assistantId => companionId;
   final bool deleted;
 
   ProcedureSessionRaw toDomain() {
     return ProcedureSessionRaw(
       id: '$id',
       dayId: '$dayId',
-      participantId: participantId?.toString(),
+      clientId: clientId?.toString(),
       startTime: startTime,
       procedureKindId: '$procedureKindId',
-      assistantId: assistantId?.toString(),
+      companionId: companionId?.toString(),
     );
   }
 
   ProcedureSessionDto copyWith({
     int? id,
     int? dayId,
+    int? clientId,
     int? participantId,
+    bool clearClientId = false,
     bool clearParticipantId = false,
     String? startTime,
     int? procedureKindId,
+    int? companionId,
     int? assistantId,
+    bool clearCompanionId = false,
     bool clearAssistantId = false,
     bool? deleted,
   }) {
     return ProcedureSessionDto(
       id: id ?? this.id,
       dayId: dayId ?? this.dayId,
-      participantId:
-          clearParticipantId ? null : participantId ?? this.participantId,
+      clientId: clearClientId || clearParticipantId
+          ? null
+          : clientId ?? participantId ?? this.clientId,
       startTime: startTime ?? this.startTime,
       procedureKindId: procedureKindId ?? this.procedureKindId,
-      assistantId: clearAssistantId ? null : assistantId ?? this.assistantId,
+      companionId: clearCompanionId || clearAssistantId
+          ? null
+          : companionId ?? assistantId ?? this.companionId,
       deleted: deleted ?? this.deleted,
     );
   }
@@ -88,10 +100,10 @@ final class ProcedureSessionDto {
     return <String, Object?>{
       'id': id,
       'dayId': dayId,
-      'participantId': participantId,
+      'clientId': clientId,
       'startTime': startTime,
       'procedureKindId': procedureKindId,
-      'assistantId': assistantId,
+      'companionId': companionId,
       'deleted': deleted,
     };
   }

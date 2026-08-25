@@ -21,20 +21,29 @@ final class ProjectDocumentHumansRepository
             .toList(growable: true),
         _needsShortNameMigration = initialDocument.humans.any(
           (human) => !human.containsKey('shortName'),
+        ),
+        _needsRoleMigration = initialDocument.humans.any(
+          (human) =>
+              !human.containsKey('seminarRole') ||
+              !human.containsKey('procedureRoles'),
         );
 
   final ProjectDocumentIdAllocator _idAllocator;
   final void Function() _onChanged;
   final List<HumanDto> _entries;
   final bool _needsShortNameMigration;
+  final bool _needsRoleMigration;
 
-  Future<bool> normalizeLegacyShortNames() async {
-    if (!_needsShortNameMigration) {
+  Future<bool> normalizeLegacyHumans() async {
+    if (!_needsShortNameMigration && !_needsRoleMigration) {
       return false;
     }
     _markRepositoryChanged();
     return true;
   }
+
+  @Deprecated('Use normalizeLegacyHumans.')
+  Future<bool> normalizeLegacyShortNames() => normalizeLegacyHumans();
 
   @override
   Future<List<Human>> list() async {
@@ -50,11 +59,15 @@ final class ProjectDocumentHumansRepository
     required bool isParticipant,
     required bool isAssistant,
   }) async {
+    _ensureNameIsUnique(name);
     final human = Human(
       id: _idAllocator.nextId().toString(),
       name: name,
-      isParticipant: isParticipant,
-      isAssistant: isAssistant,
+      seminarRole:
+          isAssistant ? SeminarRole.assistant : SeminarRole.participant,
+      procedureRoles: isAssistant
+          ? const [ProcedureRole.client, ProcedureRole.companion]
+          : const [ProcedureRole.client],
     );
     _entries.add(HumanDto.fromDomain(human, deleted: false));
     _markRepositoryChanged();
@@ -67,6 +80,7 @@ final class ProjectDocumentHumansRepository
     final index = _entries.indexWhere((candidate) => candidate.id == humanId);
     if (index != -1) {
       final current = _entries[index];
+      _ensureNameIsUnique(human.name, exceptId: current.id);
       final shortName = human.name != current.name &&
               human.shortName == current.shortName &&
               current.shortName == current.name
@@ -74,14 +88,15 @@ final class ProjectDocumentHumansRepository
           : human.shortName;
       if (current.name != human.name ||
           current.shortName != shortName ||
-          current.isParticipant != human.isParticipant ||
-          current.isAssistant != human.isAssistant ||
+          current.seminarRole != human.seminarRole ||
+          current.procedureRoles.toString() !=
+              human.procedureRoles.toString() ||
           current.deleted) {
         _entries[index] = current.copyWith(
           name: human.name,
           shortName: shortName,
-          isParticipant: human.isParticipant,
-          isAssistant: human.isAssistant,
+          seminarRole: human.seminarRole,
+          procedureRoles: human.procedureRoles,
           deleted: false,
         );
         _markRepositoryChanged();
@@ -100,8 +115,6 @@ final class ProjectDocumentHumansRepository
     }
 
     _entries[index] = _entries[index].copyWith(
-      isParticipant: false,
-      isAssistant: false,
       deleted: true,
     );
     _markRepositoryChanged();
@@ -122,5 +135,18 @@ final class ProjectDocumentHumansRepository
   void _markRepositoryChanged() {
     markChanged();
     _onChanged();
+  }
+
+  void _ensureNameIsUnique(String name, {int? exceptId}) {
+    final key = NamedDirectoryEntry.sortKeyForName(name);
+    final exists = _entries.any(
+      (entry) =>
+          !entry.deleted &&
+          entry.id != exceptId &&
+          NamedDirectoryEntry.sortKeyForName(entry.name) == key,
+    );
+    if (exists) {
+      throw StateError('Человек с таким именем уже есть.');
+    }
   }
 }

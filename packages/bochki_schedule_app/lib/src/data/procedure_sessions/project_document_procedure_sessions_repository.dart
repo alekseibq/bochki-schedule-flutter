@@ -17,11 +17,23 @@ final class ProjectDocumentProcedureSessionsRepository
         _onChanged = onChanged,
         _entries = initialDocument.procedureSessions
             .map(ProcedureSessionDto.fromJson)
-            .toList(growable: true);
+            .toList(growable: true),
+        _needsTerminologyMigration = initialDocument.procedureSessions.any(
+          (entry) =>
+              !entry.containsKey('clientId') ||
+              !entry.containsKey('companionId'),
+        );
 
   final ProjectDocumentIdAllocator _idAllocator;
   final void Function() _onChanged;
   final List<ProcedureSessionDto> _entries;
+  final bool _needsTerminologyMigration;
+
+  Future<bool> normalizeLegacyTerminology() async {
+    if (!_needsTerminologyMigration) return false;
+    _markRepositoryChanged();
+    return true;
+  }
 
   @override
   Future<List<ProcedureSessionRaw>> list() async {

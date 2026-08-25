@@ -5,8 +5,8 @@ final class HumanDto {
     required this.id,
     required this.name,
     required this.shortName,
-    required this.isParticipant,
-    required this.isAssistant,
+    required this.seminarRole,
+    required this.procedureRoles,
     required this.deleted,
   });
 
@@ -16,8 +16,8 @@ final class HumanDto {
       name: (json['name'] as String?) ?? '',
       shortName:
           (json['shortName'] as String?) ?? (json['name'] as String?) ?? '',
-      isParticipant: json['isParticipant'] as bool? ?? false,
-      isAssistant: json['isAssistant'] as bool? ?? false,
+      seminarRole: _seminarRoleFromJson(json),
+      procedureRoles: _procedureRolesFromJson(json),
       deleted: json['deleted'] as bool? ?? false,
     );
   }
@@ -30,8 +30,8 @@ final class HumanDto {
       id: int.parse(human.id),
       name: human.name,
       shortName: human.shortName,
-      isParticipant: human.isParticipant,
-      isAssistant: human.isAssistant,
+      seminarRole: human.seminarRole,
+      procedureRoles: human.procedureRoles,
       deleted: deleted,
     );
   }
@@ -39,8 +39,8 @@ final class HumanDto {
   final int id;
   final String name;
   final String shortName;
-  final bool isParticipant;
-  final bool isAssistant;
+  final SeminarRole seminarRole;
+  final List<ProcedureRole> procedureRoles;
   final bool deleted;
 
   Human toDomain() {
@@ -48,8 +48,8 @@ final class HumanDto {
       id: id.toString(),
       name: name,
       shortName: shortName,
-      isParticipant: isParticipant,
-      isAssistant: isAssistant,
+      seminarRole: seminarRole,
+      procedureRoles: procedureRoles,
     );
   }
 
@@ -57,16 +57,16 @@ final class HumanDto {
     int? id,
     String? name,
     String? shortName,
-    bool? isParticipant,
-    bool? isAssistant,
+    SeminarRole? seminarRole,
+    Iterable<ProcedureRole>? procedureRoles,
     bool? deleted,
   }) {
     return HumanDto(
       id: id ?? this.id,
       name: name ?? this.name,
       shortName: shortName ?? this.shortName,
-      isParticipant: isParticipant ?? this.isParticipant,
-      isAssistant: isAssistant ?? this.isAssistant,
+      seminarRole: seminarRole ?? this.seminarRole,
+      procedureRoles: (procedureRoles ?? this.procedureRoles).toList(),
       deleted: deleted ?? this.deleted,
     );
   }
@@ -76,9 +76,39 @@ final class HumanDto {
       'id': id,
       'name': name,
       'shortName': shortName,
-      'isParticipant': isParticipant,
-      'isAssistant': isAssistant,
+      'seminarRole': seminarRole.name,
+      'procedureRoles': procedureRoles.map((role) => role.name).toList(),
       'deleted': deleted,
     };
+  }
+
+  static SeminarRole _seminarRoleFromJson(Map<String, Object?> json) {
+    final value = json['seminarRole'];
+    if (value == SeminarRole.participant.name) return SeminarRole.participant;
+    if (value == SeminarRole.assistant.name) return SeminarRole.assistant;
+    return json['isAssistant'] == true
+        ? SeminarRole.assistant
+        : SeminarRole.participant;
+  }
+
+  static List<ProcedureRole> _procedureRolesFromJson(
+    Map<String, Object?> json,
+  ) {
+    final values = json['procedureRoles'];
+    if (values is List) {
+      final roles = values
+          .whereType<String>()
+          .map((value) => switch (value) {
+                'client' => ProcedureRole.client,
+                'companion' => ProcedureRole.companion,
+                _ => null,
+              })
+          .whereType<ProcedureRole>()
+          .toList();
+      if (roles.isNotEmpty) return roles;
+    }
+    return _seminarRoleFromJson(json) == SeminarRole.assistant
+        ? const [ProcedureRole.client, ProcedureRole.companion]
+        : const [ProcedureRole.client];
   }
 }

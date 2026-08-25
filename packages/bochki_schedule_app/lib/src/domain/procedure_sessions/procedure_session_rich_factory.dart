@@ -19,7 +19,9 @@ final class ProcedureSessionRichFactory {
     return ProcedureSessionRich(
       raw: raw,
       day: _findById(workdays, raw.dayId),
-      participant: humans.where((human) => human.isParticipant).fold<Human?>(
+      participant: humans
+          .where((human) => human.hasProcedureRole(ProcedureRole.client))
+          .fold<Human?>(
             null,
             (current, human) =>
                 current ?? (human.id == raw.participantId ? human : null),

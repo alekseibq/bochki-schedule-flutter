@@ -55,7 +55,8 @@ final class ProjectDocumentParticipantsRepository
       current.copyWith(
         name: entry.name,
         shortName: entry.name,
-        isParticipant: true,
+        seminarRole: SeminarRole.participant,
+        procedureRoles: const [ProcedureRole.client],
       ),
     );
     return entry;
@@ -75,15 +76,6 @@ final class ProjectDocumentParticipantsRepository
       return;
     }
 
-    await _humansRepository.update(
-      current.copyWith(
-        isParticipant: false,
-        isAssistant: current.isAssistant,
-      ),
-    );
-
-    if (!current.isAssistant) {
-      await _humansRepository.delete(entryId);
-    }
+    await _humansRepository.delete(entryId);
   }
 }
