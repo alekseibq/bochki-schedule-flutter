@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('ProcedureKindsViewModel', () {
     late _InMemoryProcedureKindsRepository repository;
+    late _InMemoryProcedureSessionsRepository sessionsRepository;
     late ProcedureKindsViewModel viewModel;
 
     setUp(() {
@@ -26,11 +27,15 @@ void main() {
           ),
         ],
       );
+      sessionsRepository = _InMemoryProcedureSessionsRepository();
       viewModel = ProcedureKindsViewModel(
         listProcedureKindsUseCase: ListProcedureKindsUseCase(repository),
         createProcedureKindUseCase: CreateProcedureKindUseCase(repository),
         updateProcedureKindUseCase: UpdateProcedureKindUseCase(repository),
-        deleteProcedureKindUseCase: DeleteProcedureKindUseCase(repository),
+        deleteProcedureKindUseCase: DeleteProcedureKindUseCase(
+          repository,
+          procedureSessionsRepository: sessionsRepository,
+        ),
       );
     });
 
@@ -106,7 +111,66 @@ void main() {
 
       expect(createdProcedureKind!.shortName, 'Бег');
     });
+
+    test('keeps the procedure kind when deletion is blocked by assignments',
+        () async {
+      sessionsRepository.sessions.add(
+        ProcedureSessionRaw(
+          id: '1',
+          dayId: '1',
+          startTime: '10:00',
+          procedureKindId: '1',
+        ),
+      );
+      await viewModel.loadProcedureKinds();
+
+      final result = await viewModel.deleteProcedureKind('1');
+
+      expect(result, isA<ProcedureKindDeletionBlocked>());
+      expect(
+        (result as ProcedureKindDeletionBlocked).referencesCount,
+        1,
+      );
+      expect(viewModel.procedureKinds.map((entry) => entry.id), contains('1'));
+    });
   });
+}
+
+final class _InMemoryProcedureSessionsRepository
+    implements ProcedureSessionsRepository {
+  final List<ProcedureSessionRaw> sessions = [];
+
+  @override
+  Future<ProcedureSessionRaw> create(ProcedureSessionRaw procedureSession) {
+    sessions.add(procedureSession);
+    return Future.value(procedureSession);
+  }
+
+  @override
+  Future<void> delete(String procedureSessionId) async {
+    sessions.removeWhere((session) => session.id == procedureSessionId);
+  }
+
+  @override
+  Future<int> clearAll() async {
+    final count = sessions.length;
+    sessions.clear();
+    return count;
+  }
+
+  @override
+  Future<List<ProcedureSessionRaw>> list() async => [...sessions];
+
+  @override
+  Future<ProcedureSessionRaw> update(ProcedureSessionRaw procedureSession) =>
+      Future.value(procedureSession);
+
+  @override
+  Future<void> updateMany(List<ProcedureSessionRaw> procedureSessions) async {
+    for (final procedureSession in procedureSessions) {
+      await update(procedureSession);
+    }
+  }
 }
 
 final class _InMemoryProcedureKindsRepository

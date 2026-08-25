@@ -66,8 +66,10 @@ void main() {
           CreateProcedureKindUseCase(procedureKindsRepository),
       updateProcedureKindUseCase:
           UpdateProcedureKindUseCase(procedureKindsRepository),
-      deleteProcedureKindUseCase:
-          DeleteProcedureKindUseCase(procedureKindsRepository),
+      deleteProcedureKindUseCase: DeleteProcedureKindUseCase(
+        procedureKindsRepository,
+        procedureSessionsRepository: procedureSessionsRepository,
+      ),
       listWorkdaysUseCase: ListWorkdaysUseCase(workdaysRepository),
       createWorkdayUseCase: CreateWorkdayUseCase(workdaysRepository),
       updateWorkdayUseCase: UpdateWorkdayUseCase(workdaysRepository),

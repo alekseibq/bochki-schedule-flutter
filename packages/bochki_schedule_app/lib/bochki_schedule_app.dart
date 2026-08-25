@@ -17,6 +17,7 @@ export 'src/domain/procedure_kinds/create_procedure_kind_use_case.dart';
 export 'src/domain/procedure_kinds/delete_procedure_kind_use_case.dart';
 export 'src/domain/procedure_kinds/list_procedure_kinds_use_case.dart';
 export 'src/domain/procedure_kinds/procedure_kind.dart';
+export 'src/domain/procedure_kinds/procedure_kind_in_use_exception.dart';
 export 'src/domain/procedure_kinds/procedure_kind_pattern.dart';
 export 'src/domain/procedure_kinds/procedure_kinds_repository.dart';
 export 'src/domain/procedure_kinds/procedure_kinds_validation_exception.dart';

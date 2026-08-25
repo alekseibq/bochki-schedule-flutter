@@ -79,7 +79,9 @@ class QuickReassignmentsDialog extends StatelessWidget {
                                   (id) => viewModel.changeParticipant(s, id))),
                               DataCell(_person(
                                   s.assistantId,
-                                  s.assistant?.name ?? 'Ассистент не назначен',
+                                  s.assistantId == null
+                                      ? 'Ассистент не назначен'
+                                      : s.assistant?.name ?? 'Не найден',
                                   viewModel.assistantCandidates(s),
                                   (id) => viewModel.chooseAssistant(s, id),
                                   assistant: true)),
@@ -104,31 +106,55 @@ class QuickReassignmentsDialog extends StatelessWidget {
           {bool assistant = false}) =>
       Row(children: [
         Expanded(
-            child: DropdownButton<String>(
-                isExpanded: true,
-                value: value,
-                items: [
-                  for (final h in candidates)
-                    DropdownMenuItem(
-                        value:
-                            assistant ? h.human.id as String : h.id as String,
-                        child: Text(assistant
-                            ? (h.human.id == value
-                                ? h.human.name as String
-                                : h.isSwap
-                                    ? '${h.human.name} (${h.swapSession.participant?.name ?? 'Не найден'})'
-                                    : '${h.human.name} (Свободен)')
-                            : (h.id == value
-                                ? h.name as String
-                                : '${h.name} (свободен)')))
-                ],
-                onChanged: (id) {
-                  if (id != null) {
-                    final item = candidates.firstWhere(
-                        (h) => assistant ? h.human.id == id : h.id == id);
-                    change(assistant ? item : id);
-                  }
-                })),
+            child: _personDropdown(
+          value,
+          candidates,
+          change,
+          assistant: assistant,
+        )),
         Tooltip(message: label, child: const Icon(Icons.info_outline, size: 18))
       ]);
+
+  Widget _personDropdown(
+    String? value,
+    List<dynamic> candidates,
+    Future<void> Function(dynamic) change, {
+    required bool assistant,
+  }) {
+    final candidatesById = <String, dynamic>{};
+    for (final candidate in candidates) {
+      final id =
+          assistant ? candidate.human.id as String : candidate.id as String;
+      candidatesById.putIfAbsent(id, () => candidate);
+    }
+    return DropdownButton<String>(
+      isExpanded: true,
+      value: value,
+      items: [
+        if (value != null && !candidatesById.containsKey(value))
+          DropdownMenuItem(value: value, child: const Text('Не найден')),
+        for (final entry in candidatesById.entries)
+          DropdownMenuItem(
+            value: entry.key,
+            child: Text(_candidateLabel(entry.value, value, assistant)),
+          ),
+      ],
+      onChanged: (id) {
+        if (id == null) return;
+        final candidate = candidatesById[id];
+        if (candidate != null) change(assistant ? candidate : id);
+      },
+    );
+  }
+
+  String _candidateLabel(dynamic candidate, String? value, bool assistant) =>
+      assistant
+          ? candidate.human.id == value
+              ? candidate.human.name as String
+              : candidate.isSwap
+                  ? '${candidate.human.name} (${candidate.swapSession.participant?.name ?? 'Не найден'})'
+                  : '${candidate.human.name} (Свободен)'
+          : candidate.id == value
+              ? candidate.name as String
+              : '${candidate.name} (свободен)';
 }

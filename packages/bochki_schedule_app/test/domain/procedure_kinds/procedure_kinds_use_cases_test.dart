@@ -166,7 +166,158 @@ void main() {
         ),
       );
     });
+
+    test('delete removes a procedure kind without active assignments',
+        () async {
+      final repository = _InMemoryProcedureKindsRepository(
+        procedureKinds: [_procedureKind('1')],
+      );
+      final useCase = DeleteProcedureKindUseCase(
+        repository,
+        procedureSessionsRepository: _InMemoryProcedureSessionsRepository(),
+      );
+
+      await useCase.execute('1');
+
+      expect(await repository.list(), isEmpty);
+    });
+
+    test('delete is blocked and returns the active assignment count', () async {
+      final repository = _InMemoryProcedureKindsRepository(
+        procedureKinds: [_procedureKind('1')],
+      );
+      final sessionsRepository = _InMemoryProcedureSessionsRepository(
+        entries: [_StoredSession(_session('1', procedureKindId: '1'), false)],
+      );
+      final useCase = DeleteProcedureKindUseCase(
+        repository,
+        procedureSessionsRepository: sessionsRepository,
+      );
+
+      expect(await useCase.countReferences('1'), 1);
+      await expectLater(
+        () => useCase.execute('1'),
+        throwsA(
+          isA<ProcedureKindInUseException>().having(
+            (error) => error.referencesCount,
+            'referencesCount',
+            1,
+          ),
+        ),
+      );
+      expect((await repository.list()).single.id, '1');
+    });
+
+    test('delete ignores logically deleted assignments', () async {
+      final repository = _InMemoryProcedureKindsRepository(
+        procedureKinds: [_procedureKind('1')],
+      );
+      final sessionsRepository = _InMemoryProcedureSessionsRepository(
+        entries: [_StoredSession(_session('1', procedureKindId: '1'), true)],
+      );
+      final useCase = DeleteProcedureKindUseCase(
+        repository,
+        procedureSessionsRepository: sessionsRepository,
+      );
+
+      expect(await useCase.countReferences('1'), 0);
+      await useCase.execute('1');
+
+      expect(await repository.list(), isEmpty);
+    });
+
+    test('delete validates the procedure kind id before counting references',
+        () async {
+      final useCase = DeleteProcedureKindUseCase(
+        _InMemoryProcedureKindsRepository(),
+        procedureSessionsRepository: _InMemoryProcedureSessionsRepository(),
+      );
+
+      await expectLater(
+        () => useCase.execute('  '),
+        throwsA(isA<ProcedureKindsValidationException>()),
+      );
+    });
   });
+}
+
+ProcedureKind _procedureKind(String id) => ProcedureKind(
+      id: id,
+      patternId: ProcedureKindPatterns.single.patternId,
+      name: 'Процедура $id',
+      capacity: 1,
+      participantBusyTime: 20,
+    );
+
+ProcedureSessionRaw _session(
+  String id, {
+  required String procedureKindId,
+}) =>
+    ProcedureSessionRaw(
+      id: id,
+      dayId: '1',
+      startTime: '10:00',
+      procedureKindId: procedureKindId,
+    );
+
+final class _InMemoryProcedureSessionsRepository
+    implements ProcedureSessionsRepository {
+  _InMemoryProcedureSessionsRepository({List<_StoredSession>? entries})
+      : _sessions = [...?entries];
+
+  final List<_StoredSession> _sessions;
+
+  @override
+  Future<ProcedureSessionRaw> create(ProcedureSessionRaw procedureSession) {
+    _sessions.add(_StoredSession(procedureSession, false));
+    return Future.value(procedureSession);
+  }
+
+  @override
+  Future<void> delete(String procedureSessionId) async {
+    final index = _sessions.indexWhere(
+      (entry) => entry.session.id == procedureSessionId,
+    );
+    if (index != -1) {
+      _sessions[index] = _sessions[index].copyWith(deleted: true);
+    }
+  }
+
+  @override
+  Future<int> clearAll() async {
+    final count = (await list()).length;
+    for (final session in await list()) {
+      await delete(session.id);
+    }
+    return count;
+  }
+
+  @override
+  Future<List<ProcedureSessionRaw>> list() async => _sessions
+      .where((entry) => !entry.deleted)
+      .map((entry) => entry.session)
+      .toList(growable: false);
+
+  @override
+  Future<ProcedureSessionRaw> update(ProcedureSessionRaw procedureSession) =>
+      Future.value(procedureSession);
+
+  @override
+  Future<void> updateMany(List<ProcedureSessionRaw> procedureSessions) async {
+    for (final procedureSession in procedureSessions) {
+      await update(procedureSession);
+    }
+  }
+}
+
+final class _StoredSession {
+  const _StoredSession(this.session, this.deleted);
+
+  final ProcedureSessionRaw session;
+  final bool deleted;
+
+  _StoredSession copyWith({bool? deleted}) =>
+      _StoredSession(session, deleted ?? this.deleted);
 }
 
 final class _InMemoryProcedureKindsRepository
