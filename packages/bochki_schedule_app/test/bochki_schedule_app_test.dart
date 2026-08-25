@@ -1784,12 +1784,13 @@ void main() {
     await tester.enterText(capacity, '0');
     expect(tester.widget<TextField>(capacity).controller!.text, '0');
 
+    final participantPopularValues = find.byKey(
+      const Key('procedure_kind_participant_busy_time_field_popular_values'),
+      skipOffstage: false,
+    );
+    await tester.ensureVisible(participantPopularValues);
     await tester.tap(
-      find.byKey(
-        const Key(
-          'procedure_kind_participant_busy_time_field_popular_values',
-        ),
-      ),
+      participantPopularValues,
     );
     await tester.pumpAndSettle();
     expect(
@@ -1818,14 +1819,13 @@ void main() {
 
     final participantField = find.byKey(
       const Key('procedure_kind_participant_busy_time_field'),
+      skipOffstage: false,
     );
+    await tester.ensureVisible(participantField);
     await tester.enterText(participantField, '7');
+    await tester.ensureVisible(participantPopularValues);
     await tester.tap(
-      find.byKey(
-        const Key(
-          'procedure_kind_participant_busy_time_field_popular_values',
-        ),
-      ),
+      participantPopularValues,
     );
     await tester.pumpAndSettle();
     await tester.tap(
