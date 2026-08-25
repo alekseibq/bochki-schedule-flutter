@@ -111,8 +111,8 @@ List<String> descendantWindowIdsInCloseOrder({
   final result = <String>[];
   final visited = <String>{};
   void visit(String parentId) {
-    for (final entry in parentWindowIds.entries
-        .where((entry) => entry.value == parentId)) {
+    for (final entry
+        in parentWindowIds.entries.where((entry) => entry.value == parentId)) {
       if (!visited.add(entry.key)) continue;
       visit(entry.key);
       result.add(entry.key);
@@ -1127,20 +1127,22 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
 
   Future<void> _listen() async {
     final controller = await WindowController.fromCurrentEngine();
-    await controller.setWindowMethodHandler((call) async {
-      if (call.method == 'directory_changed') {
-        await _load();
-        return null;
-      }
-      if (call.method == 'window_close') {
-        return closeCurrentDesktopWindow(
-          cascade: (call.arguments as Map?)?['cascade'] == true,
-        );
-      }
-      if (call.method == 'window_bounds') return currentWindowBoundsMap();
-      if (call.method == 'window_focus') return windowManager.focus();
-      throw MissingPluginException('Unknown procedure-session-window method');
-    });
+    await controller.setWindowMethodHandler(_handleWindowMethod);
+  }
+
+  Future<dynamic> _handleWindowMethod(MethodCall call) async {
+    if (call.method == 'directory_changed') {
+      await _load();
+      return null;
+    }
+    if (call.method == 'window_close') {
+      return closeCurrentDesktopWindow(
+        cascade: (call.arguments as Map?)?['cascade'] == true,
+      );
+    }
+    if (call.method == 'window_bounds') return currentWindowBoundsMap();
+    if (call.method == 'window_focus') return windowManager.focus();
+    throw MissingPluginException('Unknown procedure-session-window method');
   }
 
   Future<void> _load() async {
