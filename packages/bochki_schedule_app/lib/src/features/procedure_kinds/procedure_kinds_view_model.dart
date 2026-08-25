@@ -4,6 +4,7 @@ import '../../domain/procedure_kinds/create_procedure_kind_use_case.dart';
 import '../../domain/procedure_kinds/delete_procedure_kind_use_case.dart';
 import '../../domain/procedure_kinds/list_procedure_kinds_use_case.dart';
 import '../../domain/procedure_kinds/procedure_kind.dart';
+import '../../domain/procedure_kinds/procedure_kind_in_use_exception.dart';
 import '../../domain/procedure_kinds/procedure_kinds_validation_exception.dart';
 import '../../domain/procedure_kinds/update_procedure_kind_use_case.dart';
 
@@ -130,7 +131,12 @@ final class ProcedureKindsViewModel extends ChangeNotifier {
     });
   }
 
-  Future<bool> deleteProcedureKind(String procedureKindId) async {
+  Future<int> countReferences(String procedureKindId) {
+    return _deleteProcedureKindUseCase.countReferences(procedureKindId);
+  }
+
+  Future<ProcedureKindDeleteResult> deleteProcedureKind(
+      String procedureKindId) async {
     _actionErrorMessage = null;
     _isSaving = true;
     notifyListeners();
@@ -140,13 +146,15 @@ final class ProcedureKindsViewModel extends ChangeNotifier {
       _procedureKinds = _procedureKinds
           .where((procedureKind) => procedureKind.id != procedureKindId)
           .toList(growable: false);
-      return true;
+      return const ProcedureKindDeleted();
+    } on ProcedureKindInUseException catch (error) {
+      return ProcedureKindDeletionBlocked(error.referencesCount);
     } on ProcedureKindsValidationException catch (error) {
       _actionErrorMessage = error.message;
-      return false;
+      return const ProcedureKindDeletionFailed();
     } catch (_) {
       _actionErrorMessage = 'Не удалось удалить процедуру.';
-      return false;
+      return const ProcedureKindDeletionFailed();
     } finally {
       _isSaving = false;
       notifyListeners();
@@ -234,4 +242,22 @@ final class ProcedureKindsViewModel extends ChangeNotifier {
     );
     return List<ProcedureKind>.unmodifiable(sortedProcedureKinds);
   }
+}
+
+sealed class ProcedureKindDeleteResult {
+  const ProcedureKindDeleteResult();
+}
+
+final class ProcedureKindDeleted extends ProcedureKindDeleteResult {
+  const ProcedureKindDeleted();
+}
+
+final class ProcedureKindDeletionBlocked extends ProcedureKindDeleteResult {
+  const ProcedureKindDeletionBlocked(this.referencesCount);
+
+  final int referencesCount;
+}
+
+final class ProcedureKindDeletionFailed extends ProcedureKindDeleteResult {
+  const ProcedureKindDeletionFailed();
 }

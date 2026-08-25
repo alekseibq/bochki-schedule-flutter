@@ -211,6 +211,7 @@ final class AppBootstrap {
     );
     final deleteProcedureKindUseCase = DeleteProcedureKindUseCase(
       procedureKindsRepository,
+      procedureSessionsRepository: procedureSessionsRepository,
     );
     final listWorkdaysUseCase = ListWorkdaysUseCase(
       workdaysRepository,

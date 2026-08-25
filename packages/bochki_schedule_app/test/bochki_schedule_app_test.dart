@@ -1618,6 +1618,49 @@ void main() {
     expect(context.procedureKindsRepository.procedureKinds, isEmpty);
   });
 
+  testWidgets('procedure kind deletion is blocked by assigned procedures', (
+    tester,
+  ) async {
+    final context = _buildTestContext(
+      procedureKinds: [
+        ProcedureKind(
+          id: '1',
+          patternId: ProcedureKindPatterns.single.patternId,
+          name: 'Бег',
+          capacity: 1,
+          participantBusyTime: 20,
+        ),
+      ],
+      procedureSessions: [
+        ProcedureSessionRaw(
+          id: '2',
+          dayId: '1',
+          startTime: '10:00',
+          procedureKindId: '1',
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openProcedureKindsDialog(tester);
+
+    await tester.tap(find.byKey(const Key('procedure_kind_delete_1')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Невозможно удалить процедуру'), findsOneWidget);
+    expect(find.textContaining('1 назначенная процедура'), findsOneWidget);
+    expect(find.text('Понятно'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(AlertDialog).last,
+        matching: find.text('Удалить'),
+      ),
+      findsNothing,
+    );
+    expect(context.procedureKindsRepository.procedureKinds, hasLength(1));
+  });
+
   testWidgets('procedure kind form uses compact two-column layout', (
     tester,
   ) async {
@@ -2345,8 +2388,10 @@ _TestContext _buildTestContext({
           CreateProcedureKindUseCase(procedureKindsRepository),
       updateProcedureKindUseCase:
           UpdateProcedureKindUseCase(procedureKindsRepository),
-      deleteProcedureKindUseCase:
-          DeleteProcedureKindUseCase(procedureKindsRepository),
+      deleteProcedureKindUseCase: DeleteProcedureKindUseCase(
+        procedureKindsRepository,
+        procedureSessionsRepository: procedureSessionsRepository,
+      ),
       listWorkdaysUseCase: ListWorkdaysUseCase(workdaysRepository),
       createWorkdayUseCase: CreateWorkdayUseCase(workdaysRepository),
       updateWorkdayUseCase: UpdateWorkdayUseCase(workdaysRepository),

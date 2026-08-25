@@ -86,6 +86,16 @@ class _ProcedureKindsDialogState extends State<ProcedureKindsDialog> {
   }
 
   Future<void> _deleteProcedureKind(ProcedureKind procedureKind) async {
+    final referencesCount =
+        await widget.viewModel.countReferences(procedureKind.id);
+    if (!mounted) {
+      return;
+    }
+    if (referencesCount > 0) {
+      await _showDeletionBlockedDialog(procedureKind, referencesCount);
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -111,17 +121,59 @@ class _ProcedureKindsDialogState extends State<ProcedureKindsDialog> {
       return;
     }
 
-    final isSuccess =
+    final result =
         await widget.viewModel.deleteProcedureKind(procedureKind.id);
-    if (!mounted || !isSuccess) {
+    if (!mounted) {
       return;
     }
+    if (result case ProcedureKindDeletionBlocked(:final referencesCount)) {
+      await _showDeletionBlockedDialog(procedureKind, referencesCount);
+      return;
+    }
+    if (result is ProcedureKindDeletionFailed) return;
 
     setState(() {
       if (_selectedProcedureKindId == procedureKind.id) {
         _selectedProcedureKindId = null;
       }
     });
+  }
+
+  Future<void> _showDeletionBlockedDialog(
+    ProcedureKind procedureKind,
+    int referencesCount,
+  ) {
+    return showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Невозможно удалить процедуру'),
+        content: Text(
+          'Найдено: $referencesCount '
+          '${ProcedureKindsDialog.assignedProcedureWord(referencesCount)} '
+          'для процедуры '
+          '"${procedureKind.name}". '
+          'Сначала удалите эти назначенные процедуры.',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Понятно'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String assignedProcedureWord(int count) {
+    final remainder100 = count % 100;
+    if (remainder100 >= 11 && remainder100 <= 14) {
+      return 'назначенных процедур';
+    }
+    return switch (count % 10) {
+      1 => 'назначенная процедура',
+      2 || 3 || 4 => 'назначенные процедуры',
+      _ => 'назначенных процедур',
+    };
   }
 
   @override
