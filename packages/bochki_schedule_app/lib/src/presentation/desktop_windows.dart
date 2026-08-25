@@ -5,6 +5,7 @@ import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:screen_retriever/screen_retriever.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../domain/assistants/assistant.dart';
@@ -42,13 +43,189 @@ const _mainChannel = WindowMethodChannel(
   mode: ChannelMode.unidirectional,
 );
 
+WindowConfiguration childWindowConfiguration(String arguments) =>
+    WindowConfiguration(arguments: arguments, hiddenAtLaunch: true);
+
 DesktopWindowKind windowKindFromArguments(String value) {
+  return windowDescriptorFromArguments(value).kind;
+}
+
+final class DesktopWindowDescriptor {
+  const DesktopWindowDescriptor({
+    required this.kind,
+    this.parentWindowId,
+    this.ancestorWindowIds = const [],
+  });
+
+  final DesktopWindowKind kind;
+  final String? parentWindowId;
+  final List<String> ancestorWindowIds;
+}
+
+DesktopWindowDescriptor windowDescriptorFromArguments(String value) {
   try {
-    return DesktopWindowKind.values.byName(
-      (jsonDecode(value) as Map<String, dynamic>)['kind'] as String,
+    final values = Map<String, dynamic>.from(jsonDecode(value) as Map);
+    return DesktopWindowDescriptor(
+      kind: DesktopWindowKind.values.byName(values['kind'] as String),
+      parentWindowId: values['parentWindowId'] as String?,
+      ancestorWindowIds: List<String>.from(
+        values['ancestorWindowIds'] as List? ?? const [],
+      ),
     );
   } catch (_) {
-    return DesktopWindowKind.main;
+    return const DesktopWindowDescriptor(kind: DesktopWindowKind.main);
+  }
+}
+
+Future<Map<String, double>> currentWindowBoundsMap() async {
+  final bounds = await windowManager.getBounds();
+  return {
+    'left': bounds.left,
+    'top': bounds.top,
+    'width': bounds.width,
+    'height': bounds.height,
+  };
+}
+
+Rect windowBoundsFromMap(Map<dynamic, dynamic> values) => Rect.fromLTWH(
+      (values['left'] as num).toDouble(),
+      (values['top'] as num).toDouble(),
+      (values['width'] as num).toDouble(),
+      (values['height'] as num).toDouble(),
+    );
+
+Offset centeredWindowPosition({
+  required Rect workArea,
+  required Size windowSize,
+}) =>
+    Offset(
+      workArea.left + (workArea.width - windowSize.width) / 2,
+      workArea.top + (workArea.height - windowSize.height) / 2,
+    );
+
+/// Returns descendants in close order: deepest windows first.
+List<String> descendantWindowIdsInCloseOrder({
+  required String parentWindowId,
+  required Map<String, String> parentWindowIds,
+}) {
+  final result = <String>[];
+  final visited = <String>{};
+  void visit(String parentId) {
+    for (final entry in parentWindowIds.entries
+        .where((entry) => entry.value == parentId)) {
+      if (!visited.add(entry.key)) continue;
+      visit(entry.key);
+      result.add(entry.key);
+    }
+  }
+
+  visit(parentWindowId);
+  return result;
+}
+
+DesktopWindowLifecycle? _windowLifecycle;
+
+Future<void> initializeDesktopWindowLifecycle() async {
+  _windowLifecycle ??= DesktopWindowLifecycle();
+  await _windowLifecycle!.initialize();
+}
+
+Future<void> closeCurrentDesktopWindow({bool cascade = false}) async {
+  final lifecycle = _windowLifecycle;
+  if (lifecycle == null) return windowManager.close();
+  await lifecycle.close(cascade: cascade);
+}
+
+/// Coordinates native close events in one Flutter engine.  The window list and
+/// `parentWindowId` arguments are the shared source of truth across engines.
+final class DesktopWindowLifecycle with WindowListener {
+  WindowController? _current;
+  bool _initialized = false;
+  bool _closing = false;
+
+  Future<void> initialize() async {
+    if (_initialized) return;
+    _current = await WindowController.fromCurrentEngine();
+    await windowManager.setPreventClose(true);
+    windowManager.addListener(this);
+    await _current!.setWindowMethodHandler(_handleControlCall);
+    _initialized = true;
+  }
+
+  Future<dynamic> _handleControlCall(MethodCall call) async {
+    switch (call.method) {
+      case 'window_focus':
+        await windowManager.focus();
+        return;
+      case 'window_close':
+        await close(cascade: (call.arguments as Map?)?['cascade'] == true);
+        return;
+      case 'window_bounds':
+        return currentWindowBoundsMap();
+      default:
+        throw MissingPluginException('Unknown window lifecycle method');
+    }
+  }
+
+  @override
+  void onWindowClose() => unawaited(close());
+
+  Future<void> close({bool cascade = false}) async {
+    if (_closing) return;
+    _closing = true;
+    try {
+      final current = _current;
+      if (current != null) {
+        await _closeDescendants(current.windowId);
+        if (!cascade) await _activateParent(current.windowId);
+      }
+      await windowManager.setPreventClose(false);
+      await windowManager.close();
+    } catch (_) {
+      _closing = false;
+      rethrow;
+    }
+  }
+
+  Future<void> _closeDescendants(String parentWindowId) async {
+    final windows = await WindowController.getAll();
+    final byId = {for (final window in windows) window.windowId: window};
+    final parentIds = {
+      for (final window in windows)
+        if (windowDescriptorFromArguments(window.arguments).parentWindowId
+            case final parentId?)
+          window.windowId: parentId,
+    };
+    for (final id in descendantWindowIdsInCloseOrder(
+      parentWindowId: parentWindowId,
+      parentWindowIds: parentIds,
+    )) {
+      await byId[id]?.invokeMethod<void>('window_close', {'cascade': true});
+    }
+  }
+
+  Future<void> _activateParent(String currentWindowId) async {
+    final windows = await WindowController.getAll();
+    final byId = {for (final window in windows) window.windowId: window};
+    final current = byId[currentWindowId];
+    final descriptor = current == null
+        ? null
+        : windowDescriptorFromArguments(current.arguments);
+    final parentIds = [
+      if (descriptor?.parentWindowId case final parentId?) parentId,
+      if (descriptor != null) ...descriptor.ancestorWindowIds,
+    ];
+    final parent = parentIds
+        .map((parentId) => byId[parentId])
+        .whereType<WindowController>()
+        .firstOrNull;
+    final fallback = windows.where((window) =>
+        windowDescriptorFromArguments(window.arguments).kind ==
+        DesktopWindowKind.main);
+    final target = parent ?? (fallback.isEmpty ? null : fallback.first);
+    if (target == null) return;
+    await target.show();
+    await target.invokeMethod<void>('window_focus');
   }
 }
 
@@ -72,19 +249,14 @@ final class DesktopWindowCoordinator {
   final ProcedureSessionsViewModel _sessions;
   final DirectoryChangedCallback _onDirectoryChanged;
   ProcedureSessionRaw? _sessionDraft;
+  String? _mainWindowId;
 
-  Future<void> start() => _mainChannel.setMethodCallHandler(_handleCall);
+  Future<void> start() async {
+    _mainWindowId = (await WindowController.fromCurrentEngine()).windowId;
+    await _mainChannel.setMethodCallHandler(_handleCall);
+  }
 
   Future<void> dispose() => _mainChannel.setMethodCallHandler(null);
-
-  Future<void> closeChildren() async {
-    for (final controller in await WindowController.getAll()) {
-      if (windowKindFromArguments(controller.arguments) !=
-          DesktopWindowKind.main) {
-        await controller.invokeMethod<void>('window_close');
-      }
-    }
-  }
 
   Future<void> openStatistics() async {
     await _sessions.load();
@@ -107,10 +279,15 @@ final class DesktopWindowCoordinator {
   Future<void> openDirectoryEditor(
     DesktopWindowKind kind, {
     String? entryId,
+    String? parentWindowId,
   }) =>
-      _open(kind, entryId: entryId);
+      _open(kind, entryId: entryId, parentWindowId: parentWindowId);
 
-  Future<void> _open(DesktopWindowKind kind, {String? entryId}) async {
+  Future<void> _open(
+    DesktopWindowKind kind, {
+    String? entryId,
+    String? parentWindowId,
+  }) async {
     final existing = (await WindowController.getAll()).where(
       (controller) => windowKindFromArguments(controller.arguments) == kind,
     );
@@ -120,12 +297,38 @@ final class DesktopWindowCoordinator {
       return;
     }
     final controller = await WindowController.create(
-      WindowConfiguration(
-        arguments: jsonEncode(
-            {'kind': kind.name, if (entryId != null) 'entryId': entryId}),
+      childWindowConfiguration(
+        jsonEncode(await _windowArguments(
+          kind: kind,
+          entryId: entryId,
+          parentWindowId: parentWindowId ?? _mainWindowId,
+        )),
       ),
     );
-    await controller.show();
+  }
+
+  Future<Map<String, dynamic>> _windowArguments({
+    required DesktopWindowKind kind,
+    required String? entryId,
+    required String? parentWindowId,
+  }) async {
+    final parent = parentWindowId == null
+        ? null
+        : (await WindowController.getAll())
+            .where((window) => window.windowId == parentWindowId)
+            .firstOrNull;
+    final ancestors = parent == null
+        ? const <String>[]
+        : windowDescriptorFromArguments(parent.arguments).ancestorWindowIds;
+    return {
+      'kind': kind.name,
+      if (parentWindowId != null) 'parentWindowId': parentWindowId,
+      'ancestorWindowIds': [
+        if (parentWindowId != null) parentWindowId,
+        ...ancestors,
+      ],
+      if (entryId != null) 'entryId': entryId,
+    };
   }
 
   Future<dynamic> _handleCall(MethodCall call) async {
@@ -178,6 +381,7 @@ final class DesktopWindowCoordinator {
         await openDirectoryEditor(
           DesktopWindowKind.values.byName(values['kind'] as String),
           entryId: values['entryId'] as String?,
+          parentWindowId: values['parentWindowId'] as String?,
         );
         return null;
       case 'submitProcedureSession':
@@ -350,6 +554,7 @@ final class DesktopWindowCoordinator {
 
 Future<void> configureChildWindow(DesktopWindowKind kind) async {
   await windowManager.ensureInitialized();
+  await initializeDesktopWindowLifecycle();
   final isStatistics = kind == DesktopWindowKind.procedureStatistics;
   final isFreeTime = kind == DesktopWindowKind.freeTime;
   final title = switch (kind) {
@@ -388,9 +593,12 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
         : isEditor
             ? const Size(600, 420)
             : const Size(700, 500),
-    center: true,
+    center: false,
   );
   await windowManager.waitUntilReadyToShow(options, () async {
+    await windowManager.setPosition(
+      await childWindowPositionOnParentDisplay(options.size!),
+    );
     await windowManager.show();
     await windowManager.focus();
   });
@@ -401,12 +609,66 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
         await windowManager.focus();
         return null;
       case 'window_close':
-        await windowManager.close();
+        await closeCurrentDesktopWindow(
+          cascade: (call.arguments as Map?)?['cascade'] == true,
+        );
         return null;
+      case 'window_bounds':
+        return currentWindowBoundsMap();
       default:
         throw MissingPluginException('Unknown window method ${call.method}');
     }
   });
+}
+
+Future<Offset> childWindowPositionOnParentDisplay(Size windowSize) async {
+  final current = await WindowController.fromCurrentEngine();
+  final descriptor = windowDescriptorFromArguments(current.arguments);
+  final windows = await WindowController.getAll();
+  final parent = descriptor.parentWindowId == null
+      ? null
+      : windows
+          .where((window) => window.windowId == descriptor.parentWindowId)
+          .firstOrNull;
+  Rect? parentBounds;
+  if (parent != null) {
+    try {
+      final result = await parent.invokeMethod<Map>('window_bounds');
+      if (result != null) parentBounds = windowBoundsFromMap(result);
+    } catch (_) {
+      // Fall back to the primary display if the parent is no longer available.
+    }
+  }
+  final primary = await screenRetriever.getPrimaryDisplay();
+  final displays = await screenRetriever.getAllDisplays();
+  final display = displayForParentBounds(
+    primaryDisplay: primary,
+    displays: displays,
+    parentBounds: parentBounds,
+  );
+  return centeredWindowPosition(
+    workArea: displayWorkArea(display),
+    windowSize: windowSize,
+  );
+}
+
+Display displayForParentBounds({
+  required Display primaryDisplay,
+  required List<Display> displays,
+  required Rect? parentBounds,
+}) {
+  final parentCenter = parentBounds?.center;
+  if (parentCenter == null) return primaryDisplay;
+  return displays.firstWhere(
+    (display) => displayWorkArea(display).contains(parentCenter),
+    orElse: () => primaryDisplay,
+  );
+}
+
+Rect displayWorkArea(Display display) {
+  final position = display.visiblePosition ?? Offset.zero;
+  final size = display.visibleSize ?? display.size;
+  return Rect.fromLTWH(position.dx, position.dy, size.width, size.height);
 }
 
 class ProcedureStatisticsWindow extends StatefulWidget {
@@ -442,8 +704,12 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
           await windowManager.focus();
           return null;
         case 'window_close':
-          await windowManager.close();
+          await closeCurrentDesktopWindow(
+            cascade: (call.arguments as Map?)?['cascade'] == true,
+          );
           return null;
+        case 'window_bounds':
+          return currentWindowBoundsMap();
         case 'statistics_changed':
         case 'directory_changed':
           await _load();
@@ -615,9 +881,12 @@ class _FreeTimeWindowState extends State<FreeTimeWindow> {
         return null;
       }
       if (call.method == 'window_close') {
-        await windowManager.close();
+        await closeCurrentDesktopWindow(
+          cascade: (call.arguments as Map?)?['cascade'] == true,
+        );
         return null;
       }
+      if (call.method == 'window_bounds') return currentWindowBoundsMap();
       if (call.method == 'window_focus') {
         await windowManager.focus();
         return null;
@@ -863,7 +1132,12 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
         await _load();
         return null;
       }
-      if (call.method == 'window_close') return windowManager.close();
+      if (call.method == 'window_close') {
+        return closeCurrentDesktopWindow(
+          cascade: (call.arguments as Map?)?['cascade'] == true,
+        );
+      }
+      if (call.method == 'window_bounds') return currentWindowBoundsMap();
       if (call.method == 'window_focus') return windowManager.focus();
       throw MissingPluginException('Unknown procedure-session-window method');
     });
@@ -918,7 +1192,7 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
             }
             final value = Map<String, dynamic>.from(response);
             if (value['didSave'] as bool) {
-              await windowManager.close();
+              await closeCurrentDesktopWindow();
             }
             return value['didSave'] as bool
                 ? const ProcedureSessionSubmitResult.saved()
@@ -1068,8 +1342,12 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
           await windowManager.focus();
           return null;
         case 'window_close':
-          await windowManager.close();
+          await closeCurrentDesktopWindow(
+            cascade: (call.arguments as Map?)?['cascade'] == true,
+          );
           return null;
+        case 'window_bounds':
+          return currentWindowBoundsMap();
         case 'directory_changed':
           await _load();
           return null;
@@ -1142,7 +1420,7 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
       }) as Map);
       if (result['ok'] != true) throw StateError(result['error']);
       if (_isEditor) {
-        await windowManager.close();
+        await closeCurrentDesktopWindow();
         return;
       }
       _selectedId = id;
@@ -1156,9 +1434,14 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
     }
   }
 
-  Future<void> _openEditor(String editorKind, [String? id]) =>
-      _mainChannel.invokeMethod('openDirectoryEditor',
-          {'kind': editorKind, if (id != null) 'entryId': id});
+  Future<void> _openEditor(String editorKind, [String? id]) async {
+    final current = await WindowController.fromCurrentEngine();
+    await _mainChannel.invokeMethod('openDirectoryEditor', {
+      'kind': editorKind,
+      'parentWindowId': current.windowId,
+      if (id != null) 'entryId': id,
+    });
+  }
 
   @override
   void dispose() {
@@ -1418,7 +1701,7 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
         const Spacer(),
         Row(mainAxisAlignment: MainAxisAlignment.end, children: [
           TextButton(
-              onPressed: _saving ? null : () => windowManager.close(),
+              onPressed: _saving ? null : () => closeCurrentDesktopWindow(),
               child: const Text('Отмена')),
           const SizedBox(width: 12),
           FilledButton(

@@ -26,12 +26,24 @@ Use this checklist on the developer Windows machine after building or running th
 1. Start the desktop application.
 2. Verify that the main window opens with the title `ПО Расписание Бочки`.
 3. Verify that the window can be resized and does not collapse below the intended minimum layout.
+
 4. Open the `Справочники` menu in the header.
 5. Select `Ассистенты` and verify that the assistants dialog is shown.
 6. Verify that the assistants dialog supports create, edit, and delete for assistant rows.
 7. Open `Справочники` again, select `Участники`, and verify that the participants dialog is shown.
 8. Verify that the participants dialog contains the participant name field and the add/edit/delete controls.
 9. Verify that the application stays responsive and does not crash during those actions.
+
+## Nested Windows Smoke Checklist
+
+Run this check on both Windows and macOS:
+
+1. Open a directory window and then its editor window.
+2. Switch to another application, then return to the editor window.
+3. Close the editor with the system close button; verify that the directory window is shown and focused.
+4. Repeat using Cancel and a successful save; verify the same focus result.
+5. With the editor open, close the directory window with the system close button; verify that the editor closes too, without reactivating the directory.
+6. Move the parent window to a secondary monitor, then open each child-window type; verify that it first appears once, centered on that monitor, without a flash at the top-left corner.
 
 ## Linux Integration Prerequisites
 
