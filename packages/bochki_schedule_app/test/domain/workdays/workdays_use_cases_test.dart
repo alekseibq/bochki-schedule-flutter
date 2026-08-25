@@ -200,7 +200,8 @@ final class _ProcedureSessionsRepository
 
   @override
   Future<ProcedureSessionRaw> update(ProcedureSessionRaw procedureSession) {
-    final index = _sessions.indexWhere((entry) => entry.id == procedureSession.id);
+    final index =
+        _sessions.indexWhere((entry) => entry.id == procedureSession.id);
     if (index != -1) _sessions[index] = procedureSession;
     return Future.value(procedureSession);
   }
