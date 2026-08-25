@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.13.0
+
+Release date: 2026-08-25
+
+### Highlights
+
+- Improved the procedure-kind form and unified procedure roles for people.
+- Refined schedule reassignment, template loading, free-time results, and workday date selection.
+- Updated DOCX schedule exports to match the established print layout.
+
+### Details
+
+- `feat(print): match legacy DOCX layout (#139)`
+- `feat: improve procedure kind form (#131)`
+- `feat(domain): unify human procedure roles (#122)`
+- `fix(directories): clear procedure references on person deletion (#120)`
+- `fix(workdays): select calendar dates (#123)`
+- `fix(procedure-kinds): block deletion with assignments`
+- `fix(free-time): fit filters and scroll results`
+- `fix: handle cancelled template loads and stale quick assignments`
+- `fix: stabilize nested desktop windows (#138)`
+- `fix(ci): fail workspace tests on package errors (#136)`
+
 ## v0.12.0
 
 Release date: 2026-08-24
