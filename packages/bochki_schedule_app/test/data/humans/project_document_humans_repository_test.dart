@@ -90,7 +90,7 @@ void main() {
         repository.applyToDocument(ProjectDocument.initial());
 
     expect(humans, hasLength(1));
-    expect(humans.single.isParticipant, isTrue);
+    expect(humans.single.isParticipant, isFalse);
     expect(humans.single.isAssistant, isTrue);
     expect(exportedDocument.humans.first['seminarRole'], 'assistant');
     expect(repository.isDirty, isFalse);
@@ -145,7 +145,7 @@ void main() {
     expect(created.id, '2');
     expect(humans.single.name, 'Борис Общий');
     expect(humans.single.isParticipant, isTrue);
-    expect(humans.single.isAssistant, isTrue);
+    expect(humans.single.isAssistant, isFalse);
     expect(exportedDocument.humans, [
       <String, Object?>{
         'id': 1,

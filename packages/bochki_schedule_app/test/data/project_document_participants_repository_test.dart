@@ -135,7 +135,7 @@ void main() {
         'shortName': 'Борис',
         'seminarRole': 'assistant',
         'procedureRoles': ['client', 'companion'],
-        'deleted': false,
+        'deleted': true,
       },
       <String, Object?>{
         'id': 3,

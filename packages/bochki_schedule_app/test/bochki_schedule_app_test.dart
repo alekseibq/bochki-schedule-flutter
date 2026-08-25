@@ -1786,44 +1786,44 @@ void main() {
 
     await tester.tap(
       find.byKey(
-        const Key('procedure_kind_assistant_busy_time_field_popular_values'),
+        const Key('procedure_kind_participant_busy_time_field_popular_values'),
       ),
     );
     await tester.pumpAndSettle();
     expect(
-      find.byKey(const Key('procedure_kind_assistant_busy_time_suggestion_10')),
+      find.byKey(const Key('procedure_kind_participant_busy_time_suggestion_20')),
       findsOneWidget,
     );
     await tester.tap(
-      find.byKey(const Key('procedure_kind_assistant_busy_time_suggestion_10')),
+      find.byKey(const Key('procedure_kind_participant_busy_time_suggestion_20')),
     );
     await tester.pumpAndSettle();
     expect(
       tester
           .widget<TextField>(
-            find.byKey(const Key('procedure_kind_assistant_busy_time_field')),
+            find.byKey(const Key('procedure_kind_participant_busy_time_field')),
           )
           .controller!
           .text,
-      '10',
+      '20',
     );
 
-    final assistantField = find.byKey(
-      const Key('procedure_kind_assistant_busy_time_field'),
+    final participantField = find.byKey(
+      const Key('procedure_kind_participant_busy_time_field'),
     );
-    await tester.enterText(assistantField, '7');
+    await tester.enterText(participantField, '7');
     await tester.tap(
       find.byKey(
-        const Key('procedure_kind_assistant_busy_time_field_popular_values'),
+        const Key('procedure_kind_participant_busy_time_field_popular_values'),
       ),
     );
     await tester.pumpAndSettle();
     await tester.tap(
       find.byKey(
-          const Key('procedure_kind_assistant_busy_time_suggestion_skip')),
+          const Key('procedure_kind_participant_busy_time_suggestion_skip')),
     );
     await tester.pumpAndSettle();
-    expect(tester.widget<TextField>(assistantField).controller!.text, '7');
+    expect(tester.widget<TextField>(participantField).controller!.text, '7');
   });
 
   testWidgets('workdays dialog supports create edit delete and reorder stub', (

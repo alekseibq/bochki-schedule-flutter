@@ -134,9 +134,9 @@ void main() {
         'id': 1,
         'name': 'Борис',
         'shortName': 'Борис',
-        'seminarRole': 'participant',
-        'procedureRoles': ['client'],
-        'deleted': false,
+        'seminarRole': 'assistant',
+        'procedureRoles': ['client', 'companion'],
+        'deleted': true,
       },
       <String, Object?>{
         'id': 3,

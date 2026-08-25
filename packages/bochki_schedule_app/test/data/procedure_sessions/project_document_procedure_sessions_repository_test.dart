@@ -222,6 +222,6 @@ void main() {
     expect(active.participantId, isNull);
     expect(active.assistantId, isNull);
     final persisted = sessions.applyToDocument(document).procedureSessions;
-    expect(persisted.last['participantId'], 10);
+    expect(persisted.last['clientId'], 10);
   });
 }
