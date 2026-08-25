@@ -377,14 +377,14 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
   final options = WindowOptions(
     title: title,
     size: isStatistics || isFreeTime
-        ? const Size(1065, 514)
+        ? const Size(1080, 514)
         : isDirectory
             ? const Size(920, 640)
             : isEditor
                 ? const Size(650, 500)
                 : const Size(900, 680),
-    minimumSize: isStatistics
-        ? const Size(820, 420)
+    minimumSize: isStatistics || isFreeTime
+        ? const Size(1080, 420)
         : isEditor
             ? const Size(600, 420)
             : const Size(700, 500),
@@ -760,40 +760,85 @@ class _FreeTimeWindowState extends State<FreeTimeWindow> {
                 : _gaps.isEmpty
                     ? const Center(
                         child: Text('Нет данных по выбранным фильтрам'))
-                    : SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: DataTable(
-                            columns: const [
-                              DataColumn(label: Text('День')),
-                              DataColumn(label: Text('Человек')),
-                              DataColumn(label: Text('Начало')),
-                              DataColumn(label: Text('Конец')),
-                              DataColumn(label: Text('Длительность')),
-                              DataColumn(label: Text('')),
-                            ],
-                            rows: _gaps.map((g) {
-                              final day = _workdayFromMap(
-                                  Map<String, dynamic>.from(g['day'] as Map));
-                              final human = _humanFromMap(
-                                  Map<String, dynamic>.from(g['human'] as Map));
-                              return DataRow(cells: [
-                                DataCell(Text(day.name)),
-                                DataCell(Text(human.name)),
-                                DataCell(Text(g['start'] as String)),
-                                DataCell(Text(g['end'] as String)),
-                                DataCell(Text(g['duration'] as String)),
-                                DataCell(FilledButton.tonal(
-                                    onPressed: () => _mainChannel
-                                            .invokeMethod<void>(
-                                                'openProcedureSession', {
-                                          'dayId': day.id,
-                                          'participantId': human.id,
-                                          'startTime': g['start'] as String
-                                        }),
-                                    child: const Text('Занять участника'))),
-                              ]);
-                            }).toList()))),
+                    : FreeTimeResultsTable(
+                        gaps: _gaps,
+                        onOccupy: (gap) {
+                          final day = _workdayFromMap(
+                              Map<String, dynamic>.from(gap['day'] as Map));
+                          final human = _humanFromMap(
+                              Map<String, dynamic>.from(gap['human'] as Map));
+                          return _mainChannel.invokeMethod<void>(
+                              'openProcedureSession', {
+                            'dayId': day.id,
+                            'participantId': human.id,
+                            'startTime': gap['start'] as String,
+                          });
+                        },
+                      ),
       ])));
+}
+
+class FreeTimeResultsTable extends StatefulWidget {
+  const FreeTimeResultsTable({
+    required this.gaps,
+    required this.onOccupy,
+    super.key,
+  });
+
+  final List<Map<String, dynamic>> gaps;
+  final Future<void> Function(Map<String, dynamic> gap) onOccupy;
+
+  @override
+  State<FreeTimeResultsTable> createState() => _FreeTimeResultsTableState();
+}
+
+class _FreeTimeResultsTableState extends State<FreeTimeResultsTable> {
+  final _verticalScrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _verticalScrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scrollbar(
+        controller: _verticalScrollController,
+        thumbVisibility: true,
+        child: SingleChildScrollView(
+          controller: _verticalScrollController,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              columns: const [
+                DataColumn(label: Text('День')),
+                DataColumn(label: Text('Человек')),
+                DataColumn(label: Text('Начало')),
+                DataColumn(label: Text('Конец')),
+                DataColumn(label: Text('Длительность')),
+                DataColumn(label: Text('')),
+              ],
+              rows: widget.gaps.map((gap) {
+                final day = _workdayFromMap(
+                    Map<String, dynamic>.from(gap['day'] as Map));
+                final human = _humanFromMap(
+                    Map<String, dynamic>.from(gap['human'] as Map));
+                return DataRow(cells: [
+                  DataCell(Text(day.name)),
+                  DataCell(Text(human.name)),
+                  DataCell(Text(gap['start'] as String)),
+                  DataCell(Text(gap['end'] as String)),
+                  DataCell(Text(gap['duration'] as String)),
+                  DataCell(FilledButton.tonal(
+                    onPressed: () => widget.onOccupy(gap),
+                    child: const Text('Занять участника'),
+                  )),
+                ]);
+              }).toList(),
+            ),
+          ),
+        ),
+      );
 }
 
 class ProcedureSessionWindow extends StatefulWidget {
