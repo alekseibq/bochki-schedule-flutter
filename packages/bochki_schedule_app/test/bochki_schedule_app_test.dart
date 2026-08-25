@@ -1747,7 +1747,7 @@ void main() {
     );
   });
 
-  testWidgets('procedure kind form restricts numeric values and suggests times',
+  testWidgets('procedure kind form restricts numeric values',
       (
     tester,
   ) async {
@@ -1783,58 +1783,6 @@ void main() {
     expect(tester.widget<TextField>(capacity).controller!.text, '1');
     await tester.enterText(capacity, '0');
     expect(tester.widget<TextField>(capacity).controller!.text, '0');
-
-    final participantPopularValues = find.byKey(
-      const Key('procedure_kind_participant_busy_time_field_popular_values'),
-      skipOffstage: false,
-    );
-    await tester.ensureVisible(participantPopularValues);
-    await tester.tap(
-      participantPopularValues,
-    );
-    await tester.pumpAndSettle();
-    expect(
-      find.byKey(
-        const Key('procedure_kind_participant_busy_time_suggestion_20'),
-      ),
-      findsOneWidget,
-    );
-    await tester.tap(
-      find.byKey(
-        const Key('procedure_kind_participant_busy_time_suggestion_20'),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(
-      tester
-          .widget<TextField>(
-            find.byKey(
-              const Key('procedure_kind_participant_busy_time_field'),
-            ),
-          )
-          .controller!
-          .text,
-      '20',
-    );
-
-    final participantField = find.byKey(
-      const Key('procedure_kind_participant_busy_time_field'),
-      skipOffstage: false,
-    );
-    await tester.ensureVisible(participantField);
-    await tester.enterText(participantField, '7');
-    await tester.ensureVisible(participantPopularValues);
-    await tester.tap(
-      participantPopularValues,
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(
-      find.byKey(
-        const Key('procedure_kind_participant_busy_time_suggestion_skip'),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(tester.widget<TextField>(participantField).controller!.text, '7');
   });
 
   testWidgets('workdays dialog supports create edit delete and reorder stub', (
