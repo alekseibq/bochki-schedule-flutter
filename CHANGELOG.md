@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.13.2
+
+Release date: 2026-08-26
+
+### Highlights
+
+- Stabilized desktop child-window behavior during close and initialization.
+
+### Details
+
+- `fix(windows): use localized child content context (#147)`
+- `fix: prevent child window close race (#149)`
+- `fix(windows): route close events to the correct window (#150)`
+
 ## v0.13.1
 
 Release date: 2026-08-25
