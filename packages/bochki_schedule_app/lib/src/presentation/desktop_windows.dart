@@ -616,15 +616,14 @@ final class DesktopWindowCoordinator {
                 rawShortName: entry['shortName'] as String?);
           break;
         case 'procedureKinds':
-          final kind =
-              _kindFromMap({...entry, 'id': values['id'] as String? ?? 'new'});
-          if (action == 'delete')
-            await _services.deleteProcedureKindUseCase
-                .execute(values['id'] as String);
-          if (action == 'create')
-            await _services.createProcedureKindUseCase.execute(kind);
-          if (action == 'update')
-            await _services.updateProcedureKindUseCase.execute(kind);
+          await mutateProcedureKindDirectory(
+            action: action,
+            id: values['id'] as String?,
+            entry: entry,
+            create: _services.createProcedureKindUseCase.execute,
+            update: _services.updateProcedureKindUseCase.execute,
+            delete: _services.deleteProcedureKindUseCase.execute,
+          );
           break;
         case 'workdays':
           if (action == 'delete') {
@@ -1309,6 +1308,43 @@ ProcedureKind _kindFromMap(Map<String, dynamic> m) => ProcedureKind(
     participantBusyTime: m['participantBusyTime'] as int,
     assistantBusyTime: m['assistantBusyTime'] as int?,
     resourceBusyTime: m['resourceBusyTime'] as int?);
+
+/// Applies a procedure-directory command received from a child window.
+///
+/// Deletion deliberately does not decode an [entry]: the child only needs to
+/// send an identifier, so optional form fields cannot turn into a null cast.
+Future<void> mutateProcedureKindDirectory({
+  required String action,
+  required String? id,
+  required Map<String, dynamic> entry,
+  required Future<void> Function(ProcedureKind procedureKind) create,
+  required Future<void> Function(ProcedureKind procedureKind) update,
+  required Future<void> Function(String procedureKindId) delete,
+}) async {
+  switch (action) {
+    case 'delete':
+      await delete(_requiredProcedureKindId(id));
+      return;
+    case 'create':
+      await create(_kindFromMap({...entry, 'id': 'new'}));
+      return;
+    case 'update':
+      await update(
+        _kindFromMap({...entry, 'id': _requiredProcedureKindId(id)}),
+      );
+      return;
+    default:
+      throw ArgumentError.value(action, 'action');
+  }
+}
+
+String _requiredProcedureKindId(String? id) {
+  if (id == null || id.trim().isEmpty) {
+    throw ArgumentError.value(id, 'id');
+  }
+  return id;
+}
+
 Map<String, dynamic> _sessionMap(ProcedureSessionRaw s) => {
       'id': s.id,
       'dayId': s.dayId,
@@ -1379,6 +1415,8 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
   final _date = TextEditingController();
   final _capacity = TextEditingController(text: '1');
   final _participantTime = TextEditingController();
+  final _assistantTime = TextEditingController();
+  final _resourceTime = TextEditingController();
   String _patternId = 'curated';
 
   bool get _isEditor =>
@@ -1480,6 +1518,8 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
         (_kind == DesktopWindowKind.workdayEditor ? _nextWorkdayDate() : '');
     _capacity.text = '${entry?['capacity'] ?? 1}';
     _participantTime.text = '${entry?['participantBusyTime'] ?? ''}';
+    _assistantTime.text = '${entry?['assistantBusyTime'] ?? ''}';
+    _resourceTime.text = '${entry?['resourceBusyTime'] ?? ''}';
     _patternId = entry?['patternId'] as String? ?? 'curated';
   }
 
@@ -1530,6 +1570,8 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
     _date.dispose();
     _capacity.dispose();
     _participantTime.dispose();
+    _assistantTime.dispose();
+    _resourceTime.dispose();
     super.dispose();
   }
 
@@ -1995,6 +2037,22 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
               keyboardType: TextInputType.number,
               decoration:
                   const InputDecoration(labelText: 'Время участника, мин')),
+          if (_patternId == 'curated') ...[
+            const SizedBox(height: 12),
+            TextField(
+                controller: _assistantTime,
+                enabled: !_saving,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                    labelText: 'Время сопровождающего, мин')),
+            const SizedBox(height: 12),
+            TextField(
+                controller: _resourceTime,
+                enabled: !_saving,
+                keyboardType: TextInputType.number,
+                decoration:
+                    const InputDecoration(labelText: 'Время ресурса, мин')),
+          ],
         ] else ...[
           const Text('Дата'),
           const SizedBox(height: 4),
@@ -2036,8 +2094,12 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
               'patternId': _patternId,
               'capacity': int.tryParse(_capacity.text) ?? 0,
               'participantBusyTime': int.tryParse(_participantTime.text) ?? 0,
-              'assistantBusyTime': null,
-              'resourceBusyTime': null
+              'assistantBusyTime': _patternId == 'curated'
+                  ? int.tryParse(_assistantTime.text)
+                  : null,
+              'resourceBusyTime': _patternId == 'curated'
+                  ? int.tryParse(_resourceTime.text)
+                  : null,
             }
           : {'name': _name.text, 'date': _date.text};
 }

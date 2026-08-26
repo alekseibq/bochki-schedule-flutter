@@ -41,6 +41,48 @@ void main() {
     });
   });
 
+  group('mutateProcedureKindDirectory', () {
+    test('deletes by ID without decoding a missing form entry', () async {
+      final deletedIds = <String>[];
+
+      await mutateProcedureKindDirectory(
+        action: 'delete',
+        id: 'procedure-1',
+        entry: const {},
+        create: (_) async {},
+        update: (_) async {},
+        delete: (id) async => deletedIds.add(id),
+      );
+
+      expect(deletedIds, ['procedure-1']);
+    });
+
+    test('passes curated times through a create command', () async {
+      dynamic created;
+
+      await mutateProcedureKindDirectory(
+        action: 'create',
+        id: null,
+        entry: const {
+          'patternId': 'curated',
+          'name': 'Бочка',
+          'shortName': 'Бочка',
+          'capacity': 2,
+          'participantBusyTime': 30,
+          'assistantBusyTime': 10,
+          'resourceBusyTime': 15,
+        },
+        create: (kind) async => created = kind,
+        update: (_) async {},
+        delete: (_) async {},
+      );
+
+      expect(created.id, 'new');
+      expect(created.assistantBusyTime, 10);
+      expect(created.resourceBusyTime, 15);
+    });
+  });
+
   group('descendantWindowIdsInCloseOrder', () {
     test('closes deepest descendants before their parents', () {
       expect(
