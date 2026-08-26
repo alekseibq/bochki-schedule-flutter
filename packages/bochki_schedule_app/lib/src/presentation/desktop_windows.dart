@@ -125,37 +125,58 @@ List<String> descendantWindowIdsInCloseOrder({
   return result;
 }
 
-const _descendantCloseTimeout = Duration(seconds: 2);
-
-/// Requests that every descendant close, without allowing a stale or
-/// unresponsive window to block closure of its parent.
-Future<void> closeDescendantWindows({
+/// Starts a close request for every descendant without waiting for an IPC
+/// response from any of them.
+///
+/// A child can be in the process of destroying its Flutter engine when its
+/// parent is closed. Waiting for its method-channel response can therefore
+/// indefinitely prevent the native close requested for the parent.
+void requestDescendantWindowCloses({
   required Iterable<String> windowIds,
   required Future<void> Function(String windowId) requestClose,
-  Duration timeout = _descendantCloseTimeout,
-}) async {
-  final requests = <Future<void>>[
-    for (final windowId in windowIds)
-      () async {
-        try {
-          await requestClose(windowId);
-        } catch (error) {
-          // A native close may have destroyed the child after the window-list
-          // snapshot was read. Its parent must still be allowed to close.
-          debugPrint('Unable to close descendant window $windowId: $error');
-        }
-      }(),
-  ];
-  if (requests.isEmpty) return;
-
-  try {
-    await Future.wait(requests).timeout(timeout);
-  } on TimeoutException {
-    debugPrint(
-      'Timed out after ${timeout.inMilliseconds} ms while closing '
-      'descendant windows.',
-    );
+  required void Function(
+    String windowId,
+    Object error,
+    StackTrace stackTrace,
+  ) onError,
+}) {
+  for (final windowId in windowIds) {
+    unawaited(() async {
+      try {
+        await requestClose(windowId);
+      } catch (error, stackTrace) {
+        onError(windowId, error, stackTrace);
+      }
+    }());
   }
+}
+
+/// Schedules non-essential cross-window work, then closes the native window.
+///
+/// Closing the current native window is deliberately the only awaited action.
+/// This keeps a stale or unresponsive peer window from vetoing a user's close
+/// request.
+Future<void> closeWindowAfterSchedulingCleanup({
+  required Future<void> Function() requestDescendantCloses,
+  Future<void> Function()? activateParent,
+  required Future<void> Function() closeNativeWindow,
+  required void Function(Object error, StackTrace stackTrace) onCleanupError,
+}) async {
+  void schedule(Future<void> Function() operation) {
+    unawaited(() async {
+      try {
+        await operation();
+      } catch (error, stackTrace) {
+        onCleanupError(error, stackTrace);
+      }
+    }());
+  }
+
+  schedule(requestDescendantCloses);
+  if (activateParent != null) {
+    schedule(activateParent);
+  }
+  await closeNativeWindow();
 }
 
 DesktopWindowLifecycle? _windowLifecycle;
@@ -210,25 +231,28 @@ final class DesktopWindowLifecycle with WindowListener {
     _closing = true;
     try {
       final current = _current;
-      if (current != null) {
-        await _closeDescendants(current.windowId);
-        if (!cascade) await _activateParent(current.windowId);
-      }
-    } catch (error) {
-      // Cleanup is best effort: the native close requested by the user must
-      // continue even if another window disappeared mid-operation.
-      debugPrint('Unable to prepare desktop window for closing: $error');
-    }
-    try {
-      await windowManager.setPreventClose(false);
-      await windowManager.close();
+      await closeWindowAfterSchedulingCleanup(
+        requestDescendantCloses: current == null
+            ? () async {}
+            : () => _requestDescendantCloses(current.windowId),
+        activateParent: current == null || cascade
+            ? null
+            : () => _activateParent(current.windowId),
+        closeNativeWindow: _closeNativeWindow,
+        onCleanupError: _reportCleanupError,
+      );
     } catch (_) {
       _closing = false;
       rethrow;
     }
   }
 
-  Future<void> _closeDescendants(String parentWindowId) async {
+  Future<void> _closeNativeWindow() async {
+    await windowManager.setPreventClose(false);
+    await windowManager.close();
+  }
+
+  Future<void> _requestDescendantCloses(String parentWindowId) async {
     final windows = await WindowController.getAll();
     final byId = {for (final window in windows) window.windowId: window};
     final parentIds = {
@@ -237,13 +261,33 @@ final class DesktopWindowLifecycle with WindowListener {
             case final parentId?)
           window.windowId: parentId,
     };
-    await closeDescendantWindows(
+    requestDescendantWindowCloses(
       windowIds: descendantWindowIdsInCloseOrder(
         parentWindowId: parentWindowId,
         parentWindowIds: parentIds,
       ),
       requestClose: (id) =>
           byId[id]!.invokeMethod<void>('window_close', {'cascade': true}),
+      onError: (windowId, error, stackTrace) => _reportCleanupError(
+        error,
+        stackTrace,
+        context: 'while requesting close for descendant window $windowId',
+      ),
+    );
+  }
+
+  void _reportCleanupError(
+    Object error,
+    StackTrace stackTrace, {
+    String context = 'while performing window close cleanup',
+  }) {
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: error,
+        stack: stackTrace,
+        library: 'desktop windows',
+        context: ErrorDescription(context),
+      ),
     );
   }
 

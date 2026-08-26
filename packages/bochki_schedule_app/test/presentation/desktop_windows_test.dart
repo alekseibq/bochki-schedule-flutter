@@ -67,13 +67,14 @@ void main() {
     });
   });
 
-  group('closeDescendantWindows', () {
+  group('requestDescendantWindowCloses', () {
     test('requests every descendant in close order', () async {
       final requestedIds = <String>[];
 
-      await closeDescendantWindows(
+      requestDescendantWindowCloses(
         windowIds: const ['editor', 'directory'],
         requestClose: (id) async => requestedIds.add(id),
+        onError: (_, __, ___) {},
       );
 
       expect(requestedIds, ['editor', 'directory']);
@@ -81,33 +82,69 @@ void main() {
 
     test('continues when a descendant has already disappeared', () async {
       final requestedIds = <String>[];
+      final errors = <Object>[];
 
-      await closeDescendantWindows(
+      requestDescendantWindowCloses(
         windowIds: const ['editor', 'directory'],
         requestClose: (id) async {
           requestedIds.add(id);
           if (id == 'editor') throw StateError('window not found');
         },
+        onError: (_, error, __) => errors.add(error),
       );
+      await Future<void>.delayed(Duration.zero);
 
       expect(requestedIds, ['editor', 'directory']);
+      expect(errors, hasLength(1));
     });
 
-    test('does not block parent closure on an unresponsive descendant',
-        () async {
+    test('does not wait for an unresponsive descendant', () async {
       final requestedIds = <String>[];
       final neverCompletes = Completer<void>();
 
-      await closeDescendantWindows(
+      requestDescendantWindowCloses(
         windowIds: const ['editor', 'directory'],
         requestClose: (id) {
           requestedIds.add(id);
           return id == 'editor' ? neverCompletes.future : Future<void>.value();
         },
-        timeout: const Duration(milliseconds: 10),
+        onError: (_, __, ___) {},
       );
 
       expect(requestedIds, ['editor', 'directory']);
+    });
+  });
+
+  group('closeWindowAfterSchedulingCleanup', () {
+    test('closes natively without waiting for descendant or parent IPC',
+        () async {
+      final descendantClose = Completer<void>();
+      final parentActivation = Completer<void>();
+      var nativeCloseRequests = 0;
+
+      await closeWindowAfterSchedulingCleanup(
+        requestDescendantCloses: () => descendantClose.future,
+        activateParent: () => parentActivation.future,
+        closeNativeWindow: () async => nativeCloseRequests += 1,
+        onCleanupError: (_, __) {},
+      );
+
+      expect(nativeCloseRequests, 1);
+    });
+
+    test('reports a cleanup failure without cancelling native close', () async {
+      final cleanupErrors = <Object>[];
+      var nativeCloseRequests = 0;
+
+      await closeWindowAfterSchedulingCleanup(
+        requestDescendantCloses: () async => throw StateError('stale child'),
+        closeNativeWindow: () async => nativeCloseRequests += 1,
+        onCleanupError: (error, _) => cleanupErrors.add(error),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(nativeCloseRequests, 1);
+      expect(cleanupErrors, hasLength(1));
     });
   });
 
