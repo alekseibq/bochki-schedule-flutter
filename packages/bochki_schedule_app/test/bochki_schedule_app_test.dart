@@ -1726,6 +1726,29 @@ void main() {
     expect(capacityFieldWidth, equals(participantTimeFieldWidth));
   });
 
+  testWidgets('procedure kind form adapts to a narrow window', (tester) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final context = _buildTestContext();
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await _openProcedureKindsDialog(tester);
+    await tester.tap(find.byKey(const Key('procedure_kind_add_button')));
+    await tester.pumpAndSettle();
+    await tester.binding.setSurfaceSize(const Size(480, 800));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('procedure_kind_assistant_busy_time_field')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('procedure_kind_resource_busy_time_field')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('procedure kind create form defaults capacity to 1', (
     tester,
   ) async {
