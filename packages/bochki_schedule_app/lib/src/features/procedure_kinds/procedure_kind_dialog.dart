@@ -25,6 +25,7 @@ class ProcedureKindDialog extends StatefulWidget {
 
 class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
   static const double _dialogWidth = 640;
+  static const double _wideLayoutMinWidth = 520;
   static const double _labelColumnWidth = 172;
   static const double _selectFieldWidth = 320;
   static const double _numericFieldWidth = 72;
@@ -182,6 +183,11 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
     return AnimatedBuilder(
       animation: widget.viewModel,
       builder: (context, _) {
+        final contentWidth = (MediaQuery.sizeOf(context).width - 128)
+            .clamp(0.0, _dialogWidth)
+            .toDouble();
+        final isNarrowLayout = contentWidth < _wideLayoutMinWidth;
+
         return AlertDialog(
           key: Key(
             widget.isEditing
@@ -192,7 +198,7 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
             widget.isEditing ? 'Редактирование процедуры' : 'Новая процедура',
           ),
           content: SizedBox(
-            width: _dialogWidth,
+            width: contentWidth,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -201,6 +207,7 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
                   _FormRow(
                     label: 'Тип процедуры',
                     labelWidth: _labelColumnWidth,
+                    isNarrowLayout: isNarrowLayout,
                     child: SizedBox(
                       width: _selectFieldWidth,
                       child: DropdownButtonFormField<String>(
@@ -223,6 +230,7 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
                   _FormRow(
                     label: 'Название',
                     labelWidth: _labelColumnWidth,
+                    isNarrowLayout: isNarrowLayout,
                     child: TextField(
                       key: const Key('procedure_kind_name_field'),
                       controller: _nameController,
@@ -234,6 +242,7 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
                   _FormRow(
                     label: 'Краткое название',
                     labelWidth: _labelColumnWidth,
+                    isNarrowLayout: isNarrowLayout,
                     child: TextField(
                       key: const Key('procedure_kind_short_name_field'),
                       controller: _shortNameController,
@@ -245,6 +254,7 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
                   _FormRow(
                     label: 'Емкость',
                     labelWidth: _labelColumnWidth,
+                    isNarrowLayout: isNarrowLayout,
                     child: _NumericField(
                       fieldKey: const Key('procedure_kind_capacity_field'),
                       controller: _capacityController,
@@ -265,6 +275,7 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
                   _FormRow(
                     label: 'Время участника (мин)',
                     labelWidth: _labelColumnWidth,
+                    isNarrowLayout: isNarrowLayout,
                     child: _NumericField(
                       fieldKey: const Key(
                         'procedure_kind_participant_busy_time_field',
@@ -295,6 +306,7 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
                     _FormRow(
                       label: 'Время сопровождающего (мин)',
                       labelWidth: _labelColumnWidth,
+                      isNarrowLayout: isNarrowLayout,
                       child: _NumericField(
                         fieldKey: const Key(
                           'procedure_kind_assistant_busy_time_field',
@@ -324,6 +336,7 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
                     _FormRow(
                       label: 'Время ресурса (мин)',
                       labelWidth: _labelColumnWidth,
+                      isNarrowLayout: isNarrowLayout,
                       child: _NumericField(
                         fieldKey: const Key(
                           'procedure_kind_resource_busy_time_field',
@@ -386,15 +399,28 @@ class _FormRow extends StatelessWidget {
   const _FormRow({
     required this.label,
     required this.labelWidth,
+    required this.isNarrowLayout,
     required this.child,
   });
 
   final String label;
   final double labelWidth;
+  final bool isNarrowLayout;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
+    if (isNarrowLayout) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label),
+          const SizedBox(height: 4),
+          child,
+        ],
+      );
+    }
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
