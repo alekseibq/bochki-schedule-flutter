@@ -29,12 +29,14 @@ void main() {
       );
       sessionsRepository = _InMemoryProcedureSessionsRepository();
       viewModel = ProcedureKindsViewModel(
-        listProcedureKindsUseCase: ListProcedureKindsUseCase(repository),
-        createProcedureKindUseCase: CreateProcedureKindUseCase(repository),
-        updateProcedureKindUseCase: UpdateProcedureKindUseCase(repository),
-        deleteProcedureKindUseCase: DeleteProcedureKindUseCase(
-          repository,
-          procedureSessionsRepository: sessionsRepository,
+        operations: UseCaseProcedureKindsOperations(
+          listProcedureKindsUseCase: ListProcedureKindsUseCase(repository),
+          createProcedureKindUseCase: CreateProcedureKindUseCase(repository),
+          updateProcedureKindUseCase: UpdateProcedureKindUseCase(repository),
+          deleteProcedureKindUseCase: DeleteProcedureKindUseCase(
+            repository,
+            procedureSessionsRepository: sessionsRepository,
+          ),
         ),
       );
     });

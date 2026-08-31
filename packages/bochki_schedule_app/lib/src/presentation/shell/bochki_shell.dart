@@ -14,6 +14,7 @@ import '../../features/print_presets/print_preset_params_view_model.dart';
 import '../../features/procedure_sessions/procedure_session_dialog.dart';
 import '../../features/procedure_sessions/procedure_sessions_view_model.dart';
 import '../../features/procedure_kinds/procedure_kinds_dialog.dart';
+import '../../features/procedure_kinds/procedure_kinds_operations.dart';
 import '../../features/procedure_kinds/procedure_kinds_view_model.dart';
 import '../../features/program_settings/program_settings_dialog.dart';
 import '../../features/program_settings/program_settings_view_model.dart';
@@ -241,10 +242,12 @@ class _BochkiShellState extends State<BochkiShell> {
     });
 
     final viewModel = ProcedureKindsViewModel(
-      listProcedureKindsUseCase: widget.services.listProcedureKindsUseCase,
-      createProcedureKindUseCase: widget.services.createProcedureKindUseCase,
-      updateProcedureKindUseCase: widget.services.updateProcedureKindUseCase,
-      deleteProcedureKindUseCase: widget.services.deleteProcedureKindUseCase,
+      operations: UseCaseProcedureKindsOperations(
+        listProcedureKindsUseCase: widget.services.listProcedureKindsUseCase,
+        createProcedureKindUseCase: widget.services.createProcedureKindUseCase,
+        updateProcedureKindUseCase: widget.services.updateProcedureKindUseCase,
+        deleteProcedureKindUseCase: widget.services.deleteProcedureKindUseCase,
+      ),
     );
 
     try {

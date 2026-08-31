@@ -10,12 +10,16 @@ class ProcedureKindDialog extends StatefulWidget {
     required this.viewModel,
     required this.procedureKinds,
     this.initialProcedureKind,
+    this.onSaved,
+    this.onCancel,
     super.key,
   });
 
   final ProcedureKindsViewModel viewModel;
   final List<ProcedureKind> procedureKinds;
   final ProcedureKind? initialProcedureKind;
+  final Future<void> Function(ProcedureKind procedureKind)? onSaved;
+  final VoidCallback? onCancel;
 
   bool get isEditing => initialProcedureKind != null;
 
@@ -175,6 +179,10 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
       return;
     }
 
+    if (widget.onSaved case final callback?) {
+      await callback(savedProcedureKind);
+      return;
+    }
     Navigator.of(context).pop(savedProcedureKind);
   }
 
@@ -381,7 +389,13 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
             TextButton(
               onPressed: widget.viewModel.isSaving
                   ? null
-                  : () => Navigator.of(context).pop(),
+                  : () {
+                      if (widget.onCancel case final callback?) {
+                        callback();
+                        return;
+                      }
+                      Navigator.of(context).pop();
+                    },
               child: const Text('Отмена'),
             ),
             FilledButton(

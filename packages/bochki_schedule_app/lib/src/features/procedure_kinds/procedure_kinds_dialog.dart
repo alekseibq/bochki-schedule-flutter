@@ -6,13 +6,17 @@ import '../../domain/procedure_kinds/procedure_kind.dart';
 import 'procedure_kind_dialog.dart';
 import 'procedure_kinds_view_model.dart';
 
-class ProcedureKindsDialog extends StatefulWidget {
-  const ProcedureKindsDialog({
+class ProcedureKindsContent extends StatefulWidget {
+  const ProcedureKindsContent({
     required this.viewModel,
+    this.onOpenCreate,
+    this.onOpenEdit,
     super.key,
   });
 
   final ProcedureKindsViewModel viewModel;
+  final Future<void> Function()? onOpenCreate;
+  final Future<void> Function(ProcedureKind procedureKind)? onOpenEdit;
 
   static String assignedProcedureWord(int count) {
     final remainder100 = count % 100;
@@ -27,10 +31,10 @@ class ProcedureKindsDialog extends StatefulWidget {
   }
 
   @override
-  State<ProcedureKindsDialog> createState() => _ProcedureKindsDialogState();
+  State<ProcedureKindsContent> createState() => _ProcedureKindsContentState();
 }
 
-class _ProcedureKindsDialogState extends State<ProcedureKindsDialog> {
+class _ProcedureKindsContentState extends State<ProcedureKindsContent> {
   String? _selectedProcedureKindId;
 
   @override
@@ -57,6 +61,10 @@ class _ProcedureKindsDialogState extends State<ProcedureKindsDialog> {
   }
 
   Future<void> _openCreateDialog() async {
+    if (widget.onOpenCreate case final callback?) {
+      await callback();
+      return;
+    }
     widget.viewModel.clearFormError();
     final createdProcedureKind = await showDialog<ProcedureKind>(
       context: context,
@@ -77,6 +85,10 @@ class _ProcedureKindsDialogState extends State<ProcedureKindsDialog> {
   }
 
   Future<void> _openEditDialog(ProcedureKind procedureKind) async {
+    if (widget.onOpenEdit case final callback?) {
+      await callback(procedureKind);
+      return;
+    }
     widget.viewModel.clearFormError();
     final updatedProcedureKind = await showDialog<ProcedureKind>(
       context: context,
@@ -160,7 +172,7 @@ class _ProcedureKindsDialogState extends State<ProcedureKindsDialog> {
         title: const Text('Невозможно удалить процедуру'),
         content: Text(
           'Найдено: $referencesCount '
-          '${ProcedureKindsDialog.assignedProcedureWord(referencesCount)} '
+          '${ProcedureKindsContent.assignedProcedureWord(referencesCount)} '
           'для процедуры '
           '"${procedureKind.name}". '
           'Сначала удалите эти назначенные процедуры.',
@@ -180,36 +192,19 @@ class _ProcedureKindsDialogState extends State<ProcedureKindsDialog> {
     return AnimatedBuilder(
       animation: widget.viewModel,
       builder: (context, _) {
-        return AlertDialog(
-          key: const Key('procedure_kinds_dialog'),
-          title: const Text('Список процедур'),
-          content: SizedBox(
-            width: 980,
-            height: 520,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: FilledButton.tonal(
-                    key: const Key('procedure_kind_add_button'),
-                    onPressed:
-                        widget.viewModel.isSaving ? null : _openCreateDialog,
-                    child: const Text('Добавить новую процедуру...'),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: _buildBody(),
-                ),
-              ],
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: FilledButton.tonal(
+                key: const Key('procedure_kind_add_button'),
+                onPressed: widget.viewModel.isSaving ? null : _openCreateDialog,
+                child: const Text('Добавить новую процедуру...'),
+              ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Ok'),
-            ),
+            const SizedBox(height: 16),
+            Expanded(child: _buildBody()),
           ],
         );
       },
@@ -357,4 +352,30 @@ class _ProcedureKindsDialogState extends State<ProcedureKindsDialog> {
       ),
     );
   }
+}
+
+class ProcedureKindsDialog extends StatelessWidget {
+  const ProcedureKindsDialog({required this.viewModel, super.key});
+
+  final ProcedureKindsViewModel viewModel;
+
+  static String assignedProcedureWord(int count) =>
+      ProcedureKindsContent.assignedProcedureWord(count);
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        key: const Key('procedure_kinds_dialog'),
+        title: const Text('Список процедур'),
+        content: SizedBox(
+          width: 980,
+          height: 520,
+          child: ProcedureKindsContent(viewModel: viewModel),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Ok'),
+          ),
+        ],
+      );
 }
