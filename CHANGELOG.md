@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.13.3
+
+Release date: 2026-08-31
+
+### Highlights
+
+- Moved creation and editing of assigned procedures into a dedicated desktop window.
+
+### Details
+
+- `fix(procedure-sessions): use desktop window for editing (#162)`
+
 ## v0.13.2
 
 Release date: 2026-08-26
