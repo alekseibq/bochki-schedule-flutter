@@ -354,9 +354,9 @@ final class DesktopWindowCoordinator {
     await _open(DesktopWindowKind.procedureStatistics);
   }
 
-  Future<void> openSession({ProcedureSessionRaw? draft}) async {
+  Future<void> openSession({ProcedureSessionRaw? initialValue}) async {
     await _sessions.load();
-    _sessionDraft = draft;
+    _sessionDraft = initialValue;
     await _open(DesktopWindowKind.procedureSession);
   }
 
@@ -437,7 +437,7 @@ final class DesktopWindowCoordinator {
       case 'openProcedureSession':
         final values = call.arguments as Map?;
         await openSession(
-          draft: values == null
+          initialValue: values == null
               ? null
               : _sessions.createDraft().copyWith(
                     dayId: values['dayId'] as String,
@@ -673,7 +673,7 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
   final title = switch (kind) {
     DesktopWindowKind.procedureStatistics => 'Статистика процедур',
     DesktopWindowKind.freeTime => 'Свободное время',
-    DesktopWindowKind.procedureSession => 'Назначить процедуру',
+    DesktopWindowKind.procedureSession => 'Назначенная процедура',
     DesktopWindowKind.participants => 'Участники',
     DesktopWindowKind.assistants => 'Ассистенты',
     DesktopWindowKind.procedureKinds => 'Процедуры',
@@ -1234,9 +1234,6 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
                   'Не удалось сохранить назначенную процедуру.');
             }
             final value = Map<String, dynamic>.from(response);
-            if (value['didSave'] as bool) {
-              await closeCurrentDesktopWindow();
-            }
             return value['didSave'] as bool
                 ? const ProcedureSessionSubmitResult.saved()
                 : (value['conflictMessages'] as List).isNotEmpty
@@ -1245,6 +1242,7 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
                     : ProcedureSessionSubmitResult.error(
                         value['errorMessage'] as String);
           },
+          onClose: closeCurrentDesktopWindow,
         ))));
   }
 }
