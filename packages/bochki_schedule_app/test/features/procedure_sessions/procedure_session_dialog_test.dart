@@ -87,4 +87,61 @@ void main() {
 
     expect(find.text('Петр').last, findsOneWidget);
   });
+
+  testWidgets('grouped procedure requires an enabled assistant field', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Material(
+          child: ProcedureSessionDialog(
+            initialValue: ProcedureSessionRaw(
+              id: 'draft',
+              dayId: '1',
+              participantId: '1',
+              startTime: '10:00',
+              procedureKindId: '1',
+            ),
+            workdays: [
+              Workday(
+                id: '1',
+                name: 'День 1',
+                calendarDate: DateTime(2026, 7, 11),
+              ),
+            ],
+            humans: [
+              Human(
+                id: '1',
+                name: 'Иван',
+                isParticipant: true,
+                isAssistant: false,
+              ),
+            ],
+            procedureKinds: [
+              ProcedureKind(
+                id: '1',
+                patternId: ProcedureKindPatterns.grouped.patternId,
+                name: 'Медитация',
+                capacity: 6,
+                participantBusyTime: 30,
+              ).sanitizedForPersistence(),
+            ],
+            assistants: [
+              Assistant(id: '2', name: 'Петр'),
+            ],
+            programSettings: ProgramSettings.defaults,
+            onSubmit: (_, __) async =>
+                const ProcedureSessionSubmitResult.saved(),
+          ),
+        ),
+      ),
+    );
+
+    final field = tester.widget<DropdownButtonFormField<String>>(
+      find.byKey(const Key('procedure_session_assistant_field')),
+    );
+
+    expect(field.onChanged, isNotNull);
+    expect(find.text('Выберите ассистента'), findsOneWidget);
+  });
 }

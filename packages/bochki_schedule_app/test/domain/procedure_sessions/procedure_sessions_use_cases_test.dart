@@ -119,6 +119,36 @@ void main() {
       );
     });
 
+    test('grouped procedure kind requires assistant', () async {
+      final repository = _InMemoryProcedureSessionsRepository();
+
+      expect(
+        () => CreateProcedureSessionUseCase(
+          repository,
+          workdaysRepository: _InMemoryWorkdaysRepository(),
+          humansRepository: _InMemoryHumansRepository(),
+          procedureKindsRepository: _InMemoryProcedureKindsRepository(),
+          assistantsRepository: _InMemoryAssistantsRepository(),
+          programSettingsRepository: _InMemoryProgramSettingsRepository(),
+        ).execute(
+          ProcedureSessionRaw(
+            id: 'draft',
+            dayId: '1',
+            participantId: '1',
+            startTime: '09:30',
+            procedureKindId: '3',
+          ),
+        ),
+        throwsA(
+          isA<ProcedureSessionsValidationException>().having(
+            (error) => error.message,
+            'message',
+            'Выберите ассистента.',
+          ),
+        ),
+      );
+    });
+
     test('list sorts by dayId startTime procedureKindId and id', () async {
       final repository = _InMemoryProcedureSessionsRepository(
         sessions: [
@@ -329,6 +359,71 @@ void main() {
       ], programSettings: ProgramSettings.defaults);
 
       expect(noConflicts, isEmpty);
+    });
+
+    test('grouped sessions sharing a leader and start time do not conflict',
+        () {
+      const calculator = ProcedureSessionConflictCalculator();
+      final groupedKind = ProcedureKind(
+        id: '100',
+        patternId: ProcedureKindPatterns.grouped.patternId,
+        name: 'Медитация',
+        capacity: 2,
+        participantBusyTime: 30,
+      ).sanitizedForPersistence();
+
+      final conflicts = calculator.calculate([
+        _buildRichSession(
+          id: '1',
+          participantId: '10',
+          startTime: '10:00',
+          procedureKind: groupedKind,
+          assistantId: '20',
+        ),
+        _buildRichSession(
+          id: '2',
+          participantId: '11',
+          startTime: '10:00',
+          procedureKind: groupedKind,
+          assistantId: '20',
+        ),
+      ], programSettings: ProgramSettings.defaults);
+
+      expect(conflicts, isEmpty);
+    });
+
+    test('grouped sessions with a shared leader at different times conflict',
+        () {
+      const calculator = ProcedureSessionConflictCalculator();
+      final groupedKind = ProcedureKind(
+        id: '100',
+        patternId: ProcedureKindPatterns.grouped.patternId,
+        name: 'Медитация',
+        capacity: 2,
+        participantBusyTime: 30,
+      ).sanitizedForPersistence();
+
+      final conflicts = calculator.calculate([
+        _buildRichSession(
+          id: '1',
+          participantId: '10',
+          startTime: '10:00',
+          procedureKind: groupedKind,
+          assistantId: '20',
+        ),
+        _buildRichSession(
+          id: '2',
+          participantId: '11',
+          startTime: '10:15',
+          procedureKind: groupedKind,
+          assistantId: '20',
+        ),
+      ], programSettings: ProgramSettings.defaults);
+
+      expect(
+        conflicts.where((conflict) => conflict.humanId == '20'),
+        hasLength(2),
+      );
     });
 
     test('conflict calculator reports missing required assignments', () {
@@ -655,6 +750,13 @@ final class _InMemoryProcedureKindsRepository
           capacity: 2,
           participantBusyTime: 20,
         ),
+        ProcedureKind(
+          id: '3',
+          patternId: ProcedureKindPatterns.grouped.patternId,
+          name: 'Медитация',
+          capacity: 6,
+          participantBusyTime: 30,
+        ).sanitizedForPersistence(),
       ];
 
   @override

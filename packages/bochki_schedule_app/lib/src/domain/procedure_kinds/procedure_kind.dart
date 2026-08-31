@@ -47,7 +47,11 @@ final class ProcedureKind {
 
   bool get isCurated => patternId == ProcedureKindPatterns.curated.patternId;
 
-  bool get usesAssistant => assistantBusyTime != null;
+  bool get isGrouped => patternId == ProcedureKindPatterns.grouped.patternId;
+
+  bool get requiresAssistant => isCurated || isGrouped;
+
+  bool get usesAssistant => requiresAssistant;
 
   static String normalizeName(String value) {
     return NamedDirectoryEntry.normalizeName(value);
@@ -65,6 +69,13 @@ final class ProcedureKind {
   ProcedureKind sanitizedForPersistence() {
     if (isCurated) {
       return this;
+    }
+
+    if (isGrouped) {
+      return copyWith(
+        assistantBusyTime: participantBusyTime,
+        resourceBusyTime: participantBusyTime,
+      );
     }
 
     return copyWith(

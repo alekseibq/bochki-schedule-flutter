@@ -40,7 +40,12 @@ final class ProjectDocumentProcedureKindsRepository
         entry.toDomain(),
         deleted: entry.deleted,
       );
-      if (entry.toJson().toString() == normalized.toJson().toString()) {
+      final currentJson = entry.toJson();
+      final normalizedJson = normalized.toJson();
+      if (entry.patternId == 'grouped' && entry.assistantBusyTime == null) {
+        normalizedJson.remove('companionBusyTime');
+      }
+      if (currentJson.toString() == normalizedJson.toString()) {
         continue;
       }
 
