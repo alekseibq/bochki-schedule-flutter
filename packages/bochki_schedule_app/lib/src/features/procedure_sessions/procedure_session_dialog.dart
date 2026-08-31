@@ -20,6 +20,7 @@ class ProcedureSessionDialog extends StatefulWidget {
     required this.assistants,
     required this.programSettings,
     required this.onSubmit,
+    this.onClose,
     this.isSaving = false,
     super.key,
   });
@@ -34,6 +35,7 @@ class ProcedureSessionDialog extends StatefulWidget {
     ProcedureSessionRaw procedureSession,
     bool allowConflicts,
   ) onSubmit;
+  final FutureOr<void> Function()? onClose;
   final bool isSaving;
 
   bool get isEditing => initialValue.id != 'draft';
@@ -275,9 +277,16 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
       _formErrorText = result.errorMessage;
     });
 
-    if (result.didSave) {
-      Navigator.of(context).pop();
+    if (result.didSave) await _close();
+  }
+
+  Future<void> _close() async {
+    final onClose = widget.onClose;
+    if (onClose != null) {
+      await onClose();
+      return;
     }
+    if (mounted) Navigator.of(context).pop();
   }
 
   void _clearError() {
@@ -575,7 +584,7 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: _isBusy ? null : () => Navigator.of(context).pop(),
+          onPressed: _isBusy ? null : () => unawaited(_close()),
           child: const Text('Отмена'),
         ),
         FilledButton(

@@ -144,4 +144,68 @@ void main() {
     expect(field.onChanged, isNotNull);
     expect(find.text('Выберите ассистента'), findsOneWidget);
   });
+
+  testWidgets('cancel delegates closing to the dialog owner', (tester) async {
+    var closeRequests = 0;
+    var submitRequests = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Material(
+          child: ProcedureSessionDialog(
+            initialValue: ProcedureSessionRaw(
+              id: 'draft',
+              dayId: '1',
+              participantId: '1',
+              startTime: '10:00',
+              procedureKindId: '1',
+            ),
+            workdays: [
+              Workday(
+                id: '1',
+                name: 'День 1',
+                calendarDate: DateTime(2026, 7, 11),
+              ),
+            ],
+            humans: [
+              Human(
+                id: '1',
+                name: 'Иван',
+                isParticipant: true,
+                isAssistant: false,
+              ),
+            ],
+            procedureKinds: [
+              ProcedureKind(
+                id: '1',
+                patternId: ProcedureKindPatterns.curated.patternId,
+                name: 'Бочка',
+                capacity: 6,
+                participantBusyTime: 30,
+              ),
+            ],
+            assistants: const [],
+            programSettings: ProgramSettings.defaults,
+            onSubmit: (_, __) async {
+              submitRequests += 1;
+              return const ProcedureSessionSubmitResult.saved();
+            },
+            onClose: () {
+              closeRequests += 1;
+            },
+          ),
+        ),
+      ),
+    );
+
+    final cancel = tester.widget<TextButton>(find.widgetWithText(
+      TextButton,
+      'Отмена',
+    ));
+    cancel.onPressed!();
+    await tester.pump();
+
+    expect(closeRequests, 1);
+    expect(submitRequests, 0);
+  });
 }

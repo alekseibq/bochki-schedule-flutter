@@ -809,23 +809,22 @@ class _BochkiShellState extends State<BochkiShell> {
     required bool isEditing,
     String? procedureSessionId,
   }) async {
-    if (!isEditing) {
-      final coordinator = _desktopWindows;
-      if (coordinator != null) {
-        try {
-          await coordinator.openSession();
-          return;
-        } catch (_) {
-          // Multi-window APIs are unavailable in widget tests and unsupported
-          // targets. Fall back to the in-process dialog in those environments.
-        }
-      }
-    }
     final initialValue = isEditing
         ? _procedureSessionsViewModel.entries
             .firstWhere((entry) => entry.id == procedureSessionId!)
             .raw
         : _procedureSessionsViewModel.createDraft();
+    final coordinator = _desktopWindows;
+    if (coordinator != null) {
+      try {
+        await coordinator.openSession(initialValue: initialValue);
+      } catch (_) {
+        if (mounted) {
+          _showError('Не удалось открыть окно назначенной процедуры.');
+        }
+      }
+      return;
+    }
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
