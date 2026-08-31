@@ -197,4 +197,32 @@ void main() {
       isTrue,
     );
   });
+
+  test('reads a legacy grouped kind with derived leader busy time', () async {
+    var changeNotifications = 0;
+    final repository = ProjectDocumentProcedureKindsRepository(
+      initialDocument: const ProjectDocument(
+        procedureKinds: <Map<String, Object?>>[
+          <String, Object?>{
+            'id': 1,
+            'patternId': 'grouped',
+            'name': 'Медитация',
+            'shortName': 'Медитация',
+            'capacity': 10,
+            'clientBusyTime': 40,
+            'resourceBusyTime': 40,
+            'deleted': false,
+          },
+        ],
+      ),
+      idAllocator: ProjectDocumentIdAllocator(nextId: 2, onChanged: () {}),
+      onChanged: () => changeNotifications += 1,
+    );
+
+    final procedureKind = (await repository.list()).single;
+
+    expect(procedureKind.assistantBusyTime, 40);
+    expect(await repository.normalizeLegacyProcedureKinds(), isFalse);
+    expect(changeNotifications, 0);
+  });
 }

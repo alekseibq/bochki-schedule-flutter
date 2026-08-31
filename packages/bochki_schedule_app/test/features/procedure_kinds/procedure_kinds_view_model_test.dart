@@ -65,8 +65,7 @@ void main() {
       expect(viewModel.formErrorMessage, 'Укажите емкость.');
     });
 
-    test('create clears hidden curated-only fields for grouped pattern',
-        () async {
+    test('create derives leader busy time for grouped pattern', () async {
       await viewModel.loadProcedureKinds();
 
       final createdProcedureKind = await viewModel.createProcedureKind(
@@ -79,7 +78,7 @@ void main() {
       );
 
       expect(createdProcedureKind, isNotNull);
-      expect(createdProcedureKind!.assistantBusyTime, isNull);
+      expect(createdProcedureKind!.assistantBusyTime, 40);
       expect(createdProcedureKind.resourceBusyTime, 40);
     });
 

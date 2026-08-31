@@ -28,7 +28,7 @@ final class ProcedureSessionRich {
   String get procedureKindId => raw.procedureKindId;
   String? get assistantId => raw.assistantId;
 
-  bool get requiresAssistant => procedureKind?.isCurated ?? false;
+  bool get requiresAssistant => procedureKind?.requiresAssistant ?? false;
 
   String? get finishTime {
     final kind = procedureKind;

@@ -255,7 +255,7 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
           ? 'missing-procedure'
           : firstProcedureKind.id,
       assistantId: firstProcedureKind != null &&
-              firstProcedureKind.isCurated &&
+              firstProcedureKind.requiresAssistant &&
               _assistants.isNotEmpty
           ? _assistants.first.id
           : null,

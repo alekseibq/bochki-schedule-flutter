@@ -81,7 +81,8 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
     return null;
   }
 
-  bool get requiresAssistant => _selectedProcedureKind?.isCurated ?? false;
+  bool get requiresAssistant =>
+      _selectedProcedureKind?.requiresAssistant ?? false;
   bool get _isBusy => widget.isSaving || _isSubmitting;
 
   List<String> get _hours {

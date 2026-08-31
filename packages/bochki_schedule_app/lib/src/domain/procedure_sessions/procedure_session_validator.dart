@@ -37,7 +37,7 @@ abstract final class ProcedureSessionValidator {
       throw const ProcedureSessionsValidationException('Выберите процедуру.');
     }
 
-    if (procedureKind.isCurated) {
+    if (procedureKind.requiresAssistant) {
       if (procedureSession.assistantId == null) {
         throw const ProcedureSessionsValidationException(
           'Выберите ассистента.',

@@ -1608,7 +1608,7 @@ void main() {
     expect(
         context
             .procedureKindsRepository.procedureKinds.single.assistantBusyTime,
-        isNull);
+        30);
 
     await tester.tap(find.byKey(const Key('procedure_kind_delete_1')));
     await tester.pumpAndSettle();

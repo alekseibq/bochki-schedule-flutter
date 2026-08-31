@@ -9,6 +9,7 @@ final class ProcedureSessionOccupancyRecord {
     required this.timeFinish,
     required this.procedureSessionId,
     required this.capacityAllowed,
+    this.isGroupedLeader = false,
   });
 
   final ConflictResourceType resourceType;
@@ -18,4 +19,5 @@ final class ProcedureSessionOccupancyRecord {
   final String timeFinish;
   final String procedureSessionId;
   final int capacityAllowed;
+  final bool isGroupedLeader;
 }

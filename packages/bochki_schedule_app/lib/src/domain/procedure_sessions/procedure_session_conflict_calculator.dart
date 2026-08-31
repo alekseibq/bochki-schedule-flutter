@@ -169,6 +169,7 @@ final class ProcedureSessionConflictCalculator {
           timeFinish: assistantFinishTime,
           procedureSessionId: session.id,
           capacityAllowed: 1,
+          isGroupedLeader: procedureKind.isGrouped,
         ),
       );
     }
@@ -204,7 +205,7 @@ final class ProcedureSessionConflictCalculator {
       }
 
       final capacityAllowed = activeRecords.first.capacityAllowed;
-      final capacityRegistered = activeRecords.length;
+      final capacityRegistered = _effectiveCapacityRegistered(activeRecords);
       if (capacityRegistered <= capacityAllowed) {
         continue;
       }
@@ -231,6 +232,20 @@ final class ProcedureSessionConflictCalculator {
     }
 
     return conflicts;
+  }
+
+  int _effectiveCapacityRegistered(
+    List<ProcedureSessionOccupancyRecord> activeRecords,
+  ) {
+    final occupancyKeys = <String>{};
+    for (final record in activeRecords) {
+      occupancyKeys.add(
+        record.isGroupedLeader
+            ? 'grouped|${record.timeStart}'
+            : 'session|${record.procedureSessionId}',
+      );
+    }
+    return occupancyKeys.length;
   }
 
   List<ScheduleConflict> _mergeAdjacentConflicts(
