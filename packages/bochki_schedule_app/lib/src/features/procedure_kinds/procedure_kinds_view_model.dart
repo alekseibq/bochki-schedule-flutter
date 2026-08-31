@@ -1,28 +1,16 @@
 import 'package:flutter/foundation.dart';
 
-import '../../domain/procedure_kinds/create_procedure_kind_use_case.dart';
-import '../../domain/procedure_kinds/delete_procedure_kind_use_case.dart';
-import '../../domain/procedure_kinds/list_procedure_kinds_use_case.dart';
 import '../../domain/procedure_kinds/procedure_kind.dart';
 import '../../domain/procedure_kinds/procedure_kind_in_use_exception.dart';
 import '../../domain/procedure_kinds/procedure_kinds_validation_exception.dart';
-import '../../domain/procedure_kinds/update_procedure_kind_use_case.dart';
+import 'procedure_kinds_operations.dart';
 
 final class ProcedureKindsViewModel extends ChangeNotifier {
   ProcedureKindsViewModel({
-    required ListProcedureKindsUseCase listProcedureKindsUseCase,
-    required CreateProcedureKindUseCase createProcedureKindUseCase,
-    required UpdateProcedureKindUseCase updateProcedureKindUseCase,
-    required DeleteProcedureKindUseCase deleteProcedureKindUseCase,
-  })  : _listProcedureKindsUseCase = listProcedureKindsUseCase,
-        _createProcedureKindUseCase = createProcedureKindUseCase,
-        _updateProcedureKindUseCase = updateProcedureKindUseCase,
-        _deleteProcedureKindUseCase = deleteProcedureKindUseCase;
+    required ProcedureKindsOperations operations,
+  }) : _operations = operations;
 
-  final ListProcedureKindsUseCase _listProcedureKindsUseCase;
-  final CreateProcedureKindUseCase _createProcedureKindUseCase;
-  final UpdateProcedureKindUseCase _updateProcedureKindUseCase;
-  final DeleteProcedureKindUseCase _deleteProcedureKindUseCase;
+  final ProcedureKindsOperations _operations;
 
   List<ProcedureKind> _procedureKinds = const [];
   bool _isLoading = false;
@@ -44,7 +32,7 @@ final class ProcedureKindsViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _procedureKinds = await _listProcedureKindsUseCase.execute();
+      _procedureKinds = await _operations.list();
     } catch (_) {
       _loadErrorMessage = 'Не удалось загрузить процедуры.';
     } finally {
@@ -75,7 +63,7 @@ final class ProcedureKindsViewModel extends ChangeNotifier {
     String? rawResourceBusyTime,
   }) {
     return _runFormCommand(() async {
-      final createdProcedureKind = await _createProcedureKindUseCase.execute(
+      final createdProcedureKind = await _operations.create(
         _buildProcedureKind(
           id: 'new',
           patternId: patternId,
@@ -106,7 +94,7 @@ final class ProcedureKindsViewModel extends ChangeNotifier {
     String? rawResourceBusyTime,
   }) {
     return _runFormCommand(() async {
-      final updatedProcedureKind = await _updateProcedureKindUseCase.execute(
+      final updatedProcedureKind = await _operations.update(
         _buildProcedureKind(
           id: procedureKindId,
           patternId: patternId,
@@ -132,7 +120,7 @@ final class ProcedureKindsViewModel extends ChangeNotifier {
   }
 
   Future<int> countReferences(String procedureKindId) {
-    return _deleteProcedureKindUseCase.countReferences(procedureKindId);
+    return _operations.countReferences(procedureKindId);
   }
 
   Future<ProcedureKindDeleteResult> deleteProcedureKind(
@@ -142,7 +130,7 @@ final class ProcedureKindsViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _deleteProcedureKindUseCase.execute(procedureKindId);
+      await _operations.delete(procedureKindId);
       _procedureKinds = _procedureKinds
           .where((procedureKind) => procedureKind.id != procedureKindId)
           .toList(growable: false);

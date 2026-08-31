@@ -22,6 +22,10 @@ import '../app_services.dart';
 import '../features/procedure_sessions/procedure_session_dialog.dart';
 import '../features/procedure_sessions/procedure_session_submit_result.dart';
 import '../features/procedure_sessions/procedure_sessions_view_model.dart';
+import '../features/procedure_kinds/ipc_procedure_kinds_operations.dart';
+import '../features/procedure_kinds/procedure_kind_form_content.dart';
+import '../features/procedure_kinds/procedure_kinds_dialog.dart';
+import '../features/procedure_kinds/procedure_kinds_view_model.dart';
 import '../features/directory/people_directory_table.dart';
 import '../features/procedure_statistics/procedure_statistics_content.dart';
 
@@ -1404,7 +1408,6 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
   DesktopWindowKind? _kind;
   String? _entryId;
   List<Map<String, dynamic>> _entries = const [];
-  String? _selectedId;
   bool _loading = true;
   bool _saving = false;
   bool _hasModalChild = false;
@@ -1413,11 +1416,7 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
   final _name = TextEditingController();
   final _shortName = TextEditingController();
   final _date = TextEditingController();
-  final _capacity = TextEditingController(text: '1');
-  final _participantTime = TextEditingController();
-  final _assistantTime = TextEditingController();
-  final _resourceTime = TextEditingController();
-  String _patternId = 'curated';
+  ProcedureKindsViewModel? _procedureKindsViewModel;
 
   bool get _isEditor =>
       _kind == DesktopWindowKind.procedureKindEditor ||
@@ -1451,6 +1450,14 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
         Map<String, dynamic>.from(jsonDecode(controller.arguments) as Map);
     _kind = DesktopWindowKind.values.byName(args['kind'] as String);
     _entryId = args['entryId'] as String?;
+    if (_kind == DesktopWindowKind.procedureKinds ||
+        _kind == DesktopWindowKind.procedureKindEditor) {
+      _procedureKindsViewModel = ProcedureKindsViewModel(
+        operations: IpcProcedureKindsOperations(
+          (method, arguments) => _mainChannel.invokeMethod(method, arguments),
+        ),
+      );
+    }
     await _refreshModalChild();
     await controller.setWindowMethodHandler((call) async {
       switch (call.method) {
@@ -1465,6 +1472,9 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
         case 'window_bounds':
           return currentWindowBoundsMap();
         case 'directory_changed':
+          if (_procedureKindsViewModel case final viewModel?) {
+            await viewModel.loadProcedureKinds();
+          }
           await _load();
           return null;
         default:
@@ -1484,6 +1494,9 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
       final result = Map<String, dynamic>.from(await _mainChannel.invokeMethod(
           'directorySnapshot', _directory) as Map);
       _entries = _maps(result['entries']);
+      if (_procedureKindsViewModel case final viewModel?) {
+        await viewModel.loadProcedureKinds();
+      }
       if (_isEditor) {
         final entry = _entryId == null
             ? null
@@ -1516,11 +1529,6 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
     _shortName.text = entry?['shortName'] as String? ?? '';
     _date.text = entry?['date'] as String? ??
         (_kind == DesktopWindowKind.workdayEditor ? _nextWorkdayDate() : '');
-    _capacity.text = '${entry?['capacity'] ?? 1}';
-    _participantTime.text = '${entry?['participantBusyTime'] ?? ''}';
-    _assistantTime.text = '${entry?['assistantBusyTime'] ?? ''}';
-    _resourceTime.text = '${entry?['resourceBusyTime'] ?? ''}';
-    _patternId = entry?['patternId'] as String? ?? 'curated';
   }
 
   Future<void> _mutate(String action,
@@ -1542,7 +1550,6 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
         await closeCurrentDesktopWindow();
         return;
       }
-      _selectedId = id;
       await _load();
     } catch (error) {
       if (mounted)
@@ -1568,10 +1575,7 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
     _name.dispose();
     _shortName.dispose();
     _date.dispose();
-    _capacity.dispose();
-    _participantTime.dispose();
-    _assistantTime.dispose();
-    _resourceTime.dispose();
+    _procedureKindsViewModel?.dispose();
     super.dispose();
   }
 
@@ -1585,9 +1589,31 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
       absorbing: _hasModalChild,
       builder: (contentContext) => Padding(
         padding: const EdgeInsets.all(20),
-        child: _isEditor
-            ? _editor(contentContext)
-            : _directoryList(contentContext),
+        child: _kind == DesktopWindowKind.procedureKinds
+            ? ProcedureKindsContent(
+                viewModel: _procedureKindsViewModel!,
+                onOpenCreate: () =>
+                    _openEditor(DesktopWindowKind.procedureKindEditor.name),
+                onOpenEdit: (procedureKind) => _openEditor(
+                  DesktopWindowKind.procedureKindEditor.name,
+                  procedureKind.id,
+                ),
+              )
+            : _kind == DesktopWindowKind.procedureKindEditor
+                ? ProcedureKindFormContent(
+                    viewModel: _procedureKindsViewModel!,
+                    procedureKinds: _procedureKindsViewModel!.procedureKinds,
+                    initialProcedureKind: _entryId == null
+                        ? null
+                        : _procedureKindsViewModel!.procedureKinds
+                            .where((entry) => entry.id == _entryId)
+                            .firstOrNull,
+                    onSaved: (_) => closeCurrentDesktopWindow(),
+                    onCancel: () => unawaited(closeCurrentDesktopWindow()),
+                  )
+                : _isEditor
+                    ? _editor(contentContext)
+                    : _directoryList(contentContext),
       ),
     );
   }
@@ -1628,7 +1654,7 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
       );
     }
     if (_isWorkdaysDirectory) return _workdaysList(contentContext);
-    return _legacyDirectoryList(contentContext);
+    throw StateError('Unsupported directory window kind: $_kind');
   }
 
   Widget _workdaysList(BuildContext contentContext) => Column(
@@ -1669,7 +1695,7 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
                         final entry = _entries[index];
                         final id = entry['id'] as String;
                         return InkWell(
-                          onTap: () => setState(() => _selectedId = id),
+                          onTap: () {},
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,
@@ -1843,159 +1869,6 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
     }
   }
 
-  Widget _legacyDirectoryList(BuildContext contentContext) => Column(children: [
-        Row(children: [
-          FilledButton.tonal(
-              onPressed: _saving
-                  ? null
-                  : () {
-                      if (_kind == DesktopWindowKind.procedureKinds) {
-                        _openEditor(DesktopWindowKind.procedureKindEditor.name);
-                      } else if (_kind == DesktopWindowKind.workdays) {
-                        _openEditor(DesktopWindowKind.workdayEditor.name);
-                      } else {
-                        _name.clear();
-                        _shortName.clear();
-                        _showInlineEditor(contentContext);
-                      }
-                    },
-              child: Text(_kind == DesktopWindowKind.workdays
-                  ? 'Создать'
-                  : 'Добавить')),
-        ]),
-        if (_error != null)
-          Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Text(_error!, style: const TextStyle(color: Colors.red))),
-        const SizedBox(height: 12),
-        Expanded(
-            child: ListView.separated(
-                itemCount: _entries.length,
-                separatorBuilder: (_, __) => const Divider(),
-                itemBuilder: (_, i) {
-                  final entry = _entries[i];
-                  final id = entry['id'] as String;
-                  return ListTile(
-                    selected: _selectedId == id,
-                    title: Text(entry['name'] as String),
-                    subtitle: Text(_subtitle(entry)),
-                    onTap: () => setState(() => _selectedId = id),
-                    trailing: Wrap(children: [
-                      TextButton(
-                          onPressed: _saving
-                              ? null
-                              : () {
-                                  if (_kind == DesktopWindowKind.procedureKinds)
-                                    _openEditor(
-                                        DesktopWindowKind
-                                            .procedureKindEditor.name,
-                                        id);
-                                  else if (_kind == DesktopWindowKind.workdays)
-                                    _openEditor(
-                                        DesktopWindowKind.workdayEditor.name,
-                                        id);
-                                  else {
-                                    _name.text = entry['name'] as String;
-                                    _shortName.text =
-                                        entry['shortName'] as String? ?? '';
-                                    _selectedId = id;
-                                    _showInlineEditor(contentContext);
-                                  }
-                                },
-                          child: const Text('Изменить')),
-                      TextButton(
-                          onPressed: _saving
-                              ? null
-                              : _kind == DesktopWindowKind.procedureKinds
-                                  ? () => _deleteProcedureKind(
-                                        contentContext,
-                                        entry,
-                                      )
-                                  : () => _mutate('delete', id: id),
-                          child: const Text('Удалить')),
-                    ]),
-                  );
-                })),
-      ]);
-
-  String _subtitle(Map<String, dynamic> entry) => switch (_kind) {
-        DesktopWindowKind.assistants => 'Краткое имя: ${entry['shortName']}',
-        DesktopWindowKind.procedureKinds =>
-          'Емкость: ${entry['capacity']}; время участника: ${entry['participantBusyTime']} мин.',
-        DesktopWindowKind.workdays => entry['date'] as String,
-        _ => '',
-      };
-
-  Future<void> _deleteProcedureKind(
-    BuildContext contentContext,
-    Map<String, dynamic> entry,
-  ) async {
-    final id = entry['id'] as String;
-    final referencesCount = await _mainChannel.invokeMethod<int>(
-          'directoryReferences',
-          {'directory': 'procedureKinds', 'id': id},
-        ) ??
-        0;
-    if (!mounted) return;
-    if (referencesCount > 0) {
-      await showDialog<void>(
-        context: contentContext,
-        builder: (context) => AlertDialog(
-          title: const Text('Невозможно удалить процедуру'),
-          content: Text(
-            'Процедура используется в $referencesCount '
-            '${_assignedProcedureWord(referencesCount)}. '
-            'Сначала удалите эти назначения.',
-          ),
-          actions: [
-            FilledButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Понятно'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-    await _mutate('delete', id: id);
-  }
-
-  Future<void> _showInlineEditor(BuildContext contentContext) async {
-    await showDialog<void>(
-        context: contentContext,
-        builder: (dialogContext) => AlertDialog(
-              title:
-                  Text(_selectedId == null ? 'Новая запись' : 'Редактирование'),
-              content: Column(mainAxisSize: MainAxisSize.min, children: [
-                TextField(
-                    controller: _name,
-                    decoration: const InputDecoration(labelText: 'Имя')),
-                if (_kind == DesktopWindowKind.assistants)
-                  TextField(
-                      controller: _shortName,
-                      decoration:
-                          const InputDecoration(labelText: 'Краткое имя')),
-              ]),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.pop(dialogContext),
-                    child: const Text('Отмена')),
-                FilledButton(
-                    onPressed: () async {
-                      await _mutate(_selectedId == null ? 'create' : 'update',
-                          id: _selectedId,
-                          entry: {
-                            'name': _name.text,
-                            'shortName': _shortName.text
-                          });
-                      if (mounted && _error == null)
-                        Navigator.pop(dialogContext);
-                    },
-                    child: const Text('Сохранить'))
-              ],
-            ));
-  }
-
   Widget _editor(BuildContext contentContext) =>
       Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         TextField(
@@ -2003,70 +1876,17 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
             enabled: !_saving,
             decoration: const InputDecoration(labelText: 'Название')),
         const SizedBox(height: 12),
-        if (_kind == DesktopWindowKind.procedureKindEditor) ...[
-          DropdownButtonFormField<String>(
-            value: _patternId,
-            decoration: const InputDecoration(labelText: 'Тип процедуры'),
-            items: const [
-              DropdownMenuItem(
-                value: 'curated',
-                child: Text('С сопровождением'),
-              ),
-              DropdownMenuItem(value: 'single', child: Text('Одиночная')),
-              DropdownMenuItem(value: 'grouped', child: Text('Групповая')),
-            ],
-            onChanged: _saving
-                ? null
-                : (value) => setState(() => _patternId = value ?? _patternId),
+        const Text('Дата'),
+        const SizedBox(height: 4),
+        OutlinedButton.icon(
+          onPressed: _saving ? null : () => _selectWorkdayDate(contentContext),
+          icon: const Icon(Icons.calendar_month),
+          label: Text(
+            _date.text.isEmpty
+                ? 'Выберите дату'
+                : _formatWorkdayDate(_date.text),
           ),
-          const SizedBox(height: 12),
-          TextField(
-              controller: _shortName,
-              enabled: !_saving,
-              decoration: const InputDecoration(labelText: 'Краткое название')),
-          const SizedBox(height: 12),
-          TextField(
-              controller: _capacity,
-              enabled: !_saving,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Емкость')),
-          const SizedBox(height: 12),
-          TextField(
-              controller: _participantTime,
-              enabled: !_saving,
-              keyboardType: TextInputType.number,
-              decoration:
-                  const InputDecoration(labelText: 'Время участника, мин')),
-          if (_patternId == 'curated') ...[
-            const SizedBox(height: 12),
-            TextField(
-                controller: _assistantTime,
-                enabled: !_saving,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                    labelText: 'Время сопровождающего, мин')),
-            const SizedBox(height: 12),
-            TextField(
-                controller: _resourceTime,
-                enabled: !_saving,
-                keyboardType: TextInputType.number,
-                decoration:
-                    const InputDecoration(labelText: 'Время ресурса, мин')),
-          ],
-        ] else ...[
-          const Text('Дата'),
-          const SizedBox(height: 4),
-          OutlinedButton.icon(
-            onPressed:
-                _saving ? null : () => _selectWorkdayDate(contentContext),
-            icon: const Icon(Icons.calendar_month),
-            label: Text(
-              _date.text.isEmpty
-                  ? 'Выберите дату'
-                  : _formatWorkdayDate(_date.text),
-            ),
-          ),
-        ],
+        ),
         if (_error != null)
           Padding(
               padding: const EdgeInsets.only(top: 12),
@@ -2087,19 +1907,5 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
       ]);
 
   Map<String, dynamic> get _editorEntry =>
-      _kind == DesktopWindowKind.procedureKindEditor
-          ? {
-              'name': _name.text,
-              'shortName': _shortName.text,
-              'patternId': _patternId,
-              'capacity': int.tryParse(_capacity.text) ?? 0,
-              'participantBusyTime': int.tryParse(_participantTime.text) ?? 0,
-              'assistantBusyTime': _patternId == 'curated'
-                  ? int.tryParse(_assistantTime.text)
-                  : null,
-              'resourceBusyTime': _patternId == 'curated'
-                  ? int.tryParse(_resourceTime.text)
-                  : null,
-            }
-          : {'name': _name.text, 'date': _date.text};
+      {'name': _name.text, 'date': _date.text};
 }
