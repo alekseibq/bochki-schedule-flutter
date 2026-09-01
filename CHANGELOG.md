@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.13.5
+
+Release date: 2026-09-01
+
+### Highlights
+
+- New assigned procedures reuse the values from the last successfully saved
+  assignment during the current application run.
+
+### Details
+
+- `feat(procedure-sessions): reuse last saved values (#165)`
+
 ## v0.13.4
 
 Release date: 2026-09-01
