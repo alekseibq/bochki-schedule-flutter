@@ -798,6 +798,135 @@ void main() {
     expect(context.procedureSessionsRepository.sessions, hasLength(1));
   });
 
+  testWidgets('new procedure session uses the last successfully saved values',
+      (tester) async {
+    final context = _buildTestContext(
+      participants: [
+        Participant(id: '101', name: 'Анна'),
+        Participant(id: '102', name: 'Борис'),
+      ],
+      assistants: [
+        Assistant(id: '201', name: 'Вера'),
+        Assistant(id: '202', name: 'Глеб'),
+      ],
+      procedureKinds: [
+        ProcedureKind(
+          id: '301',
+          patternId: ProcedureKindPatterns.curated.patternId,
+          name: 'Бочка',
+          capacity: 6,
+          participantBusyTime: 30,
+          assistantBusyTime: 10,
+          resourceBusyTime: 5,
+        ),
+        ProcedureKind(
+          id: '302',
+          patternId: ProcedureKindPatterns.curated.patternId,
+          name: 'Кедровая бочка',
+          capacity: 6,
+          participantBusyTime: 30,
+          assistantBusyTime: 10,
+          resourceBusyTime: 5,
+        ),
+      ],
+      workdays: [
+        Workday(
+          id: '401',
+          name: 'День А',
+          calendarDate: DateTime(2026, 7, 11),
+        ),
+        Workday(
+          id: '402',
+          name: 'День Б',
+          calendarDate: DateTime(2026, 7, 12),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('add_procedure_session_button')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const Key('procedure_session_procedure_kind_field')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Кедровая бочка').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const Key('procedure_session_participant_field')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Борис').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('procedure_session_hour_field')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('10').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('procedure_session_day_field')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('День Б').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const Key('procedure_session_assistant_field')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Глеб').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('procedure_session_save_button')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('add_procedure_session_button')));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<DropdownButtonFormField<String>>(
+            find.byKey(const Key('procedure_session_procedure_kind_field')),
+          )
+          .initialValue,
+      '302',
+    );
+    expect(
+      tester
+          .widget<DropdownButtonFormField<String>>(
+            find.byKey(const Key('procedure_session_participant_field')),
+          )
+          .initialValue,
+      '102',
+    );
+    expect(
+      tester
+          .widget<DropdownButtonFormField<String>>(
+            find.byKey(const Key('procedure_session_hour_field')),
+          )
+          .initialValue,
+      '10',
+    );
+    expect(
+      tester
+          .widget<DropdownButtonFormField<String>>(
+            find.byKey(const Key('procedure_session_day_field')),
+          )
+          .initialValue,
+      '402',
+    );
+    expect(
+      tester
+          .widget<DropdownButtonFormField<String>>(
+            find.byKey(const Key('procedure_session_assistant_field')),
+          )
+          .initialValue,
+      '202',
+    );
+  });
+
   testWidgets('procedure sessions table is compact and resizes columns', (
     tester,
   ) async {
@@ -1206,6 +1335,25 @@ void main() {
     expect(
       context.procedureSessionsRepository.sessions.single.startTime,
       '10:30',
+    );
+
+    await tester.tap(find.byKey(const Key('add_procedure_session_button')));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<DropdownButtonFormField<String>>(
+            find.byKey(const Key('procedure_session_hour_field')),
+          )
+          .initialValue,
+      '10',
+    );
+    expect(
+      tester
+          .widget<DropdownButtonFormField<String>>(
+            find.byKey(const Key('procedure_session_minute_field')),
+          )
+          .initialValue,
+      '30',
     );
   });
 

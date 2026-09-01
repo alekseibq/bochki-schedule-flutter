@@ -100,6 +100,7 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
   String? _selectedProcedureKindId;
   String? _selectedParticipantId;
   bool _showConflictsOnly = false;
+  ProcedureSessionRaw? _lastSavedProcedureSession;
 
   List<ProcedureSessionWithConflicts> get entries => _applyFilters(_allEntries);
   List<Workday> get workdays => _workdays;
@@ -243,6 +244,11 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
   }
 
   ProcedureSessionRaw createDraft() {
+    final lastSavedProcedureSession = _lastSavedProcedureSession;
+    if (lastSavedProcedureSession != null) {
+      return lastSavedProcedureSession.copyWith(id: 'draft');
+    }
+
     final firstProcedureKind =
         _procedureKinds.isEmpty ? null : _procedureKinds.first;
     return ProcedureSessionRaw(
@@ -324,10 +330,14 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
         );
         await _reloadEntries();
         _selectedEntryId = created.id;
+        _lastSavedProcedureSession = created;
       } else {
-        await _updateProcedureSessionUseCase.execute(procedureSession);
+        final updated = await _updateProcedureSessionUseCase.execute(
+          procedureSession,
+        );
         await _reloadEntries();
         _selectedEntryId = procedureSession.id;
+        _lastSavedProcedureSession = updated;
       }
       return const ProcedureSessionSubmitResult.saved();
     } on ProcedureSessionsValidationException catch (error) {
