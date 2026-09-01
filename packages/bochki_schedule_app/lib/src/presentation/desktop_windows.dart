@@ -100,6 +100,32 @@ Rect windowBoundsFromMap(Map<dynamic, dynamic> values) => Rect.fromLTWH(
       (values['height'] as num).toDouble(),
     );
 
+/// Keeps child-window geometry for the lifetime of the main-window engine.
+///
+/// The store deliberately has no persistence: window placement is a convenience
+/// for the current application session, not part of a project document.
+final class ChildWindowGeometryStore {
+  final _boundsByKind = <DesktopWindowKind, Rect>{};
+
+  Rect? operator [](DesktopWindowKind kind) => _boundsByKind[kind];
+
+  void update(DesktopWindowKind kind, Rect bounds) {
+    _boundsByKind[kind] = bounds;
+  }
+}
+
+bool windowBoundsFitAnyDisplay({
+  required Rect bounds,
+  required Iterable<Display> displays,
+}) =>
+    displays.any((display) {
+      final workArea = displayWorkArea(display);
+      return bounds.left >= workArea.left &&
+          bounds.top >= workArea.top &&
+          bounds.right <= workArea.right &&
+          bounds.bottom <= workArea.bottom;
+    });
+
 Offset centeredWindowPosition({
   required Rect workArea,
   required Size windowSize,
@@ -202,6 +228,8 @@ final class DesktopWindowLifecycle with WindowListener {
   WindowController? _current;
   bool _initialized = false;
   bool _closing = false;
+  bool _savingGeometry = false;
+  bool _geometrySavePending = false;
 
   Future<void> initialize() async {
     if (_initialized) return;
@@ -229,6 +257,41 @@ final class DesktopWindowLifecycle with WindowListener {
 
   @override
   void onWindowClose() => unawaited(close());
+
+  @override
+  void onWindowMove() => _scheduleGeometrySave();
+
+  @override
+  void onWindowResize() => _scheduleGeometrySave();
+
+  void _scheduleGeometrySave() {
+    _geometrySavePending = true;
+    if (_savingGeometry) return;
+    unawaited(_saveGeometry());
+  }
+
+  Future<void> _saveGeometry() async {
+    _savingGeometry = true;
+    try {
+      while (_geometrySavePending) {
+        _geometrySavePending = false;
+        final current = _current;
+        if (current == null) return;
+        final descriptor = windowDescriptorFromArguments(current.arguments);
+        if (descriptor.kind == DesktopWindowKind.main) return;
+        try {
+          await _mainChannel.invokeMethod<void>('childWindowGeometryChanged', {
+            'kind': descriptor.kind.name,
+            'bounds': await currentWindowBoundsMap(),
+          });
+        } catch (_) {
+          // Geometry restoration is optional while the main window is closing.
+        }
+      }
+    } finally {
+      _savingGeometry = false;
+    }
+  }
 
   Future<void> close({bool cascade = false}) async {
     if (_closing) return;
@@ -339,6 +402,7 @@ final class DesktopWindowCoordinator {
   final BuildScheduleGapsUseCase _scheduleGaps;
   final ProcedureSessionsViewModel _sessions;
   final DirectoryChangedCallback _onDirectoryChanged;
+  final _childWindowGeometry = ChildWindowGeometryStore();
   ProcedureSessionRaw? _sessionDraft;
   String? _mainWindowId;
 
@@ -482,6 +546,24 @@ final class DesktopWindowCoordinator {
           DesktopWindowKind.values.byName(values['kind'] as String),
           entryId: values['entryId'] as String?,
           parentWindowId: values['parentWindowId'] as String?,
+        );
+        return null;
+      case 'childWindowGeometry':
+        final kind = DesktopWindowKind.values.byName(call.arguments as String);
+        final bounds = _childWindowGeometry[kind];
+        return bounds == null
+            ? null
+            : {
+                'left': bounds.left,
+                'top': bounds.top,
+                'width': bounds.width,
+                'height': bounds.height,
+              };
+      case 'childWindowGeometryChanged':
+        final values = Map<String, dynamic>.from(call.arguments as Map);
+        _childWindowGeometry.update(
+          DesktopWindowKind.values.byName(values['kind'] as String),
+          windowBoundsFromMap(values['bounds'] as Map),
         );
         return null;
       case 'submitProcedureSession':
@@ -708,10 +790,21 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
             : const Size(700, 500),
     center: false,
   );
+  final savedBounds = await _savedChildWindowBounds(kind);
+  final displays = await screenRetriever.getAllDisplays();
+  final restoredBounds = savedBounds != null &&
+          windowBoundsFitAnyDisplay(bounds: savedBounds, displays: displays)
+      ? savedBounds
+      : null;
   await windowManager.waitUntilReadyToShow(options, () async {
-    await windowManager.setPosition(
-      await childWindowPositionOnParentDisplay(options.size!),
-    );
+    if (restoredBounds != null) {
+      await windowManager.setSize(restoredBounds.size);
+      await windowManager.setPosition(restoredBounds.topLeft);
+    } else {
+      await windowManager.setPosition(
+        await childWindowPositionOnParentDisplay(options.size!),
+      );
+    }
     await windowManager.show();
     await windowManager.focus();
   });
@@ -732,6 +825,19 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
         throw MissingPluginException('Unknown window method ${call.method}');
     }
   });
+}
+
+Future<Rect?> _savedChildWindowBounds(DesktopWindowKind kind) async {
+  try {
+    final result = await _mainChannel.invokeMethod<Map>(
+      'childWindowGeometry',
+      kind.name,
+    );
+    return result == null ? null : windowBoundsFromMap(result);
+  } catch (_) {
+    // A child can be launched while the main window is closing.
+    return null;
+  }
 }
 
 Future<Offset> childWindowPositionOnParentDisplay(Size windowSize) async {
