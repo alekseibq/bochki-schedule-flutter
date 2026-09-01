@@ -235,6 +235,41 @@ void main() {
         primary,
       );
     });
+
+    test('accepts restored bounds fully contained by a display work area', () {
+      expect(
+        windowBoundsFitAnyDisplay(
+          bounds: const Rect.fromLTWH(2000, 100, 920, 640),
+          displays: const [primary, secondary],
+        ),
+        isTrue,
+      );
+    });
+
+    test('rejects restored bounds outside the available displays', () {
+      expect(
+        windowBoundsFitAnyDisplay(
+          bounds: const Rect.fromLTWH(3500, 100, 920, 640),
+          displays: const [primary, secondary],
+        ),
+        isFalse,
+      );
+    });
+  });
+
+  group('ChildWindowGeometryStore', () {
+    test('keeps separate geometry for each child window kind', () {
+      final store = ChildWindowGeometryStore();
+      const sessionBounds = Rect.fromLTWH(10, 20, 900, 680);
+      const statisticsBounds = Rect.fromLTWH(30, 40, 1080, 514);
+
+      store.update(DesktopWindowKind.procedureSession, sessionBounds);
+      store.update(DesktopWindowKind.procedureStatistics, statisticsBounds);
+
+      expect(store[DesktopWindowKind.procedureSession], sessionBounds);
+      expect(store[DesktopWindowKind.procedureStatistics], statisticsBounds);
+      expect(store[DesktopWindowKind.freeTime], isNull);
+    });
   });
 
   test('creates child windows hidden until their final bounds are ready', () {
