@@ -56,6 +56,18 @@ DesktopWindowKind windowKindFromArguments(String value) {
   return windowDescriptorFromArguments(value).kind;
 }
 
+/// Whether a child window should prevent interaction with the main window.
+///
+/// A hidden procedure-session window deliberately remains alive, so it is
+/// still returned by `WindowController.getAll()`. Its visibility therefore
+/// needs to be considered separately from its existence.
+bool isBlockingChildWindow({
+  required DesktopWindowKind kind,
+  required bool isProcedureSessionVisible,
+}) =>
+    kind != DesktopWindowKind.main &&
+    (kind != DesktopWindowKind.procedureSession || isProcedureSessionVisible);
+
 final class DesktopWindowDescriptor {
   const DesktopWindowDescriptor({
     required this.kind,
@@ -222,6 +234,19 @@ Future<void> closeCurrentDesktopWindow({bool cascade = false}) async {
   await lifecycle.close(cascade: cascade);
 }
 
+/// Hides the procedure-session window without destroying its Flutter engine.
+Future<void> hideCurrentProcedureSessionWindow() async {
+  await windowManager.hide();
+  try {
+    await _mainChannel.invokeMethod<void>(
+      'procedureSessionVisibilityChanged',
+      false,
+    );
+  } catch (_) {
+    // The main window may already be closing.
+  }
+}
+
 /// Coordinates native close events in one Flutter engine.  The window list and
 /// `parentWindowId` arguments are the shared source of truth across engines.
 final class DesktopWindowLifecycle with WindowListener {
@@ -256,7 +281,17 @@ final class DesktopWindowLifecycle with WindowListener {
   }
 
   @override
-  void onWindowClose() => unawaited(close());
+  void onWindowClose() {
+    final current = _current;
+    if (!_closing &&
+        current != null &&
+        windowKindFromArguments(current.arguments) ==
+            DesktopWindowKind.procedureSession) {
+      unawaited(hideCurrentProcedureSessionWindow());
+      return;
+    }
+    unawaited(close());
+  }
 
   @override
   void onWindowMove() => _scheduleGeometrySave();
@@ -391,20 +426,27 @@ final class DesktopWindowCoordinator {
     required BuildScheduleGapsUseCase scheduleGaps,
     required ProcedureSessionsViewModel sessions,
     required DirectoryChangedCallback onDirectoryChanged,
+    required ValueChanged<bool> onProcedureSessionVisibilityChanged,
   })  : _services = services,
         _statistics = statistics,
         _scheduleGaps = scheduleGaps,
         _sessions = sessions,
-        _onDirectoryChanged = onDirectoryChanged;
+        _onDirectoryChanged = onDirectoryChanged,
+        _onProcedureSessionVisibilityChanged =
+            onProcedureSessionVisibilityChanged;
 
   final AppServices _services;
   final BuildProcedureStatisticsTableUseCase _statistics;
   final BuildScheduleGapsUseCase _scheduleGaps;
   final ProcedureSessionsViewModel _sessions;
   final DirectoryChangedCallback _onDirectoryChanged;
+  final ValueChanged<bool> _onProcedureSessionVisibilityChanged;
   final _childWindowGeometry = ChildWindowGeometryStore();
   ProcedureSessionRaw? _sessionDraft;
   String? _mainWindowId;
+  bool _isProcedureSessionVisible = false;
+
+  bool get isProcedureSessionVisible => _isProcedureSessionVisible;
 
   Future<void> start() async {
     _mainWindowId = (await WindowController.fromCurrentEngine()).windowId;
@@ -447,6 +489,11 @@ final class DesktopWindowCoordinator {
       (controller) => windowKindFromArguments(controller.arguments) == kind,
     );
     if (existing.isNotEmpty) {
+      if (kind == DesktopWindowKind.procedureSession &&
+          !_isProcedureSessionVisible) {
+        await existing.first.invokeMethod<void>('procedure_session_show');
+        return;
+      }
       await existing.first.show();
       await existing.first.invokeMethod<void>('window_focus');
       return;
@@ -460,6 +507,9 @@ final class DesktopWindowCoordinator {
         )),
       ),
     );
+    if (kind == DesktopWindowKind.procedureSession) {
+      _setProcedureSessionVisible(true);
+    }
   }
 
   Future<Map<String, dynamic>> _windowArguments({
@@ -595,10 +645,30 @@ final class DesktopWindowCoordinator {
         await WidgetsBinding.instance.endOfFrame;
         await _sessions.logRenderedSave(operationId);
         return null;
+      case 'procedureSessionVisibilityChanged':
+        _setProcedureSessionVisible(call.arguments as bool);
+        if (call.arguments == false) await _focusMainWindow();
+        return null;
       default:
         throw MissingPluginException(
             'Unknown main-window method ${call.method}');
     }
+  }
+
+  void _setProcedureSessionVisible(bool value) {
+    if (_isProcedureSessionVisible == value) return;
+    _isProcedureSessionVisible = value;
+    _onProcedureSessionVisibilityChanged(value);
+  }
+
+  Future<void> _focusMainWindow() async {
+    final mainWindowId = _mainWindowId;
+    if (mainWindowId == null) return;
+    final windows = await WindowController.getAll();
+    final main = windows.where((window) => window.windowId == mainWindowId);
+    if (main.isEmpty) return;
+    await main.first.show();
+    await main.first.invokeMethod<void>('window_focus');
   }
 
   Map<String, dynamic> _statisticsMap(ProcedureStatisticsTable table) => {
@@ -1271,6 +1341,7 @@ class ProcedureSessionWindow extends StatefulWidget {
 
 class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
   Map<String, dynamic>? _snapshot;
+  var _formVersion = 0;
   @override
   void initState() {
     super.initState();
@@ -1289,9 +1360,20 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
       return null;
     }
     if (call.method == 'window_close') {
-      return closeCurrentDesktopWindow(
-        cascade: (call.arguments as Map?)?['cascade'] == true,
+      final cascade = (call.arguments as Map?)?['cascade'] == true;
+      return cascade
+          ? closeCurrentDesktopWindow(cascade: true)
+          : hideCurrentProcedureSessionWindow();
+    }
+    if (call.method == 'procedure_session_show') {
+      await _load();
+      await windowManager.show();
+      await windowManager.focus();
+      await _mainChannel.invokeMethod<void>(
+        'procedureSessionVisibilityChanged',
+        true,
       );
+      return null;
     }
     if (call.method == 'window_bounds') return currentWindowBoundsMap();
     if (call.method == 'window_focus') return windowManager.focus();
@@ -1302,7 +1384,10 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
     final value =
         await _mainChannel.invokeMethod<Map>('procedureSessionSnapshot');
     if (mounted) {
-      setState(() => _snapshot = Map<String, dynamic>.from(value!));
+      setState(() {
+        _snapshot = Map<String, dynamic>.from(value!);
+        _formVersion += 1;
+      });
     }
   }
 
@@ -1320,6 +1405,7 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
         home: Scaffold(
             body: Center(
                 child: ProcedureSessionDialog(
+          key: ValueKey(_formVersion),
           initialValue: _sessionFromMap(
               Map<String, dynamic>.from(snapshot['draft'] as Map)),
           workdays: _maps(snapshot['workdays']).map(_workdayFromMap).toList(),
@@ -1357,7 +1443,7 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
           },
           onSavedAndRendered: (operationId) => _mainChannel.invokeMethod<void>(
               'procedureSessionRendered', operationId),
-          onClose: closeCurrentDesktopWindow,
+          onClose: hideCurrentProcedureSessionWindow,
         ))));
   }
 }

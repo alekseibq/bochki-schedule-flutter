@@ -41,6 +41,38 @@ void main() {
     });
   });
 
+  group('isBlockingChildWindow', () {
+    test('does not let a hidden procedure form block its parent', () {
+      expect(
+        isBlockingChildWindow(
+          kind: DesktopWindowKind.procedureSession,
+          isProcedureSessionVisible: false,
+        ),
+        isFalse,
+      );
+    });
+
+    test('blocks its parent again when the procedure form is shown', () {
+      expect(
+        isBlockingChildWindow(
+          kind: DesktopWindowKind.procedureSession,
+          isProcedureSessionVisible: true,
+        ),
+        isTrue,
+      );
+    });
+
+    test('keeps other visible child windows modal', () {
+      expect(
+        isBlockingChildWindow(
+          kind: DesktopWindowKind.procedureStatistics,
+          isProcedureSessionVisible: false,
+        ),
+        isTrue,
+      );
+    });
+  });
+
   group('mutateProcedureKindDirectory', () {
     test('deletes by ID without decoding a missing form entry', () async {
       final deletedIds = <String>[];

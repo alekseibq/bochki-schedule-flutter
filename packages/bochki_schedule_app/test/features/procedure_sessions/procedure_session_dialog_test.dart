@@ -208,4 +208,78 @@ void main() {
     expect(closeRequests, 1);
     expect(submitRequests, 0);
   });
+
+  testWidgets('a fresh key resets the form from a refreshed snapshot',
+      (tester) async {
+    Widget buildDialog(ProcedureSessionRaw initialValue) => MaterialApp(
+          home: Material(
+            child: ProcedureSessionDialog(
+              key: ValueKey(initialValue.id),
+              initialValue: initialValue,
+              workdays: [
+                Workday(
+                  id: '1',
+                  name: 'День 1',
+                  calendarDate: DateTime(2026, 7, 11),
+                ),
+                Workday(
+                  id: '2',
+                  name: 'День 2',
+                  calendarDate: DateTime(2026, 7, 12),
+                ),
+              ],
+              humans: const [],
+              procedureKinds: [
+                ProcedureKind(
+                  id: '1',
+                  patternId: ProcedureKindPatterns.curated.patternId,
+                  name: 'Бочка',
+                  capacity: 6,
+                  participantBusyTime: 30,
+                ),
+              ],
+              assistants: const [],
+              programSettings: ProgramSettings.defaults,
+              onSubmit: (_, __) async =>
+                  const ProcedureSessionSubmitResult.saved(1),
+            ),
+          ),
+        );
+
+    await tester.pumpWidget(buildDialog(ProcedureSessionRaw(
+      id: 'first',
+      dayId: '1',
+      startTime: '10:00',
+      procedureKindId: '1',
+    )));
+    expect(
+      tester
+          .widget<DropdownButton<String>>(
+            find.descendant(
+              of: find.byKey(const Key('procedure_session_day_field')),
+              matching: find.byType(DropdownButton<String>),
+            ),
+          )
+          .value,
+      '1',
+    );
+
+    await tester.pumpWidget(buildDialog(ProcedureSessionRaw(
+      id: 'second',
+      dayId: '2',
+      startTime: '11:00',
+      procedureKindId: '1',
+    )));
+    expect(
+      tester
+          .widget<DropdownButton<String>>(
+            find.descendant(
+              of: find.byKey(const Key('procedure_session_day_field')),
+              matching: find.byType(DropdownButton<String>),
+            ),
+          )
+          .value,
+      '2',
+    );
+  });
 }
