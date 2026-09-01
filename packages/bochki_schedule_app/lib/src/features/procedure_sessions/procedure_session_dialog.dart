@@ -20,6 +20,7 @@ class ProcedureSessionDialog extends StatefulWidget {
     required this.assistants,
     required this.programSettings,
     required this.onSubmit,
+    this.onSavedAndRendered,
     this.onClose,
     this.isSaving = false,
     super.key,
@@ -35,6 +36,7 @@ class ProcedureSessionDialog extends StatefulWidget {
     ProcedureSessionRaw procedureSession,
     bool allowConflicts,
   ) onSubmit;
+  final Future<void> Function(int operationId)? onSavedAndRendered;
   final FutureOr<void> Function()? onClose;
   final bool isSaving;
 
@@ -277,7 +279,10 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
       _formErrorText = result.errorMessage;
     });
 
-    if (result.didSave) await _close();
+    if (result.didSave) {
+      await widget.onSavedAndRendered?.call(result.operationId!);
+      await _close();
+    }
   }
 
   Future<void> _close() async {

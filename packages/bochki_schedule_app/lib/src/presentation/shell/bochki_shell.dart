@@ -108,6 +108,7 @@ class _BochkiShellState extends State<BochkiShell> {
       listProcedureKindsUseCase: widget.services.listProcedureKindsUseCase,
       listAssistantsUseCase: widget.services.listAssistantsUseCase,
       getProgramSettingsUseCase: widget.services.getProgramSettingsUseCase,
+      logger: widget.services.logger,
     );
     final statistics = widget.services.buildProcedureStatisticsTableUseCase;
     final scheduleGaps = widget.services.buildScheduleGapsUseCase;
@@ -842,10 +843,16 @@ class _BochkiShellState extends State<BochkiShell> {
               allowConflicts: allowConflicts,
             );
           },
+          onSavedAndRendered: _confirmProcedureSessionRendered,
           isSaving: _procedureSessionsViewModel.isSaving,
         );
       },
     );
+  }
+
+  Future<void> _confirmProcedureSessionRendered(int operationId) async {
+    await WidgetsBinding.instance.endOfFrame;
+    await _procedureSessionsViewModel.logRenderedSave(operationId);
   }
 
   Future<void> _confirmDeleteProcedureSession(String procedureSessionId) async {

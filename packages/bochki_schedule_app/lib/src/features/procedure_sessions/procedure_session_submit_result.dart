@@ -3,11 +3,13 @@ final class ProcedureSessionSubmitResult {
     required this.didSave,
     this.conflictMessages = const [],
     this.errorMessage,
+    this.operationId,
   });
 
-  const ProcedureSessionSubmitResult.saved()
+  const ProcedureSessionSubmitResult.saved(int operationId)
       : this._(
           didSave: true,
+          operationId: operationId,
         );
 
   const ProcedureSessionSubmitResult.conflicts(List<String> conflictMessages)
@@ -25,6 +27,7 @@ final class ProcedureSessionSubmitResult {
   final bool didSave;
   final List<String> conflictMessages;
   final String? errorMessage;
+  final int? operationId;
 
   bool get hasConflicts => conflictMessages.isNotEmpty;
 }
