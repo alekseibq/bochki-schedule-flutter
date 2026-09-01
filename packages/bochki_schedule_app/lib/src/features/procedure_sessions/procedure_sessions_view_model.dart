@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
+import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
 
 import '../../domain/assistants/assistant.dart';
 import '../../domain/assistants/list_assistants_use_case.dart';
@@ -49,6 +52,7 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
     required ListProcedureKindsUseCase listProcedureKindsUseCase,
     required ListAssistantsUseCase listAssistantsUseCase,
     required GetProgramSettingsUseCase getProgramSettingsUseCase,
+    required AppLogger logger,
     ProcedureSessionConflictCalculator? conflictCalculator,
     ProcedureSessionConflictMessageFormatter? conflictMessageFormatter,
     ProcedureSessionRichFactory? richFactory,
@@ -62,6 +66,7 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
         _listProcedureKindsUseCase = listProcedureKindsUseCase,
         _listAssistantsUseCase = listAssistantsUseCase,
         _getProgramSettingsUseCase = getProgramSettingsUseCase,
+        _logger = logger,
         _conflictCalculator =
             conflictCalculator ?? const ProcedureSessionConflictCalculator(),
         _conflictMessageFormatter = conflictMessageFormatter ??
@@ -78,6 +83,7 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
   final ListProcedureKindsUseCase _listProcedureKindsUseCase;
   final ListAssistantsUseCase _listAssistantsUseCase;
   final GetProgramSettingsUseCase _getProgramSettingsUseCase;
+  final AppLogger _logger;
   final ProcedureSessionConflictCalculator _conflictCalculator;
   final ProcedureSessionConflictMessageFormatter _conflictMessageFormatter;
   final ProcedureSessionRichFactory _richFactory;
@@ -101,6 +107,7 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
   String? _selectedParticipantId;
   bool _showConflictsOnly = false;
   ProcedureSessionRaw? _lastSavedProcedureSession;
+  int _nextSaveOperationId = 1;
 
   List<ProcedureSessionWithConflicts> get entries => _applyFilters(_allEntries);
   List<Workday> get workdays => _workdays;
@@ -304,14 +311,25 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
     ProcedureSessionRaw procedureSession, {
     required bool allowConflicts,
   }) async {
+    final operationId = _nextSaveOperationId++;
     _actionErrorMessage = null;
     _isSaving = true;
     notifyListeners();
 
     try {
+      await _logInfo(
+        operationId,
+        'Save requested. mode=${procedureSession.id == 'draft' ? 'create' : 'update'} '
+        'sessionId=${procedureSession.id} dayId=${procedureSession.dayId} '
+        'participantId=${procedureSession.participantId} '
+        'procedureKindId=${procedureSession.procedureKindId} '
+        'assistantAssigned=${procedureSession.assistantId != null} '
+        'startTime=${procedureSession.startTime} allowConflicts=$allowConflicts.',
+      );
       final candidateId = procedureSession.id == 'draft'
           ? draftConflictSessionId
           : procedureSession.id;
+      await _logInfo(operationId, 'Building projected schedule.');
       final projectedEntries =
           _buildProjectedEntries(procedureSession, candidateId: candidateId);
       final projectedConflicts = projectedEntries
@@ -319,19 +337,28 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
           .expand((entry) => entry.conflicts)
           .toList(growable: false);
       if (projectedConflicts.isNotEmpty && !allowConflicts) {
+        await _logInfo(
+          operationId,
+          'Conflicts require confirmation. count=${projectedConflicts.length}.',
+        );
         return ProcedureSessionSubmitResult.conflicts(
           _formatConflictMessages(projectedConflicts),
         );
       }
 
       if (procedureSession.id == 'draft') {
+        await _logInfo(operationId, 'Creating procedure session via use case.');
         final created = await _createProcedureSessionUseCase.execute(
           procedureSession,
         );
+        await _logInfo(
+            operationId, 'Procedure session created. id=${created.id}.');
+        await _logInfo(operationId, 'Reloading main list data.');
         await _reloadEntries();
         _selectedEntryId = created.id;
         _lastSavedProcedureSession = created;
       } else {
+        await _logInfo(operationId, 'Updating procedure session via use case.');
         final updated = await _updateProcedureSessionUseCase.execute(
           procedureSession,
         );
@@ -339,18 +366,64 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
         _selectedEntryId = procedureSession.id;
         _lastSavedProcedureSession = updated;
       }
-      return const ProcedureSessionSubmitResult.saved();
+      await _logInfo(
+        operationId,
+        'Main list data reloaded and selection assigned. '
+        'selectedEntryId=$_selectedEntryId.',
+      );
+      return ProcedureSessionSubmitResult.saved(operationId);
     } on ProcedureSessionsValidationException catch (error) {
       _actionErrorMessage = error.message;
+      await _logInfo(operationId, 'Validation rejected save: ${error.message}');
       return ProcedureSessionSubmitResult.error(error.message);
-    } catch (_) {
+    } catch (error, stackTrace) {
       _actionErrorMessage = 'Не удалось сохранить назначенную процедуру.';
-      return const ProcedureSessionSubmitResult.error(
-        'Не удалось сохранить назначенную процедуру.',
+      await _logErrorAndPreserveOriginal(
+        operationId,
+        'Unexpected procedure-session save failure.',
+        error,
+        stackTrace,
       );
+      Error.throwWithStackTrace(error, stackTrace);
     } finally {
       _isSaving = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> logRenderedSave(int operationId) => _logInfo(
+        operationId,
+        'Updated main list has been rendered with selectedEntryId=$_selectedEntryId.',
+      );
+
+  Future<void> _logInfo(int operationId, String message) async {
+    try {
+      await _logger.info('[procedure-session-save#$operationId] $message');
+    } catch (error, stackTrace) {
+      stderr.writeln(
+        '[procedure-session-save#$operationId] Failed to write diagnostic log: '
+        '$error\n$stackTrace',
+      );
+    }
+  }
+
+  Future<void> _logErrorAndPreserveOriginal(
+    int operationId,
+    String message,
+    Object error,
+    StackTrace stackTrace,
+  ) async {
+    try {
+      await _logger.error(
+        '[procedure-session-save#$operationId] $message',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    } catch (loggingError, loggingStackTrace) {
+      stderr.writeln(
+        '[procedure-session-save#$operationId] Failed to write error log: '
+        '$loggingError\n$loggingStackTrace',
+      );
     }
   }
 

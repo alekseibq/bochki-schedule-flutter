@@ -42,10 +42,12 @@ final class FileAppLogger implements AppLogger {
   }
 
   Future<void> _writeLine(String level, String message) async {
-    await logFile.parent.create(recursive: true);
     final timestamp = _clock().toUtc().toIso8601String();
+    final line = '[$timestamp] $level $message';
+    stdout.writeln(line);
+    await logFile.parent.create(recursive: true);
     await logFile.writeAsString(
-      '[$timestamp] $level $message\n',
+      '$line\n',
       mode: FileMode.append,
       flush: true,
     );

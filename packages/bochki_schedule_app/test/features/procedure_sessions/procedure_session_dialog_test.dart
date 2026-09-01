@@ -60,7 +60,7 @@ void main() {
               maximumTime: ProgramSettingsTime(hour: 12, minute: 0),
             ),
             onSubmit: (_, __) async =>
-                const ProcedureSessionSubmitResult.saved(),
+                const ProcedureSessionSubmitResult.saved(1),
           ),
         ),
       ),
@@ -131,7 +131,7 @@ void main() {
             ],
             programSettings: ProgramSettings.defaults,
             onSubmit: (_, __) async =>
-                const ProcedureSessionSubmitResult.saved(),
+                const ProcedureSessionSubmitResult.saved(1),
           ),
         ),
       ),
@@ -188,7 +188,7 @@ void main() {
             programSettings: ProgramSettings.defaults,
             onSubmit: (_, __) async {
               submitRequests += 1;
-              return const ProcedureSessionSubmitResult.saved();
+              return const ProcedureSessionSubmitResult.saved(1);
             },
             onClose: () {
               closeRequests += 1;

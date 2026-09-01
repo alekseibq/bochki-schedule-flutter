@@ -586,9 +586,15 @@ final class DesktopWindowCoordinator {
         }
         return {
           'didSave': result.didSave,
+          'operationId': result.operationId,
           'conflictMessages': result.conflictMessages,
           'errorMessage': result.errorMessage,
         };
+      case 'procedureSessionRendered':
+        final operationId = call.arguments as int;
+        await WidgetsBinding.instance.endOfFrame;
+        await _sessions.logRenderedSave(operationId);
+        return null;
       default:
         throw MissingPluginException(
             'Unknown main-window method ${call.method}');
@@ -1341,13 +1347,16 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
             }
             final value = Map<String, dynamic>.from(response);
             return value['didSave'] as bool
-                ? const ProcedureSessionSubmitResult.saved()
+                ? ProcedureSessionSubmitResult.saved(
+                    value['operationId'] as int)
                 : (value['conflictMessages'] as List).isNotEmpty
                     ? ProcedureSessionSubmitResult.conflicts(
                         (value['conflictMessages'] as List).cast<String>())
                     : ProcedureSessionSubmitResult.error(
                         value['errorMessage'] as String);
           },
+          onSavedAndRendered: (operationId) => _mainChannel.invokeMethod<void>(
+              'procedureSessionRendered', operationId),
           onClose: closeCurrentDesktopWindow,
         ))));
   }
