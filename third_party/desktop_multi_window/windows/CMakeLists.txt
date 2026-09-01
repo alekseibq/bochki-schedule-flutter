@@ -22,6 +22,21 @@ target_include_directories(${PLUGIN_NAME} INTERFACE
 target_link_libraries(${PLUGIN_NAME} PRIVATE flutter flutter_wrapper_plugin flutter_wrapper_app)
 target_link_libraries(${PLUGIN_NAME} PRIVATE "dwmapi.lib")
 
+include(CTest)
+if(BUILD_TESTING)
+  add_executable(desktop_multi_window_managed_window_removals_test
+    "test/managed_window_removals_test.cc"
+  )
+  target_compile_features(desktop_multi_window_managed_window_removals_test
+    PRIVATE cxx_std_17)
+  target_include_directories(desktop_multi_window_managed_window_removals_test
+    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+  add_test(
+    NAME desktop_multi_window_managed_window_removals_test
+    COMMAND desktop_multi_window_managed_window_removals_test
+  )
+endif()
+
 # List of absolute paths to libraries that should be bundled with the plugin
 set(desktop_multi_window_bundled_libraries
   ""

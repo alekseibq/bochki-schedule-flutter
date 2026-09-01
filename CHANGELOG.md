@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.13.4
+
+Release date: 2026-09-01
+
+### Highlights
+
+- Fixed the Windows child-window lifecycle to prevent Vsync errors and
+  intermittent crashes after closing desktop windows.
+
+### Details
+
+- `fix(windows): clean up child Flutter engines after native close (#164)`
+
 ## v0.13.3
 
 Release date: 2026-08-31
