@@ -123,6 +123,10 @@ jobs:
         working-directory: packages/bochki_schedule_app
         run: flutter build windows --release
 
+      - name: Run Windows native multi-window regression test
+        working-directory: packages/bochki_schedule_app
+        run: ctest --test-dir build/windows/x64/plugins/desktop_multi_window --build-config Release --output-on-failure
+
       - name: Archive Windows app release
         shell: pwsh
         working-directory: packages/bochki_schedule_app/build/windows/x64/runner/Release

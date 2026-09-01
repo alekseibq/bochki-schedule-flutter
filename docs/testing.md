@@ -34,6 +34,20 @@ Use this checklist on the developer Windows machine after building or running th
 8. Verify that the participants dialog contains the participant name field and the add/edit/delete controls.
 9. Verify that the application stays responsive and does not crash during those actions.
 
+## Windows Window-Lifecycle Stress Checklist
+
+Run this check on a Windows machine with the application console visible.
+
+1. At least 50 times, open an `Назначенная процедура` window, save it, and
+   close it. Repeat the sequence using both the in-app close action and the
+   system `×` button.
+2. At least 50 times, open a `День` editor, change its date through the
+   calendar, and close it. Again use both the in-app close action and `×`.
+3. During and after each sequence, verify that the console contains neither
+   `FlutterEngineOnVsync ... kInternalInconsistency` nor a delayed
+   `Destroyed managed flutter window` printed only when the next child window
+   opens.
+
 ## Nested Windows Smoke Checklist
 
 Run this check on both Windows and macOS:

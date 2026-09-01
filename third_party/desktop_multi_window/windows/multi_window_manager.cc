@@ -155,19 +155,19 @@ void MultiWindowManager::RemoveWindow(const std::string& window_id) {
 
 void MultiWindowManager::RemoveManagedFlutterWindowLater(
     const std::string& window_id) {
-  pending_remove_ids_.push_back(window_id);
+  pending_removals_.Schedule(window_id);
 }
 
-// FIXME:maybe need a more robust way to cleanup removed windows
+// This runs after the native close message has returned to the application
+// message loop. Erasing earlier would delete FlutterWindow during OnDestroy.
 void MultiWindowManager::CleanupRemovedWindows() {
-  for (auto& id : pending_remove_ids_) {
+  for (const auto& id : pending_removals_.TakePending()) {
     auto it = managed_flutter_windows_.find(id);
     if (it != managed_flutter_windows_.end()) {
       std::cout << "Destroyed managed flutter window: " << id << std::endl;
       managed_flutter_windows_.erase(it);
     }
   }
-  pending_remove_ids_.clear();
 }
 
 void MultiWindowManager::NotifyWindowsChanged() {

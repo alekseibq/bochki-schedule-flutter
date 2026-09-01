@@ -8,6 +8,7 @@
 #include "flutter_plugin_registrar.h"
 #include "flutter_window.h"
 #include "flutter_window_wrapper.h"
+#include "managed_window_removals.h"
 
 class MultiWindowManager {
  public:
@@ -26,6 +27,10 @@ class MultiWindowManager {
 
   void RemoveManagedFlutterWindowLater(const std::string& window_id);
 
+  /// Destroys windows queued during the preceding native message dispatch.
+  /// Call this only after DispatchMessage has returned.
+  void CleanupRemovedWindows();
+
   flutter::EncodableList GetAllWindows();
 
   std::vector<std::string> GetAllWindowIds();
@@ -33,12 +38,10 @@ class MultiWindowManager {
  private:
   void NotifyWindowsChanged();
 
-  void CleanupRemovedWindows();
-
   std::map<std::string, std::unique_ptr<FlutterWindowWrapper>> windows_;
   std::map<std::string, std::unique_ptr<FlutterWindow>>
       managed_flutter_windows_;
-  std::vector<std::string> pending_remove_ids_;
+  ManagedWindowRemovals pending_removals_;
 };
 
 #endif  // DESKTOP_MULTI_WINDOW_WINDOWS_MULTI_WINDOW_MANAGER_H_

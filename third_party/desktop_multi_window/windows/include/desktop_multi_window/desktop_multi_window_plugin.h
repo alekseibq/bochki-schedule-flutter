@@ -20,6 +20,10 @@ FLUTTER_PLUGIN_EXPORT void DesktopMultiWindowPluginRegisterWithRegistrar(
 typedef void (*WindowCreatedCallback)(void *flutter_view_controller);
 FLUTTER_PLUGIN_EXPORT void DesktopMultiWindowSetWindowCreatedCallback(WindowCreatedCallback callback);
 
+// Destroys child-window engines queued during the preceding native message
+// dispatch. This must be called after DispatchMessage returns.
+FLUTTER_PLUGIN_EXPORT void DesktopMultiWindowCleanupClosedWindows();
+
 #if defined(__cplusplus)
 }  // extern "C"
 #endif
