@@ -119,6 +119,8 @@ class _BochkiShellState extends State<BochkiShell> {
         scheduleGaps: scheduleGaps,
         sessions: _procedureSessionsViewModel,
         onDirectoryChanged: _refreshDirectoryCount,
+        onProcedureSessionVisibilityChanged: (_) =>
+            unawaited(_refreshWindowModalState()),
       );
       unawaited(_startDesktopWindows());
       _windowsSubscription =
@@ -223,8 +225,12 @@ class _BochkiShellState extends State<BochkiShell> {
   Future<void> _refreshWindowModalState() async {
     try {
       final windows = await WindowController.getAll();
-      final active = windows.any((window) =>
-          windowKindFromArguments(window.arguments) != DesktopWindowKind.main);
+      final sessionVisible =
+          _desktopWindows?.isProcedureSessionVisible ?? false;
+      final active = windows.any((window) => isBlockingChildWindow(
+            kind: windowKindFromArguments(window.arguments),
+            isProcedureSessionVisible: sessionVisible,
+          ));
       if (mounted && active != _hasChildWindows) {
         setState(() => _hasChildWindows = active);
       }
