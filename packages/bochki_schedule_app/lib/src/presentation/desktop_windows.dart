@@ -49,6 +49,33 @@ const _mainChannel = WindowMethodChannel(
   mode: ChannelMode.unidirectional,
 );
 
+/// The main-window dispatcher exposes integration-test controls only in tests.
+const desktopIntegrationTestEnabled = bool.fromEnvironment(
+  'INTEGRATION_TEST',
+);
+
+/// Waits for the native child engine to finish registering its plugins.
+Future<WindowController> currentDesktopWindowController() async {
+  for (var attempt = 0; attempt < 100; attempt += 1) {
+    try {
+      final controller = await WindowController.fromCurrentEngine();
+      debugPrint(
+        'Desktop child bootstrap: current engine ${controller.windowId} ready',
+      );
+      return controller;
+    } on Object catch (error) {
+      if (attempt == 0 || attempt == 99) {
+        debugPrint(
+          'Desktop child bootstrap: current engine unavailable '
+          '(attempt ${attempt + 1}/100): $error',
+        );
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+  }
+  throw StateError('Timed out waiting for the current desktop window engine');
+}
+
 WindowConfiguration childWindowConfiguration(String arguments) =>
     WindowConfiguration(arguments: arguments, hiddenAtLaunch: true);
 
@@ -267,6 +294,10 @@ final class DesktopWindowLifecycle with WindowListener {
 
   Future<dynamic> _handleControlCall(MethodCall call) async {
     switch (call.method) {
+      case 'integration_test_ready':
+        return true;
+      case 'integration_test_hide':
+        return hideCurrentProcedureSessionWindow();
       case 'window_focus':
         await windowManager.focus();
         return;
@@ -649,10 +680,105 @@ final class DesktopWindowCoordinator {
         _setProcedureSessionVisible(call.arguments as bool);
         if (call.arguments == false) await _focusMainWindow();
         return null;
+      case 'integrationTestRunMultiWindowLifecycle':
+        if (!desktopIntegrationTestEnabled) {
+          throw MissingPluginException('Unknown main-window method');
+        }
+        return _runIntegrationTestMultiWindowLifecycle();
+      case 'integrationTestReady':
+        if (!desktopIntegrationTestEnabled) {
+          throw MissingPluginException('Unknown main-window method');
+        }
+        return true;
+      case 'integrationTestShutdownMultiWindowLifecycle':
+        if (!desktopIntegrationTestEnabled) {
+          throw MissingPluginException('Unknown main-window method');
+        }
+        final sessions = (await WindowController.getAll()).where(
+          (window) =>
+              windowKindFromArguments(window.arguments) ==
+              DesktopWindowKind.procedureSession,
+        );
+        for (final session in sessions) {
+          await session.invokeMethod<void>('window_close', {'cascade': true});
+        }
+        await _waitUntil(() async => !(await WindowController.getAll()).any(
+              (window) =>
+                  windowKindFromArguments(window.arguments) ==
+                  DesktopWindowKind.procedureSession,
+            ));
+        return null;
       default:
         throw MissingPluginException(
             'Unknown main-window method ${call.method}');
     }
+  }
+
+  Future<Map<String, dynamic>> _runIntegrationTestMultiWindowLifecycle() async {
+    await openSession();
+    final session = await _singleWindow(DesktopWindowKind.procedureSession);
+    final sessionId = session.windowId;
+    await _waitForChildLifecycleReady(session);
+    await session.invokeMethod<void>('integration_test_hide');
+    await _waitUntil(() => !_isProcedureSessionVisible);
+
+    await openSession();
+    final reopenedSession =
+        await _singleWindow(DesktopWindowKind.procedureSession);
+    final sessionReused = reopenedSession.windowId == sessionId;
+    await _waitForChildLifecycleReady(reopenedSession);
+    await reopenedSession.invokeMethod<void>('integration_test_hide');
+    await _waitUntil(() => !_isProcedureSessionVisible);
+
+    await openFreeTime();
+    final freeTime = await _singleWindow(DesktopWindowKind.freeTime);
+    final freeTimeId = freeTime.windowId;
+    await _waitForChildLifecycleReady(freeTime);
+    await freeTime.invokeMethod<void>('window_close', {'cascade': true});
+    await _waitUntil(() async => !(await WindowController.getAll())
+        .any((window) => window.windowId == freeTimeId));
+
+    return {
+      'procedureWindowId': sessionId,
+      'procedureWindowReused': sessionReused,
+      'ordinaryWindowClosed': true,
+    };
+  }
+
+  Future<WindowController> _singleWindow(DesktopWindowKind kind) async {
+    await _waitUntil(() async => (await WindowController.getAll()).any(
+          (window) => windowKindFromArguments(window.arguments) == kind,
+        ));
+    return (await WindowController.getAll()).firstWhere(
+      (window) => windowKindFromArguments(window.arguments) == kind,
+    );
+  }
+
+  Future<void> _waitForChildLifecycleReady(WindowController window) =>
+      _waitUntil(
+        () async {
+          try {
+            return await window.invokeMethod<bool>('integration_test_ready') ==
+                true;
+          } on WindowChannelException catch (error) {
+            if (error.code == 'CHANNEL_UNREGISTERED') return false;
+            rethrow;
+          }
+        },
+        attempts: 400,
+        description: 'child window ${window.windowId} lifecycle channel',
+      );
+
+  Future<void> _waitUntil(
+    FutureOr<bool> Function() predicate, {
+    int attempts = 100,
+    String description = 'desktop window lifecycle state',
+  }) async {
+    for (var attempt = 0; attempt < attempts; attempt += 1) {
+      if (await predicate()) return;
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+    throw StateError('Timed out waiting for $description');
   }
 
   void _setProcedureSessionVisible(bool value) {
@@ -826,6 +952,7 @@ final class DesktopWindowCoordinator {
 Future<void> configureChildWindow(DesktopWindowKind kind) async {
   await windowManager.ensureInitialized();
   await initializeDesktopWindowLifecycle();
+  debugPrint('Desktop child bootstrap: lifecycle initialized for ${kind.name}');
   final isStatistics = kind == DesktopWindowKind.procedureStatistics;
   final isFreeTime = kind == DesktopWindowKind.freeTime;
   final title = switch (kind) {
@@ -885,8 +1012,15 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
     await windowManager.focus();
   });
   final current = await WindowController.fromCurrentEngine();
-  await current.setWindowMethodHandler((call) async {
+  Future<dynamic> handleInitialWindowMethod(MethodCall call) async {
     switch (call.method) {
+      case 'integration_test_ready':
+        return true;
+      case 'integration_test_hide':
+        if (kind == DesktopWindowKind.procedureSession) {
+          return hideCurrentProcedureSessionWindow();
+        }
+        throw MissingPluginException('Unknown window method ${call.method}');
       case 'window_focus':
         await windowManager.focus();
         return null;
@@ -900,7 +1034,11 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
       default:
         throw MissingPluginException('Unknown window method ${call.method}');
     }
-  });
+  }
+
+  await current.setWindowMethodHandler(handleInitialWindowMethod);
+  debugPrint(
+      'Desktop child bootstrap: initial handler registered for ${kind.name}');
 }
 
 Future<Rect?> _savedChildWindowBounds(DesktopWindowKind kind) async {
@@ -1374,6 +1512,9 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
         true,
       );
       return null;
+    }
+    if (call.method == 'integration_test_hide') {
+      return hideCurrentProcedureSessionWindow();
     }
     if (call.method == 'window_bounds') return currentWindowBoundsMap();
     if (call.method == 'window_focus') return windowManager.focus();

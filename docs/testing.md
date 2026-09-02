@@ -38,6 +38,11 @@ Use this checklist on the developer Windows machine after building or running th
 
 Run this check on a Windows machine with the application console visible.
 
+The same child-window scenarios must also be checked on macOS after a Flutter
+or `desktop_multi_window` update: hidden launch must not flash a frame, an
+assigned-procedure window must hide and be reused, and an ordinary child window
+must still close for real.
+
 1. At least 50 times, open an `Назначенная процедура` window, save it, and
    close it. Repeat the sequence using both the in-app close action and the
    system `×` button.

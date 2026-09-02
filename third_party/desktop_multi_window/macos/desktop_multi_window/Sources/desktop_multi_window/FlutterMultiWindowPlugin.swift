@@ -73,6 +73,7 @@ public class FlutterMultiWindowPlugin: NSObject, FlutterPlugin {
     }
 }
 
+
 class MultiWindowManager: NSObject {
 
     static let shared: MultiWindowManager = MultiWindowManager()

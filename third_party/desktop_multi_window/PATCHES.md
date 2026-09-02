@@ -1,8 +1,13 @@
 # Local changes
 
-This is a source copy of `desktop_multi_window` 0.3.0, retained under its
+This is a source copy of `desktop_multi_window` 0.3.1, retained under its
 Apache-2.0 license. It is used as a path dependency so desktop builds are
-reproducible.
+reproducible. The upstream baseline is commit `0c9aa5045510`.
+
+The upstream `main` branch was also reviewed at `38dfe33c85da`. Its Windows
+fullscreen fix is intentionally not applied yet: it changes the UI-thread
+policy and native resize path, so it requires a dedicated Windows verification
+separate from this lifecycle regression fix.
 
 The macOS implementation keeps windows with `hiddenAtLaunch: true` out of the
 window compositor until Dart explicitly calls `show()`. Upstream called
