@@ -58,8 +58,18 @@ const desktopIntegrationTestEnabled = bool.fromEnvironment(
 Future<WindowController> currentDesktopWindowController() async {
   for (var attempt = 0; attempt < 100; attempt += 1) {
     try {
-      return await WindowController.fromCurrentEngine();
-    } on Object {
+      final controller = await WindowController.fromCurrentEngine();
+      debugPrint(
+        'Desktop child bootstrap: current engine ${controller.windowId} ready',
+      );
+      return controller;
+    } on Object catch (error) {
+      if (attempt == 0 || attempt == 99) {
+        debugPrint(
+          'Desktop child bootstrap: current engine unavailable '
+          '(attempt ${attempt + 1}/100): $error',
+        );
+      }
       await Future<void>.delayed(const Duration(milliseconds: 50));
     }
   }
@@ -942,6 +952,7 @@ final class DesktopWindowCoordinator {
 Future<void> configureChildWindow(DesktopWindowKind kind) async {
   await windowManager.ensureInitialized();
   await initializeDesktopWindowLifecycle();
+  debugPrint('Desktop child bootstrap: lifecycle initialized for ${kind.name}');
   final isStatistics = kind == DesktopWindowKind.procedureStatistics;
   final isFreeTime = kind == DesktopWindowKind.freeTime;
   final title = switch (kind) {
@@ -1026,6 +1037,8 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
   }
 
   await current.setWindowMethodHandler(handleInitialWindowMethod);
+  debugPrint(
+      'Desktop child bootstrap: initial handler registered for ${kind.name}');
 }
 
 Future<Rect?> _savedChildWindowBounds(DesktopWindowKind kind) async {
