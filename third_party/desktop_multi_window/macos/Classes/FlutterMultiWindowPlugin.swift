@@ -130,10 +130,14 @@ class MultiWindowManager: NSObject {
         // window ordered through one run-loop turn so that appearance can
         // complete, then hide it before Dart applies its final geometry.
         window.setFrame(NSRect(x: 0, y: 0, width: 800, height: 600), display: true)
+        if config.hiddenAtLaunch {
+            window.alphaValue = 0
+        }
         NSLog("[bochki-lifecycle] create child window \(windowId): engine launch requested")
         window.orderFront(nil)
         if config.hiddenAtLaunch {
-            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(250)) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(1)) {
+                window.alphaValue = 1
                 window.orderOut(nil)
             }
         }
