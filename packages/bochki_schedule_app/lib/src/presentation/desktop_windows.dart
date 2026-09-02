@@ -692,6 +692,7 @@ final class DesktopWindowCoordinator {
     await openSession();
     final session = await _singleWindow(DesktopWindowKind.procedureSession);
     final sessionId = session.windowId;
+    await _waitForChildLifecycleReady(session);
     await session.invokeMethod<void>('integration_test_hide');
     await _waitUntil(() => !_isProcedureSessionVisible);
 
@@ -699,12 +700,14 @@ final class DesktopWindowCoordinator {
     final reopenedSession =
         await _singleWindow(DesktopWindowKind.procedureSession);
     final sessionReused = reopenedSession.windowId == sessionId;
+    await _waitForChildLifecycleReady(reopenedSession);
     await reopenedSession.invokeMethod<void>('integration_test_hide');
     await _waitUntil(() => !_isProcedureSessionVisible);
 
     await openFreeTime();
     final freeTime = await _singleWindow(DesktopWindowKind.freeTime);
     final freeTimeId = freeTime.windowId;
+    await _waitForChildLifecycleReady(freeTime);
     await freeTime.invokeMethod<void>('window_close', {'cascade': true});
     await _waitUntil(() async => !(await WindowController.getAll())
         .any((window) => window.windowId == freeTimeId));
@@ -724,6 +727,17 @@ final class DesktopWindowCoordinator {
       (window) => windowKindFromArguments(window.arguments) == kind,
     );
   }
+
+  Future<void> _waitForChildLifecycleReady(WindowController window) =>
+      _waitUntil(() async {
+        try {
+          return await window.invokeMethod<bool>('integration_test_ready') ==
+              true;
+        } on WindowChannelException catch (error) {
+          if (error.code == 'CHANNEL_UNREGISTERED') return false;
+          rethrow;
+        }
+      });
 
   Future<void> _waitUntil(FutureOr<bool> Function() predicate) async {
     for (var attempt = 0; attempt < 100; attempt += 1) {
@@ -965,6 +979,9 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
   final current = await WindowController.fromCurrentEngine();
   await current.setWindowMethodHandler((call) async {
     switch (call.method) {
+      case 'integration_test_ready':
+        if (desktopIntegrationTestEnabled) return false;
+        throw MissingPluginException('Unknown window method ${call.method}');
       case 'window_focus':
         await windowManager.focus();
         return null;
@@ -1176,6 +1193,10 @@ class _FreeTimeWindowState extends State<FreeTimeWindow> {
   Future<void> _listen() async {
     final controller = await WindowController.fromCurrentEngine();
     await controller.setWindowMethodHandler((call) async {
+      if (call.method == 'integration_test_ready' &&
+          desktopIntegrationTestEnabled) {
+        return true;
+      }
       if (call.method == 'free_time_changed' ||
           call.method == 'directory_changed') {
         await _load();
@@ -1433,6 +1454,10 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
   }
 
   Future<dynamic> _handleWindowMethod(MethodCall call) async {
+    if (call.method == 'integration_test_ready' &&
+        desktopIntegrationTestEnabled) {
+      return true;
+    }
     if (call.method == 'directory_changed') {
       await _load();
       return null;
