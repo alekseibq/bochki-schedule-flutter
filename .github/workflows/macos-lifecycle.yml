@@ -98,7 +98,7 @@ jobs:
         working-directory: packages/bochki_schedule_app
         run: |
           set -o pipefail
-          flutter run -d macos --enable-windowing --dart-define=FRAMEWORK_WINDOWING_PROBE=true -t lib/main.dart 2>&1 | tee framework-windowing-probe.log
+          flutter --enable-windowing run -d macos --dart-define=FRAMEWORK_WINDOWING_PROBE=true -t lib/main.dart 2>&1 | tee framework-windowing-probe.log
           rg -F '[framework-windowing-probe] PASS child first frame reached main' framework-windowing-probe.log
 
       - name: Upload framework windowing probe log
