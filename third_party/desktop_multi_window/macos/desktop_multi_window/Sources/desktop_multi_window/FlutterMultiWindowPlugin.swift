@@ -112,8 +112,6 @@ class MultiWindowManager: NSObject {
         let flutterViewController = FlutterViewController(project: project)
         NSLog("[bochki-lifecycle] create child window \(windowId): FlutterViewController created")
         window.contentViewController = flutterViewController
-        flutterViewController.loadView()
-        NSLog("[bochki-lifecycle] create child window \(windowId): FlutterViewController loaded")
         NSLog("[bochki-lifecycle] create child window \(windowId): invoking plugin callback")
         FlutterMultiWindowPlugin.onWindowCreatedCallback?(flutterViewController)
         NSLog("[bochki-lifecycle] create child window \(windowId): plugin callback returned")
@@ -129,14 +127,16 @@ class MultiWindowManager: NSObject {
         flutterWindow.setChannel(channel)
         NSLog("[bochki-lifecycle] create child window \(windowId): channels registered")
 
-        // Hidden windows do not reliably receive viewWillAppear, which is the
-        // normal automatic launch path. Load the view and start its engine
-        // explicitly after every plugin channel has been registered.
+        // Flutter launches the child engine from viewWillAppear. Keep the
+        // window ordered through one run-loop turn so that appearance can
+        // complete, then hide it before Dart applies its final geometry.
+        window.setFrame(NSRect(x: 0, y: 0, width: 800, height: 600), display: true)
         NSLog("[bochki-lifecycle] create child window \(windowId): engine launch requested")
-        let engineLaunched = flutterViewController.engine.run(withEntrypoint: nil)
-        NSLog("[bochki-lifecycle] create child window \(windowId): engine launch result \(engineLaunched)")
-        if !config.hiddenAtLaunch {
-            window.orderFront(nil)
+        window.orderFront(nil)
+        if config.hiddenAtLaunch {
+            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(250)) {
+                window.orderOut(nil)
+            }
         }
 
         notifyWindowsChanged()
