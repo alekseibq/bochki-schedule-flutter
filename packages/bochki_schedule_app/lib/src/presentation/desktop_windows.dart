@@ -59,9 +59,7 @@ Future<WindowController> currentDesktopWindowController() async {
   for (var attempt = 0; attempt < 100; attempt += 1) {
     try {
       return await WindowController.fromCurrentEngine();
-    } on MissingPluginException {
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-    } on PlatformException {
+    } on Exception {
       await Future<void>.delayed(const Duration(milliseconds: 50));
     }
   }
