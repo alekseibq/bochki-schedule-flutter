@@ -272,6 +272,10 @@ final class DesktopWindowLifecycle with WindowListener {
 
   Future<dynamic> _handleControlCall(MethodCall call) async {
     switch (call.method) {
+      case 'integration_test_ready':
+        return true;
+      case 'integration_test_hide':
+        return hideCurrentProcedureSessionWindow();
       case 'window_focus':
         await windowManager.focus();
         return;
