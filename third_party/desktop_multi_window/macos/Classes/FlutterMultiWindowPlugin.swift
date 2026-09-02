@@ -107,7 +107,16 @@ class MultiWindowManager: NSObject {
 
         let project = FlutterDartProject()
         project.dartEntrypointArguments = ["multi_window", windowId, config.arguments]
-        let flutterViewController = FlutterViewController(project: project)
+        // Create an unstarted, headless-capable engine ourselves. The
+        // convenience FlutterViewController(project:) initializer owns engine
+        // creation and can start it before this plugin has registered the
+        // child-specific channels.
+        let engine = FlutterEngine(
+            name: "desktop_multi_window.\(windowId)",
+            project: project,
+            allowHeadlessExecution: true)
+        let flutterViewController = FlutterViewController(
+            engine: engine, nibName: nil, bundle: nil)
         NSLog("[macos-minimal] child controller created windowId=\(windowId)")
         window.contentViewController = flutterViewController
 
@@ -129,7 +138,7 @@ class MultiWindowManager: NSObject {
         // view lifecycle callback that normally starts the main engine under
         // `flutter test -d macos`. Register every plugin channel first, then
         // launch the engine explicitly before making the window visible.
-        let engineLaunched = flutterViewController.engine.run(withEntrypoint: nil)
+        let engineLaunched = engine.run(withEntrypoint: nil)
         NSLog("[macos-minimal] child engine run requested windowId=\(windowId) result=\(engineLaunched)")
         window.setFrame(NSRect(x: 0, y: 0, width: 800, height: 600), display: false)
         if !config.hiddenAtLaunch {
