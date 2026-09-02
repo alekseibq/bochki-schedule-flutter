@@ -3,7 +3,6 @@ import 'dart:io';
 import 'dart:ui';
 
 import 'package:bochki_schedule_app/bochki_schedule_app.dart';
-import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/widgets.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -14,7 +13,7 @@ import 'src/presentation/desktop_windows.dart';
 
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
-  final controller = await WindowController.fromCurrentEngine();
+  final controller = await currentDesktopWindowController();
   final kind = windowKindFromArguments(controller.arguments);
   if (kind != DesktopWindowKind.main) {
     await configureChildWindow(kind);

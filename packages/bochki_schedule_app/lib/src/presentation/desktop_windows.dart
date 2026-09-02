@@ -54,6 +54,20 @@ const desktopIntegrationTestEnabled = bool.fromEnvironment(
   'INTEGRATION_TEST',
 );
 
+/// Waits for the native child engine to finish registering its plugins.
+Future<WindowController> currentDesktopWindowController() async {
+  for (var attempt = 0; attempt < 100; attempt += 1) {
+    try {
+      return await WindowController.fromCurrentEngine();
+    } on MissingPluginException {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    } on PlatformException {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+  }
+  throw StateError('Timed out waiting for the current desktop window engine');
+}
+
 WindowConfiguration childWindowConfiguration(String arguments) =>
     WindowConfiguration(arguments: arguments, hiddenAtLaunch: true);
 

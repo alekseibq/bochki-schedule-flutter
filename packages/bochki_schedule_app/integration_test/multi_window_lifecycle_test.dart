@@ -11,7 +11,7 @@ import 'package:bochki_schedule_app/src/presentation/desktop_windows.dart';
 
 Future<void> main() async {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  final currentWindow = await WindowController.fromCurrentEngine();
+  final currentWindow = await currentDesktopWindowController();
   final kind = windowKindFromArguments(currentWindow.arguments);
   if (kind != DesktopWindowKind.main) {
     await configureChildWindow(kind);
