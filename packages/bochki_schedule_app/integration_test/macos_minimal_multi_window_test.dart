@@ -7,8 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 Future<void> main(List<String> args) async {
-  WidgetsFlutterBinding.ensureInitialized();
   if (args.firstOrNull == 'multi_window') {
+    WidgetsFlutterBinding.ensureInitialized();
     final windowId = int.parse(args[1]);
     _trace('child entrypoint windowId=$windowId');
     DesktopMultiWindow.setMethodHandler((call, fromWindowId) async {
