@@ -1,29 +1,19 @@
 import 'dart:async';
 
+import 'package:bochki_schedule_app/src/presentation/macos_minimal_child.dart';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:window_manager/window_manager.dart';
-
-const _childArgument = 'macos-minimal-child';
-const _childControlChannel = WindowMethodChannel(
-  'bochki_schedule/macos_minimal_child_control',
-  mode: ChannelMode.unidirectional,
-);
-const _readyChannel = WindowMethodChannel(
-  'bochki_schedule/macos_minimal_child_ready',
-  mode: ChannelMode.bidirectional,
-);
 
 Future<void> main() async {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   final currentWindow = await WindowController.fromCurrentEngine();
   _trace('entrypoint windowId=${currentWindow.windowId} '
       'arguments=${currentWindow.arguments}');
-  if (currentWindow.arguments == _childArgument) {
-    await _startChildWindow(currentWindow.windowId);
+  if (currentWindow.arguments == macosMinimalChildArgument) {
+    await startMacosMinimalChild(currentWindow.windowId);
     return;
   }
 
@@ -31,7 +21,7 @@ Future<void> main() async {
       (tester) async {
     var childCreated = Completer<WindowController>();
     var childReady = Completer<void>();
-    await _readyChannel.setMethodCallHandler((call) async {
+    await macosMinimalChildReadyChannel.setMethodCallHandler((call) async {
       _trace('main received ${call.method} arguments=${call.arguments}');
       if (call.method != 'ready') {
         throw UnsupportedError('Unknown minimal child event: ${call.method}');
@@ -46,7 +36,7 @@ Future<void> main() async {
         _trace('main creating child window');
         final child = await WindowController.create(
           const WindowConfiguration(
-            arguments: _childArgument,
+            arguments: macosMinimalChildArgument,
             hiddenAtLaunch: false,
           ),
         );
@@ -63,7 +53,7 @@ Future<void> main() async {
     await _waitForChildBootstrap(child);
     await childReady.future.timeout(const Duration(seconds: 5));
     _trace('main received child ready after first frame');
-    await _childControlChannel.invokeMethod<void>('close');
+    await macosMinimalChildControlChannel.invokeMethod<void>('close');
     await _waitForChildToClose(child.windowId);
 
     childCreated = Completer<WindowController>();
@@ -76,53 +66,16 @@ Future<void> main() async {
     await _waitForChildBootstrap(reopenedChild);
     await childReady.future.timeout(const Duration(seconds: 5));
     _trace('main received reopened child ready after first frame');
-    await _childControlChannel.invokeMethod<void>('close');
+    await macosMinimalChildControlChannel.invokeMethod<void>('close');
     await _waitForChildToClose(reopenedChild.windowId);
   });
-}
-
-Future<void> _startChildWindow(String windowId) async {
-  _trace('child bootstrap begins windowId=$windowId');
-  await windowManager.ensureInitialized();
-  _trace('child windowManager initialized windowId=$windowId');
-  await _childControlChannel.setMethodCallHandler((call) async {
-    _trace('child control ${call.method} windowId=$windowId');
-    if (call.method == 'bootstrapReady') return true;
-    if (call.method == 'close') {
-      await windowManager.close();
-      return null;
-    }
-    throw UnsupportedError('Unknown minimal child command: ${call.method}');
-  });
-  await _readyChannel.setMethodCallHandler((call) async {
-    _trace('child unexpectedly received ${call.method} windowId=$windowId');
-    throw UnsupportedError(
-        'Unknown command on child ready channel: ${call.method}');
-  });
-  _trace('child IPC handlers registered windowId=$windowId');
-  runApp(_MinimalChildWindow(
-    onFirstFrame: () => _announceReady(windowId),
-  ));
-}
-
-Future<void> _announceReady(String windowId) async {
-  _trace('child first frame rendered windowId=$windowId');
-  for (var attempt = 0; attempt < 100; attempt += 1) {
-    try {
-      await _readyChannel.invokeMethod<bool>('ready', {'windowId': windowId});
-      _trace('child ready delivered windowId=$windowId');
-      return;
-    } on WindowChannelException {
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-    }
-  }
-  throw StateError('Timed out delivering minimal child ready for $windowId');
 }
 
 Future<void> _waitForChildBootstrap(WindowController child) async {
   for (var attempt = 0; attempt < 100; attempt += 1) {
     try {
-      if (await _childControlChannel.invokeMethod<bool>('bootstrapReady') ==
+      if (await macosMinimalChildControlChannel
+              .invokeMethod<bool>('bootstrapReady') ==
           true) {
         _trace('main confirmed child bootstrap windowId=${child.windowId}');
         return;
@@ -180,40 +133,5 @@ class _MinimalMainWindowState extends State<_MinimalMainWindow> {
             ),
           ),
         ),
-      );
-}
-
-class _MinimalChildWindow extends StatelessWidget {
-  const _MinimalChildWindow({required this.onFirstFrame});
-
-  final Future<void> Function() onFirstFrame;
-
-  @override
-  Widget build(BuildContext context) => MaterialApp(
-        home: _MinimalChildContent(onFirstFrame: onFirstFrame),
-      );
-}
-
-class _MinimalChildContent extends StatefulWidget {
-  const _MinimalChildContent({required this.onFirstFrame});
-
-  final Future<void> Function() onFirstFrame;
-
-  @override
-  State<_MinimalChildContent> createState() => _MinimalChildContentState();
-}
-
-class _MinimalChildContentState extends State<_MinimalChildContent> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(widget.onFirstFrame());
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) => const Scaffold(
-        body: Center(child: Text('Minimal child window')),
       );
 }
