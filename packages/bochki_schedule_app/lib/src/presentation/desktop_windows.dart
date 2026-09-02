@@ -659,6 +659,11 @@ final class DesktopWindowCoordinator {
           throw MissingPluginException('Unknown main-window method');
         }
         return _runIntegrationTestMultiWindowLifecycle();
+      case 'integrationTestReady':
+        if (!desktopIntegrationTestEnabled) {
+          throw MissingPluginException('Unknown main-window method');
+        }
+        return true;
       case 'integrationTestShutdownMultiWindowLifecycle':
         if (!desktopIntegrationTestEnabled) {
           throw MissingPluginException('Unknown main-window method');

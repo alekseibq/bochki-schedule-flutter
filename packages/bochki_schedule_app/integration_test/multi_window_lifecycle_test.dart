@@ -142,6 +142,7 @@ Future<void> main() async {
       'bochki_schedule/main_window',
       mode: ChannelMode.unidirectional,
     );
+    await _waitForMainWindowChannel(mainChannel);
     for (var cycle = 0; cycle < 10; cycle += 1) {
       final result = await mainChannel.invokeMethod<Map<dynamic, dynamic>>(
         'integrationTestRunMultiWindowLifecycle',
@@ -189,6 +190,18 @@ Future<void> main() async {
       findsOneWidget,
     );
   });
+}
+
+Future<void> _waitForMainWindowChannel(WindowMethodChannel channel) async {
+  for (var attempt = 0; attempt < 100; attempt += 1) {
+    try {
+      await channel.invokeMethod<void>('integrationTestReady');
+      return;
+    } on WindowChannelException {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+  }
+  throw StateError('Main window lifecycle channel was not registered');
 }
 
 Future<void> _noopAsync() async {}
