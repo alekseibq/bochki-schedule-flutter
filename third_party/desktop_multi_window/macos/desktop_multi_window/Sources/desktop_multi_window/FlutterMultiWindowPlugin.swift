@@ -35,6 +35,7 @@ public class FlutterMultiWindowPlugin: NSObject, FlutterPlugin {
     }
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+        NSLog("[bochki-lifecycle] desktop channel \(windowId): \(call.method)")
         let isWindowEvent = call.method.hasPrefix("window_")
         if isWindowEvent {
             let arguments = call.arguments as! [String: Any?]

@@ -189,6 +189,7 @@ class WindowChannel: NSObject, FlutterPlugin {
   private var methodChannels: [String] = []
 
   func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    NSLog("[bochki-lifecycle] window channel: \(call.method)")
     switch call.method {
     case "registerMethodHandler":
       let arguments = call.arguments as! [String: Any?]
@@ -279,4 +280,3 @@ class WindowChannel: NSObject, FlutterPlugin {
     }
   }
 }
-
