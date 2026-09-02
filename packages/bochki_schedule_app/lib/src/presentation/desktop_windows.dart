@@ -729,22 +729,30 @@ final class DesktopWindowCoordinator {
   }
 
   Future<void> _waitForChildLifecycleReady(WindowController window) =>
-      _waitUntil(() async {
-        try {
-          return await window.invokeMethod<bool>('integration_test_ready') ==
-              true;
-        } on WindowChannelException catch (error) {
-          if (error.code == 'CHANNEL_UNREGISTERED') return false;
-          rethrow;
-        }
-      });
+      _waitUntil(
+        () async {
+          try {
+            return await window.invokeMethod<bool>('integration_test_ready') ==
+                true;
+          } on WindowChannelException catch (error) {
+            if (error.code == 'CHANNEL_UNREGISTERED') return false;
+            rethrow;
+          }
+        },
+        attempts: 400,
+        description: 'child window ${window.windowId} lifecycle channel',
+      );
 
-  Future<void> _waitUntil(FutureOr<bool> Function() predicate) async {
-    for (var attempt = 0; attempt < 100; attempt += 1) {
+  Future<void> _waitUntil(
+    FutureOr<bool> Function() predicate, {
+    int attempts = 100,
+    String description = 'desktop window lifecycle state',
+  }) async {
+    for (var attempt = 0; attempt < attempts; attempt += 1) {
       if (await predicate()) return;
       await Future<void>.delayed(const Duration(milliseconds: 50));
     }
-    throw StateError('Timed out waiting for desktop window lifecycle state');
+    throw StateError('Timed out waiting for $description');
   }
 
   void _setProcedureSessionVisible(bool value) {
