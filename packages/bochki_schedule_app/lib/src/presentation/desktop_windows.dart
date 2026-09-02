@@ -49,7 +49,7 @@ const _mainChannel = WindowMethodChannel(
   mode: ChannelMode.unidirectional,
 );
 
-/// Test controls are compiled only into the desktop integration-test binary.
+/// The main-window dispatcher exposes integration-test controls only in tests.
 const desktopIntegrationTestEnabled = bool.fromEnvironment(
   'INTEGRATION_TEST',
 );
@@ -980,11 +980,9 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
   Future<dynamic> handleInitialWindowMethod(MethodCall call) async {
     switch (call.method) {
       case 'integration_test_ready':
-        if (desktopIntegrationTestEnabled) return true;
-        throw MissingPluginException('Unknown window method ${call.method}');
+        return true;
       case 'integration_test_hide':
-        if (desktopIntegrationTestEnabled &&
-            kind == DesktopWindowKind.procedureSession) {
+        if (kind == DesktopWindowKind.procedureSession) {
           return hideCurrentProcedureSessionWindow();
         }
         throw MissingPluginException('Unknown window method ${call.method}');
@@ -1478,8 +1476,7 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
       );
       return null;
     }
-    if (call.method == 'integration_test_hide' &&
-        desktopIntegrationTestEnabled) {
+    if (call.method == 'integration_test_hide') {
       return hideCurrentProcedureSessionWindow();
     }
     if (call.method == 'window_bounds') return currentWindowBoundsMap();
