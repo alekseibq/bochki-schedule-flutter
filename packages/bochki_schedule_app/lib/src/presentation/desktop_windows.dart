@@ -977,10 +977,16 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
     await windowManager.focus();
   });
   final current = await WindowController.fromCurrentEngine();
-  await current.setWindowMethodHandler((call) async {
+  Future<dynamic> handleInitialWindowMethod(MethodCall call) async {
     switch (call.method) {
       case 'integration_test_ready':
-        if (desktopIntegrationTestEnabled) return false;
+        if (desktopIntegrationTestEnabled) return true;
+        throw MissingPluginException('Unknown window method ${call.method}');
+      case 'integration_test_hide':
+        if (desktopIntegrationTestEnabled &&
+            kind == DesktopWindowKind.procedureSession) {
+          return hideCurrentProcedureSessionWindow();
+        }
         throw MissingPluginException('Unknown window method ${call.method}');
       case 'window_focus':
         await windowManager.focus();
@@ -995,7 +1001,9 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
       default:
         throw MissingPluginException('Unknown window method ${call.method}');
     }
-  });
+  }
+
+  await current.setWindowMethodHandler(handleInitialWindowMethod);
 }
 
 Future<Rect?> _savedChildWindowBounds(DesktopWindowKind kind) async {
@@ -1193,10 +1201,6 @@ class _FreeTimeWindowState extends State<FreeTimeWindow> {
   Future<void> _listen() async {
     final controller = await WindowController.fromCurrentEngine();
     await controller.setWindowMethodHandler((call) async {
-      if (call.method == 'integration_test_ready' &&
-          desktopIntegrationTestEnabled) {
-        return true;
-      }
       if (call.method == 'free_time_changed' ||
           call.method == 'directory_changed') {
         await _load();
@@ -1454,10 +1458,6 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
   }
 
   Future<dynamic> _handleWindowMethod(MethodCall call) async {
-    if (call.method == 'integration_test_ready' &&
-        desktopIntegrationTestEnabled) {
-      return true;
-    }
     if (call.method == 'directory_changed') {
       await _load();
       return null;
