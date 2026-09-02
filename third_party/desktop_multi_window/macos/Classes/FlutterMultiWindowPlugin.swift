@@ -107,22 +107,11 @@ class MultiWindowManager: NSObject {
 
         let project = FlutterDartProject()
         project.dartEntrypointArguments = ["multi_window", windowId, config.arguments]
-        // Create an unstarted, headless-capable engine ourselves. The
-        // convenience FlutterViewController(project:) initializer owns engine
-        // creation and can start it before this plugin has registered the
-        // child-specific channels.
-        let engine = FlutterEngine(
-            name: "desktop_multi_window.\(windowId)",
-            project: project,
-            allowHeadlessExecution: true)
-        let flutterViewController = FlutterViewController(
-            engine: engine, nibName: nil, bundle: nil)
+        // A/B experiment for #183: use the upstream 0.2.1-style lifecycle.
+        // Let FlutterViewController own child-engine creation and startup.
+        let flutterViewController = FlutterViewController(project: project)
         NSLog("[macos-minimal] child controller created windowId=\(windowId)")
         window.contentViewController = flutterViewController
-
-        NSLog("[macos-minimal] registering child generated plugins windowId=\(windowId)")
-        FlutterMultiWindowPlugin.onWindowCreatedCallback?(flutterViewController)
-        NSLog("[macos-minimal] child generated plugins registered windowId=\(windowId)")
 
         let registrar = flutterViewController.registrar(forPlugin: "DesktopMultiWindowPlugin")
 
@@ -134,12 +123,10 @@ class MultiWindowManager: NSObject {
         flutterWindow.setChannel(channel)
         NSLog("[macos-minimal] child internal channels registered windowId=\(windowId)")
 
-        // A child FlutterViewController is not guaranteed to receive the
-        // view lifecycle callback that normally starts the main engine under
-        // `flutter test -d macos`. Register every plugin channel first, then
-        // launch the engine explicitly before making the window visible.
-        let engineLaunched = engine.run(withEntrypoint: nil)
-        NSLog("[macos-minimal] child engine run requested windowId=\(windowId) result=\(engineLaunched)")
+        NSLog("[macos-minimal] registering child generated plugins windowId=\(windowId)")
+        FlutterMultiWindowPlugin.onWindowCreatedCallback?(flutterViewController)
+        NSLog("[macos-minimal] child generated plugins registered windowId=\(windowId)")
+
         window.setFrame(NSRect(x: 0, y: 0, width: 800, height: 600), display: false)
         if !config.hiddenAtLaunch {
             NSLog("[macos-minimal] child orderFront windowId=\(windowId)")
