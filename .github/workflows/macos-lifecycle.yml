@@ -78,11 +78,13 @@ jobs:
         with:
           repository: flutter/flutter
           ref: ab5637ab27ab1c6ca6885ebdb9cce2d6570b943b
-          path: .tool/flutter
+          path: .tool/flutter-reference
           fetch-depth: 1
 
-      - name: Add Flutter to PATH
-        run: echo "$GITHUB_WORKSPACE/.tool/flutter/bin" >> "$GITHUB_PATH"
+      - name: Set up Flutter main channel
+        uses: subosito/flutter-action@v2
+        with:
+          channel: main
 
       - name: Enable macOS desktop
         run: flutter config --enable-macos-desktop
