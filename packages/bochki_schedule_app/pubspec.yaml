@@ -12,8 +12,9 @@ dependencies:
     path: ../bochki_schedule_domain
   bochki_schedule_infra:
     path: ../bochki_schedule_infra
-  desktop_multi_window:
-    path: ../../third_party/desktop_multi_window
+  # A/B experiment for #183: use the hosted upstream implementation rather
+  # than the local fork while exercising the minimal macOS child-window test.
+  desktop_multi_window: 0.2.1
   flutter:
     sdk: flutter
   flutter_localizations:
