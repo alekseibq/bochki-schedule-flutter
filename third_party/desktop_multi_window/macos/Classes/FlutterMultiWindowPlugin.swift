@@ -99,7 +99,7 @@ class MultiWindowManager: NSObject {
 
     func CreateWindow(arguments: [String: Any?]) -> WindowId {
         let windowId = WindowId.generate()
-        NSLog("[macos-minimal] create child begin windowId=\\(windowId)")
+        NSLog("[macos-minimal] create child begin windowId=\(windowId)")
 
         let config = WindowConfiguration.fromJson(arguments)
 
@@ -108,20 +108,20 @@ class MultiWindowManager: NSObject {
         let project = FlutterDartProject()
         project.dartEntrypointArguments = ["multi_window", windowId, config.arguments]
         let flutterViewController = FlutterViewController(project: project)
-        NSLog("[macos-minimal] child controller created windowId=\\(windowId)")
+        NSLog("[macos-minimal] child controller created windowId=\(windowId)")
         window.contentViewController = flutterViewController
         // Keep hidden windows out of the compositor until Dart has applied
         // their final size and position. Calling orderFront here creates a
         // visible frame at the default origin before window_manager runs.
         window.setFrame(NSRect(x: 0, y: 0, width: 800, height: 600), display: false)
         if !config.hiddenAtLaunch {
-            NSLog("[macos-minimal] child orderFront windowId=\\(windowId)")
+            NSLog("[macos-minimal] child orderFront windowId=\(windowId)")
             window.orderFront(nil)
         }
 
-        NSLog("[macos-minimal] registering child generated plugins windowId=\\(windowId)")
+        NSLog("[macos-minimal] registering child generated plugins windowId=\(windowId)")
         FlutterMultiWindowPlugin.onWindowCreatedCallback?(flutterViewController)
-        NSLog("[macos-minimal] child generated plugins registered windowId=\\(windowId)")
+        NSLog("[macos-minimal] child generated plugins registered windowId=\(windowId)")
 
         let registrar = flutterViewController.registrar(forPlugin: "DesktopMultiWindowPlugin")
 
@@ -131,7 +131,7 @@ class MultiWindowManager: NSObject {
 
         let channel = registerMultiWindowChannel(window: flutterWindow, with: registrar)
         flutterWindow.setChannel(channel)
-        NSLog("[macos-minimal] child internal channels registered windowId=\\(windowId)")
+        NSLog("[macos-minimal] child internal channels registered windowId=\(windowId)")
 
         notifyWindowsChanged()
 
