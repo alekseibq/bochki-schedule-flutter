@@ -7,9 +7,21 @@ import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:bochki_schedule_app/src/presentation/desktop_windows.dart';
 
-void main() {
+Future<void> main() async {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  final currentWindow = await WindowController.fromCurrentEngine();
+  final kind = windowKindFromArguments(currentWindow.arguments);
+  if (kind != DesktopWindowKind.main) {
+    await configureChildWindow(kind);
+    runApp(switch (kind) {
+      DesktopWindowKind.procedureSession => const ProcedureSessionWindow(),
+      DesktopWindowKind.freeTime => const FreeTimeWindow(),
+      _ => const DirectoryChildWindow(),
+    });
+    return;
+  }
 
   testWidgets('desktop multi-window lifecycle reuses and closes child engines',
       (tester) async {
