@@ -110,14 +110,6 @@ class MultiWindowManager: NSObject {
         let flutterViewController = FlutterViewController(project: project)
         NSLog("[macos-minimal] child controller created windowId=\(windowId)")
         window.contentViewController = flutterViewController
-        // Keep hidden windows out of the compositor until Dart has applied
-        // their final size and position. Calling orderFront here creates a
-        // visible frame at the default origin before window_manager runs.
-        window.setFrame(NSRect(x: 0, y: 0, width: 800, height: 600), display: false)
-        if !config.hiddenAtLaunch {
-            NSLog("[macos-minimal] child orderFront windowId=\(windowId)")
-            window.orderFront(nil)
-        }
 
         NSLog("[macos-minimal] registering child generated plugins windowId=\(windowId)")
         FlutterMultiWindowPlugin.onWindowCreatedCallback?(flutterViewController)
@@ -132,6 +124,18 @@ class MultiWindowManager: NSObject {
         let channel = registerMultiWindowChannel(window: flutterWindow, with: registrar)
         flutterWindow.setChannel(channel)
         NSLog("[macos-minimal] child internal channels registered windowId=\(windowId)")
+
+        // A child FlutterViewController is not guaranteed to receive the
+        // view lifecycle callback that normally starts the main engine under
+        // `flutter test -d macos`. Register every plugin channel first, then
+        // launch the engine explicitly before making the window visible.
+        let engineLaunched = flutterViewController.engine.run(withEntrypoint: nil)
+        NSLog("[macos-minimal] child engine run requested windowId=\(windowId) result=\(engineLaunched)")
+        window.setFrame(NSRect(x: 0, y: 0, width: 800, height: 600), display: false)
+        if !config.hiddenAtLaunch {
+            NSLog("[macos-minimal] child orderFront windowId=\(windowId)")
+            window.orderFront(nil)
+        }
 
         notifyWindowsChanged()
 
