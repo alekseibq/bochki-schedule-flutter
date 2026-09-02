@@ -110,14 +110,15 @@ class MultiWindowManager: NSObject {
         let flutterViewController = FlutterViewController(project: project)
         NSLog("[bochki-lifecycle] create child window \(windowId): FlutterViewController created")
         window.contentViewController = flutterViewController
-        // Keep hidden windows out of the compositor until Dart has applied
-        // their final size and position. Calling orderFront here creates a
-        // visible frame at the default origin before window_manager runs.
-        window.setFrame(NSRect(x: 0, y: 0, width: 800, height: 600), display: false)
-        if !config.hiddenAtLaunch {
-            window.orderFront(nil)
-        }
+        // Flutter launches the child engine from viewWillAppear. Ordering the
+        // window once therefore remains necessary even for a hidden child.
+        // Hide it immediately afterwards; Dart will show it after applying
+        // its saved geometry.
+        window.setFrame(NSRect(x: 0, y: 0, width: 800, height: 600), display: true)
+        window.orderFront(nil)
+        window.setIsVisible(!config.hiddenAtLaunch)
 
+        NSLog("[bochki-lifecycle] create child window \(windowId): engine launch requested")
         NSLog("[bochki-lifecycle] create child window \(windowId): invoking plugin callback")
         FlutterMultiWindowPlugin.onWindowCreatedCallback?(flutterViewController)
         NSLog("[bochki-lifecycle] create child window \(windowId): plugin callback returned")
