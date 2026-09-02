@@ -150,6 +150,9 @@ Future<void> main() async {
       expect(result?['ordinaryWindowClosed'], isTrue);
       expect(result?['procedureWindowId'], isNotEmpty);
     }
+    await mainChannel.invokeMethod<void>(
+      'integrationTestShutdownMultiWindowLifecycle',
+    );
 
     expect(find.text('ПО Расписание Бочки'), findsOneWidget);
     expect(find.text('Данные'), findsOneWidget);

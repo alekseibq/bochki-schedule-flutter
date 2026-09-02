@@ -659,6 +659,24 @@ final class DesktopWindowCoordinator {
           throw MissingPluginException('Unknown main-window method');
         }
         return _runIntegrationTestMultiWindowLifecycle();
+      case 'integrationTestShutdownMultiWindowLifecycle':
+        if (!desktopIntegrationTestEnabled) {
+          throw MissingPluginException('Unknown main-window method');
+        }
+        final sessions = (await WindowController.getAll()).where(
+          (window) =>
+              windowKindFromArguments(window.arguments) ==
+              DesktopWindowKind.procedureSession,
+        );
+        for (final session in sessions) {
+          await session.invokeMethod<void>('window_close', {'cascade': true});
+        }
+        await _waitUntil(() async => !(await WindowController.getAll()).any(
+              (window) =>
+                  windowKindFromArguments(window.arguments) ==
+                  DesktopWindowKind.procedureSession,
+            ));
+        return null;
       default:
         throw MissingPluginException(
             'Unknown main-window method ${call.method}');
