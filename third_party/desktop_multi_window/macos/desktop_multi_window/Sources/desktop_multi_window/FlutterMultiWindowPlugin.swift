@@ -72,6 +72,7 @@ public class FlutterMultiWindowPlugin: NSObject, FlutterPlugin {
     }
 }
 
+
 class MultiWindowManager: NSObject {
 
     static let shared: MultiWindowManager = MultiWindowManager()
@@ -99,6 +100,7 @@ class MultiWindowManager: NSObject {
 
     func CreateWindow(arguments: [String: Any?]) -> WindowId {
         let windowId = WindowId.generate()
+        NSLog("[bochki-lifecycle] create child window \(windowId): begin")
 
         let config = WindowConfiguration.fromJson(arguments)
 
@@ -107,6 +109,7 @@ class MultiWindowManager: NSObject {
         let project = FlutterDartProject()
         project.dartEntrypointArguments = ["multi_window", windowId, config.arguments]
         let flutterViewController = FlutterViewController(project: project)
+        NSLog("[bochki-lifecycle] create child window \(windowId): FlutterViewController created")
         window.contentViewController = flutterViewController
         // Keep hidden windows out of the compositor until Dart has applied
         // their final size and position. Calling orderFront here creates a
@@ -116,9 +119,12 @@ class MultiWindowManager: NSObject {
             window.orderFront(nil)
         }
 
+        NSLog("[bochki-lifecycle] create child window \(windowId): invoking plugin callback")
         FlutterMultiWindowPlugin.onWindowCreatedCallback?(flutterViewController)
+        NSLog("[bochki-lifecycle] create child window \(windowId): plugin callback returned")
 
         let registrar = flutterViewController.registrar(forPlugin: "DesktopMultiWindowPlugin")
+        NSLog("[bochki-lifecycle] create child window \(windowId): registrar acquired")
 
         let flutterWindow = FlutterWindow(
             windowId: windowId, windowArgument: config.arguments, window: window)
@@ -126,6 +132,7 @@ class MultiWindowManager: NSObject {
 
         let channel = registerMultiWindowChannel(window: flutterWindow, with: registrar)
         flutterWindow.setChannel(channel)
+        NSLog("[bochki-lifecycle] create child window \(windowId): channels registered")
 
         notifyWindowsChanged()
 
@@ -172,4 +179,3 @@ class MultiWindowManager: NSObject {
     }
 
 }
-
