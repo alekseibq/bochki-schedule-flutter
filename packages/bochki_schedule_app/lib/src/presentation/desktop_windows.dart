@@ -49,6 +49,11 @@ const _mainChannel = WindowMethodChannel(
   mode: ChannelMode.unidirectional,
 );
 
+/// Test controls are compiled only into the desktop integration-test binary.
+const desktopIntegrationTestEnabled = bool.fromEnvironment(
+  'INTEGRATION_TEST',
+);
+
 WindowConfiguration childWindowConfiguration(String arguments) =>
     WindowConfiguration(arguments: arguments, hiddenAtLaunch: true);
 
@@ -649,10 +654,60 @@ final class DesktopWindowCoordinator {
         _setProcedureSessionVisible(call.arguments as bool);
         if (call.arguments == false) await _focusMainWindow();
         return null;
+      case 'integrationTestRunMultiWindowLifecycle':
+        if (!desktopIntegrationTestEnabled) {
+          throw MissingPluginException('Unknown main-window method');
+        }
+        return _runIntegrationTestMultiWindowLifecycle();
       default:
         throw MissingPluginException(
             'Unknown main-window method ${call.method}');
     }
+  }
+
+  Future<Map<String, dynamic>> _runIntegrationTestMultiWindowLifecycle() async {
+    await openSession();
+    final session = await _singleWindow(DesktopWindowKind.procedureSession);
+    final sessionId = session.windowId;
+    await session.invokeMethod<void>('integration_test_hide');
+    await _waitUntil(() => !_isProcedureSessionVisible);
+
+    await openSession();
+    final reopenedSession =
+        await _singleWindow(DesktopWindowKind.procedureSession);
+    final sessionReused = reopenedSession.windowId == sessionId;
+    await reopenedSession.invokeMethod<void>('integration_test_hide');
+    await _waitUntil(() => !_isProcedureSessionVisible);
+
+    await openFreeTime();
+    final freeTime = await _singleWindow(DesktopWindowKind.freeTime);
+    final freeTimeId = freeTime.windowId;
+    await freeTime.invokeMethod<void>('window_close', {'cascade': true});
+    await _waitUntil(() async => !(await WindowController.getAll())
+        .any((window) => window.windowId == freeTimeId));
+
+    return {
+      'procedureWindowId': sessionId,
+      'procedureWindowReused': sessionReused,
+      'ordinaryWindowClosed': true,
+    };
+  }
+
+  Future<WindowController> _singleWindow(DesktopWindowKind kind) async {
+    await _waitUntil(() async => (await WindowController.getAll()).any(
+          (window) => windowKindFromArguments(window.arguments) == kind,
+        ));
+    return (await WindowController.getAll()).firstWhere(
+      (window) => windowKindFromArguments(window.arguments) == kind,
+    );
+  }
+
+  Future<void> _waitUntil(FutureOr<bool> Function() predicate) async {
+    for (var attempt = 0; attempt < 100; attempt += 1) {
+      if (await predicate()) return;
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+    throw StateError('Timed out waiting for desktop window lifecycle state');
   }
 
   void _setProcedureSessionVisible(bool value) {
@@ -1374,6 +1429,10 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
         true,
       );
       return null;
+    }
+    if (call.method == 'integration_test_hide' &&
+        desktopIntegrationTestEnabled) {
+      return hideCurrentProcedureSessionWindow();
     }
     if (call.method == 'window_bounds') return currentWindowBoundsMap();
     if (call.method == 'window_focus') return windowManager.focus();

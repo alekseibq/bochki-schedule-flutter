@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.14.1
+
+### Highlights
+
+- Updated Flutter to 3.47.1 and added Windows/macOS desktop lifecycle
+  regression coverage for reused and closed child windows.
+
+### Details
+
+- `chore(flutter): update desktop toolchain and multi-window regression checks (#173)`
+
 ## v0.13.5
 
 Release date: 2026-09-01

@@ -105,10 +105,4 @@ abstract final class ProcedureSessionValidator {
     }
     return null;
   }
-
-  static String _formatTime(int totalMinutes) {
-    final hour = (totalMinutes ~/ 60).toString().padLeft(2, '0');
-    final minute = (totalMinutes % 60).toString().padLeft(2, '0');
-    return '$hour:$minute';
-  }
 }
