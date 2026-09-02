@@ -99,7 +99,8 @@ Future<void> main() async {
         savePrintScheduleFileUseCase: savePrintScheduleFileUseCase,
         documentOpener: _FakeDocumentOpener(),
       ),
-      buildProcedureStatisticsTableUseCase: BuildProcedureStatisticsTableUseCase(
+      buildProcedureStatisticsTableUseCase:
+          BuildProcedureStatisticsTableUseCase(
         listWorkdaysUseCase: ListWorkdaysUseCase(workdaysRepository),
         listHumansUseCase: ListHumansUseCase(humansRepository),
         listProcedureKindsUseCase:
