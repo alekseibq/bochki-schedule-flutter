@@ -7,7 +7,9 @@ For the #183 macOS experiment, `macos/desktop_multi_window/Sources` is the
 hosted `desktop_multi_window` 0.3.1 implementation. Its only local change is
 in `FlutterMultiWindowPlugin.CreateWindow`: a child with
 `hiddenAtLaunch: true` is not ordered front until Dart explicitly calls
-`show()`. This is the macOS hidden-start anti-flicker patch under test.
+`show()`. The final frame is also set with `display: false` only after the
+child engine and its channels are ready. Together these changes form the
+macOS hidden-start anti-flicker patch under test.
 
 The generated-plugin callback runs after the child engine's internal
 multi-window channels are attached. Calling it earlier can send an initial

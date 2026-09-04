@@ -108,12 +108,6 @@ class MultiWindowManager: NSObject {
         project.dartEntrypointArguments = ["multi_window", windowId, config.arguments]
         let flutterViewController = FlutterViewController(project: project)
         window.contentViewController = flutterViewController
-        window.setFrame(NSRect(x: 0, y: 0, width: 800, height: 600), display: true)
-
-        // Keep hidden children out of the compositor until Dart calls show().
-        if !config.hiddenAtLaunch {
-            window.orderFront(nil)
-        }
 
         let registrar = flutterViewController.registrar(forPlugin: "DesktopMultiWindowPlugin")
 
@@ -128,6 +122,14 @@ class MultiWindowManager: NSObject {
         // channels are attached. Some generated plugins send their initial
         // platform message during registration.
         FlutterMultiWindowPlugin.onWindowCreatedCallback?(flutterViewController)
+
+        // Set the final frame only after the child engine and its channels are
+        // ready. A hidden child must not enter the compositor before Dart
+        // explicitly asks to show it.
+        window.setFrame(NSRect(x: 0, y: 0, width: 800, height: 600), display: false)
+        if !config.hiddenAtLaunch {
+            window.orderFront(nil)
+        }
 
         notifyWindowsChanged()
 
