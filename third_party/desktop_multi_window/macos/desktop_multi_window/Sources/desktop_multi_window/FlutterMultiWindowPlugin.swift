@@ -115,8 +115,6 @@ class MultiWindowManager: NSObject {
             window.orderFront(nil)
         }
 
-        FlutterMultiWindowPlugin.onWindowCreatedCallback?(flutterViewController)
-
         let registrar = flutterViewController.registrar(forPlugin: "DesktopMultiWindowPlugin")
 
         let flutterWindow = FlutterWindow(
@@ -125,6 +123,11 @@ class MultiWindowManager: NSObject {
 
         let channel = registerMultiWindowChannel(window: flutterWindow, with: registrar)
         flutterWindow.setChannel(channel)
+
+        // Register generated plugins only after this engine's multi-window
+        // channels are attached. Some generated plugins send their initial
+        // platform message during registration.
+        FlutterMultiWindowPlugin.onWindowCreatedCallback?(flutterViewController)
 
         notifyWindowsChanged()
 
@@ -171,4 +174,3 @@ class MultiWindowManager: NSObject {
     }
 
 }
-

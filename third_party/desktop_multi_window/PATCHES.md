@@ -9,6 +9,10 @@ in `FlutterMultiWindowPlugin.CreateWindow`: a child with
 `hiddenAtLaunch: true` is not ordered front until Dart explicitly calls
 `show()`. This is the macOS hidden-start anti-flicker patch under test.
 
+The generated-plugin callback runs after the child engine's internal
+multi-window channels are attached. Calling it earlier can send an initial
+platform message to an invalid engine handle.
+
 On Windows, closed child-window Flutter engines are removed after the current
 native message has finished dispatching. Previously they remained owned by the
 manager until another child window was created. That left an engine receiving
