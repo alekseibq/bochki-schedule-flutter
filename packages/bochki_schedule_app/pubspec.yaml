@@ -12,7 +12,8 @@ dependencies:
     path: ../bochki_schedule_domain
   bochki_schedule_infra:
     path: ../bochki_schedule_infra
-  desktop_multi_window: 0.3.1
+  desktop_multi_window:
+    path: ../../third_party/desktop_multi_window
   flutter:
     sdk: flutter
   flutter_localizations:

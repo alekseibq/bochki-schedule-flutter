@@ -27,8 +27,6 @@ class MultiWindowManager {
 
   void RemoveManagedFlutterWindowLater(const std::string& window_id);
 
-  /// Destroys windows queued during the preceding native message dispatch.
-  /// Call this only after DispatchMessage has returned.
   void CleanupRemovedWindows();
 
   flutter::EncodableList GetAllWindows();
