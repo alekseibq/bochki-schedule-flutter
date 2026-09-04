@@ -19,10 +19,11 @@ Future<void> main(List<String> args) async {
     final arguments = jsonDecode(current.arguments) as Map<String, dynamic>;
     final windowName = arguments['name'] as String;
     _trace('child entrypoint windowId=${current.windowId} name=$windowName');
+    await windowManager.ensureInitialized();
     await current.setWindowMethodHandler((call) async {
       _trace('child received ${call.method}');
       if (call.method == 'window_close') {
-        await windowManager.close();
+        unawaited(windowManager.close());
         return null;
       }
       if (call.method == 'message_from_main') {
@@ -79,6 +80,7 @@ Future<void> _exerciseChildLifecycle(
     await child.show();
     if (smokeOnly) {
       await child.invokeMethod<void>('window_close');
+      await _waitForChildClose(child.windowId);
       _trace('PASS upstream child smoke lifecycle');
       exit(0);
     }
@@ -90,12 +92,22 @@ Future<void> _exerciseChildLifecycle(
       throw StateError('unexpected child reply: $reply');
     }
     await child.invokeMethod<void>('window_close');
+    await _waitForChildClose(child.windowId);
     _trace('PASS upstream child lifecycle and message exchange');
     exit(0);
   } catch (error, stackTrace) {
     _trace('FAIL $error\n$stackTrace');
     exit(1);
   }
+}
+
+Future<void> _waitForChildClose(String windowId) async {
+  for (var attempt = 0; attempt < 100; attempt += 1) {
+    final windows = await WindowController.getAll();
+    if (windows.every((window) => window.windowId != windowId)) return;
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+  }
+  throw StateError('timed out closing child $windowId');
 }
 
 void _trace(String message) {
