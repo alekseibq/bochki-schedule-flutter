@@ -5,16 +5,33 @@ import 'dart:io';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:window_manager/window_manager.dart';
+
+const _probeChannel = WindowMethodChannel(
+  'bochki_schedule/upstream_multi_window_probe',
+  mode: ChannelMode.unidirectional,
+);
 
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (args.firstOrNull == 'multi_window') {
-    final windowId = int.parse(args[1]);
-    final arguments = jsonDecode(args[2]) as Map<String, dynamic>;
+  final current = await WindowController.fromCurrentEngine();
+  if (current.windowId != '0') {
+    final arguments = jsonDecode(current.arguments) as Map<String, dynamic>;
     final windowName = arguments['name'] as String;
-    _trace('child entrypoint windowId=$windowId name=$windowName');
+    _trace('child entrypoint windowId=${current.windowId} name=$windowName');
+    await current.setWindowMethodHandler((call) async {
+      _trace('child received ${call.method}');
+      if (call.method == 'window_close') {
+        await windowManager.close();
+        return null;
+      }
+      if (call.method == 'message_from_main') {
+        return 'Message received by child ${current.windowId}';
+      }
+      throw UnsupportedError('Unknown child method ${call.method}');
+    });
     runApp(_UpstreamChildWindow(
-      windowId: windowId,
+      windowId: current.windowId,
       windowName: windowName,
     ));
     return;
@@ -24,45 +41,55 @@ Future<void> main(List<String> args) async {
 }
 
 Future<void> _runProbe() async {
-  final childReady = Completer<int>();
-  DesktopMultiWindow.setMethodHandler((call, fromWindowId) async {
-    _trace('main received ${call.method} from=$fromWindowId');
+  const smokeOnly = bool.fromEnvironment('UPSTREAM_MULTI_WINDOW_SMOKE');
+  final childReady = Completer<String>();
+  await _probeChannel.setMethodCallHandler((call) async {
+    _trace('main received ${call.method}');
     if (call.method != 'ready') {
       throw UnsupportedError('Unknown main method ${call.method}');
     }
-    if (!childReady.isCompleted) childReady.complete(fromWindowId);
+    if (!childReady.isCompleted) childReady.complete(call.arguments as String);
     return true;
   });
-
   runApp(_UpstreamMainWindow(
-    onFirstFrame: () => _exerciseChildLifecycle(childReady),
+    onFirstFrame: () => _exerciseChildLifecycle(
+      childReady,
+      smokeOnly: smokeOnly,
+    ),
   ));
 }
 
-Future<void> _exerciseChildLifecycle(Completer<int> childReady) async {
+Future<void> _exerciseChildLifecycle(
+  Completer<String> childReady, {
+  required bool smokeOnly,
+}) async {
   try {
     _trace('main creating upstream child window');
-    final child = await DesktopMultiWindow.createWindow(
-      jsonEncode({'name': 'Upstream minimal child'}),
+    final child = await WindowController.create(
+      WindowConfiguration(
+        arguments: jsonEncode({'name': 'Upstream minimal child'}),
+        hiddenAtLaunch: true,
+      ),
     );
-    await child.setFrame(const Rect.fromLTWH(100, 100, 800, 600));
-    await child.setTitle('Upstream minimal child');
-    await child.show();
     _trace('main createWindow returned windowId=${child.windowId}');
-
     final childId = await childReady.future.timeout(const Duration(seconds: 5));
     if (childId != child.windowId) {
       throw StateError('ready came from $childId, expected ${child.windowId}');
     }
-    final reply = await DesktopMultiWindow.invokeMethod(
-      child.windowId,
+    await child.show();
+    if (smokeOnly) {
+      await child.invokeMethod<void>('window_close');
+      _trace('PASS upstream child smoke lifecycle');
+      exit(0);
+    }
+    final reply = await child.invokeMethod<String>(
       'message_from_main',
       'Hello from the main window',
     );
     if (reply != 'Message received by child ${child.windowId}') {
       throw StateError('unexpected child reply: $reply');
     }
-    await child.close();
+    await child.invokeMethod<void>('window_close');
     _trace('PASS upstream child lifecycle and message exchange');
     exit(0);
   } catch (error, stackTrace) {
@@ -72,7 +99,7 @@ Future<void> _exerciseChildLifecycle(Completer<int> childReady) async {
 }
 
 void _trace(String message) {
-  debugPrintSynchronously('[macos-upstream-0.2.1] $message');
+  debugPrintSynchronously('[macos-upstream-0.3.1] $message');
 }
 
 class _UpstreamMainWindow extends StatefulWidget {
@@ -107,7 +134,7 @@ class _UpstreamChildWindow extends StatefulWidget {
     required this.windowName,
   });
 
-  final int windowId;
+  final String windowId;
   final String windowName;
 
   @override
@@ -118,18 +145,10 @@ class _UpstreamChildWindowState extends State<_UpstreamChildWindow> {
   @override
   void initState() {
     super.initState();
-    DesktopMultiWindow.setMethodHandler((call, fromWindowId) async {
-      _trace('child received ${call.method} from=$fromWindowId');
-      if (call.method == 'message_from_main') {
-        return 'Message received by child ${widget.windowId}';
-      }
-      throw UnsupportedError('Unknown child method ${call.method}');
-    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(DesktopMultiWindow.invokeMethod(
-        0,
+      unawaited(_probeChannel.invokeMethod(
         'ready',
-        {'windowId': widget.windowId},
+        widget.windowId,
       ));
     });
   }

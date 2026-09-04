@@ -10,6 +10,7 @@ on:
         type: choice
         options:
           - minimal
+          - upstream-smoke
           - framework
 
 permissions:
@@ -51,12 +52,17 @@ jobs:
           dart pub get
           dart run melos bootstrap
 
-      - name: Run upstream macOS multi-window lifecycle probe
+      - name: Run upstream macOS multi-window probe
         working-directory: packages/bochki_schedule_app
         run: |
           set -o pipefail
-          flutter run -d macos -t lib/macos_upstream_multi_window_probe.dart 2>&1 | tee multi-window-lifecycle.log
-          grep -F '[macos-upstream-0.2.1] PASS upstream child lifecycle and message exchange' multi-window-lifecycle.log
+          if [ "${{ inputs.scenario }}" = 'upstream-smoke' ]; then
+            flutter run -d macos --dart-define=UPSTREAM_MULTI_WINDOW_SMOKE=true -t lib/macos_upstream_multi_window_probe.dart 2>&1 | tee multi-window-lifecycle.log
+            grep -F '[macos-upstream-0.3.1] PASS upstream child smoke lifecycle' multi-window-lifecycle.log
+          else
+            flutter run -d macos -t lib/macos_upstream_multi_window_probe.dart 2>&1 | tee multi-window-lifecycle.log
+            grep -F '[macos-upstream-0.3.1] PASS upstream child lifecycle and message exchange' multi-window-lifecycle.log
+          fi
           ! grep -nE 'FlutterEngineOnVsync.*kInternalInconsistency|Unhandled platform error|WindowChannelException' multi-window-lifecycle.log
 
       - name: Upload macOS lifecycle log
