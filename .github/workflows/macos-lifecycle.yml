@@ -56,8 +56,8 @@ jobs:
         run: |
           set -o pipefail
           flutter run -d macos -t lib/macos_upstream_multi_window_probe.dart 2>&1 | tee multi-window-lifecycle.log
-          rg -F '[macos-upstream-0.2.1] PASS upstream child lifecycle and message exchange' multi-window-lifecycle.log
-          ! rg -n 'FlutterEngineOnVsync.*kInternalInconsistency|Unhandled platform error|WindowChannelException' multi-window-lifecycle.log
+          grep -F '[macos-upstream-0.2.1] PASS upstream child lifecycle and message exchange' multi-window-lifecycle.log
+          ! grep -nE 'FlutterEngineOnVsync.*kInternalInconsistency|Unhandled platform error|WindowChannelException' multi-window-lifecycle.log
 
       - name: Upload macOS lifecycle log
         if: always()
