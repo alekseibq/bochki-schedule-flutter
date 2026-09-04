@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.14.1
+
+Release date: 2026-09-04
+
+### Highlights
+
+- Stabilized desktop child-window creation and lifecycle handling on macOS and
+  Windows.
+- Updated multi-window compatibility for Flutter 3.24.
+
+### Details
+
+- `fix(windows): adapt multi-window 0.3.1 to Flutter 3.24 (#188)`
+- `refactor(desktop): route child creation through platform adapter (#188)`
+
 ## v0.13.5
 
 Release date: 2026-09-01
