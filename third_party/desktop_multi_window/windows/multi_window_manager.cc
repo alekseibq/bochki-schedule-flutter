@@ -9,6 +9,7 @@
 
 #include <iostream>
 #include "flutter_window.h"
+#include "managed_window_removals.h"
 #include "flutter_window_wrapper.h"
 #include "include/desktop_multi_window/desktop_multi_window_plugin.h"
 #include "multi_window_plugin_internal.h"
@@ -57,8 +58,6 @@ std::string MultiWindowManager::Create(const flutter::EncodableMap* args) {
     return "";
   }
 
-  // A hidden window must remain out of the compositor until its Dart engine
-  // has set the final bounds and explicitly asks to show it.
   ::ShowWindow(flutter_window->GetHandle(),
                config.hidden_at_launch ? SW_HIDE : SW_SHOW);
 
@@ -81,8 +80,6 @@ std::string MultiWindowManager::Create(const flutter::EncodableMap* args) {
 
   // Notify all windows about the change
   NotifyWindowsChanged();
-
-  CleanupRemovedWindows();
 
   return window_id;
 }
@@ -158,8 +155,6 @@ void MultiWindowManager::RemoveManagedFlutterWindowLater(
   pending_removals_.Schedule(window_id);
 }
 
-// This runs after the native close message has returned to the application
-// message loop. Erasing earlier would delete FlutterWindow during OnDestroy.
 void MultiWindowManager::CleanupRemovedWindows() {
   for (const auto& id : pending_removals_.TakePending()) {
     auto it = managed_flutter_windows_.find(id);

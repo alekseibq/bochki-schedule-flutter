@@ -106,10 +106,6 @@ void DesktopMultiWindowPluginRegisterWithRegistrar(
       GetAncestor(hwnd, GA_ROOT), registrar);
 }
 
-void DesktopMultiWindowCleanupClosedWindows() {
-  MultiWindowManager::Instance()->CleanupRemovedWindows();
-}
-
 void InternalMultiWindowPluginRegisterWithRegistrar(
     FlutterDesktopPluginRegistrarRef registrar,
     FlutterWindowWrapper* window) {
@@ -119,4 +115,8 @@ void InternalMultiWindowPluginRegisterWithRegistrar(
   auto plugin =
       std::make_unique<DesktopMultiWindowPlugin>(window, plugin_registrar);
   plugin_registrar->AddPlugin(std::move(plugin));
+}
+
+void DesktopMultiWindowCleanupClosedWindows() {
+  MultiWindowManager::Instance()->CleanupRemovedWindows();
 }

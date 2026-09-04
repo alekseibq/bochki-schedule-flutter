@@ -68,31 +68,54 @@ bool isBlockingChildWindow({
     kind != DesktopWindowKind.main &&
     (kind != DesktopWindowKind.procedureSession || isProcedureSessionVisible);
 
-final class DesktopWindowDescriptor {
-  const DesktopWindowDescriptor({
+final class DesktopWindowContext {
+  const DesktopWindowContext({
     required this.kind,
     this.parentWindowId,
     this.ancestorWindowIds = const [],
+    this.entryId,
   });
 
   final DesktopWindowKind kind;
   final String? parentWindowId;
   final List<String> ancestorWindowIds;
+  final String? entryId;
+
+  Map<String, dynamic> toJson() => {
+        'kind': kind.name,
+        if (parentWindowId != null) 'parentWindowId': parentWindowId,
+        'ancestorWindowIds': ancestorWindowIds,
+        if (entryId != null) 'entryId': entryId,
+      };
 }
+
+typedef DesktopWindowDescriptor = DesktopWindowContext;
 
 DesktopWindowDescriptor windowDescriptorFromArguments(String value) {
   try {
     final values = Map<String, dynamic>.from(jsonDecode(value) as Map);
-    return DesktopWindowDescriptor(
+    return DesktopWindowContext(
       kind: DesktopWindowKind.values.byName(values['kind'] as String),
       parentWindowId: values['parentWindowId'] as String?,
       ancestorWindowIds: List<String>.from(
         values['ancestorWindowIds'] as List? ?? const [],
       ),
+      entryId: values['entryId'] as String?,
     );
   } catch (_) {
-    return const DesktopWindowDescriptor(kind: DesktopWindowKind.main);
+    return const DesktopWindowContext(kind: DesktopWindowKind.main);
   }
+}
+
+/// The sole production gateway for creating child engines.
+final class DesktopWindowPlatform {
+  const DesktopWindowPlatform();
+
+  Future<WindowController> current() => WindowController.fromCurrentEngine();
+  Future<List<WindowController>> all() => WindowController.getAll();
+  Future<WindowController> create(DesktopWindowContext context) =>
+      WindowController.create(
+          childWindowConfiguration(jsonEncode(context.toJson())));
 }
 
 Future<Map<String, double>> currentWindowBoundsMap() async {
@@ -427,7 +450,9 @@ final class DesktopWindowCoordinator {
     required ProcedureSessionsViewModel sessions,
     required DirectoryChangedCallback onDirectoryChanged,
     required ValueChanged<bool> onProcedureSessionVisibilityChanged,
-  })  : _services = services,
+    DesktopWindowPlatform platform = const DesktopWindowPlatform(),
+  })  : _platform = platform,
+        _services = services,
         _statistics = statistics,
         _scheduleGaps = scheduleGaps,
         _sessions = sessions,
@@ -436,6 +461,7 @@ final class DesktopWindowCoordinator {
             onProcedureSessionVisibilityChanged;
 
   final AppServices _services;
+  final DesktopWindowPlatform _platform;
   final BuildProcedureStatisticsTableUseCase _statistics;
   final BuildScheduleGapsUseCase _scheduleGaps;
   final ProcedureSessionsViewModel _sessions;
@@ -449,7 +475,7 @@ final class DesktopWindowCoordinator {
   bool get isProcedureSessionVisible => _isProcedureSessionVisible;
 
   Future<void> start() async {
-    _mainWindowId = (await WindowController.fromCurrentEngine()).windowId;
+    _mainWindowId = (await _platform.current()).windowId;
     await _mainChannel.setMethodCallHandler(_handleCall);
   }
 
@@ -485,7 +511,7 @@ final class DesktopWindowCoordinator {
     String? entryId,
     String? parentWindowId,
   }) async {
-    final existing = (await WindowController.getAll()).where(
+    final existing = (await _platform.all()).where(
       (controller) => windowKindFromArguments(controller.arguments) == kind,
     );
     if (existing.isNotEmpty) {
@@ -498,42 +524,38 @@ final class DesktopWindowCoordinator {
       await existing.first.invokeMethod<void>('window_focus');
       return;
     }
-    await WindowController.create(
-      childWindowConfiguration(
-        jsonEncode(await _windowArguments(
-          kind: kind,
-          entryId: entryId,
-          parentWindowId: parentWindowId ?? _mainWindowId,
-        )),
-      ),
-    );
+    await _platform.create(await _windowContext(
+      kind: kind,
+      entryId: entryId,
+      parentWindowId: parentWindowId ?? _mainWindowId,
+    ));
     if (kind == DesktopWindowKind.procedureSession) {
       _setProcedureSessionVisible(true);
     }
   }
 
-  Future<Map<String, dynamic>> _windowArguments({
+  Future<DesktopWindowContext> _windowContext({
     required DesktopWindowKind kind,
     required String? entryId,
     required String? parentWindowId,
   }) async {
     final parent = parentWindowId == null
         ? null
-        : (await WindowController.getAll())
+        : (await _platform.all())
             .where((window) => window.windowId == parentWindowId)
             .firstOrNull;
     final ancestors = parent == null
         ? const <String>[]
         : windowDescriptorFromArguments(parent.arguments).ancestorWindowIds;
-    return {
-      'kind': kind.name,
-      if (parentWindowId != null) 'parentWindowId': parentWindowId,
-      'ancestorWindowIds': [
+    return DesktopWindowContext(
+      kind: kind,
+      parentWindowId: parentWindowId,
+      ancestorWindowIds: [
         if (parentWindowId != null) parentWindowId,
         ...ancestors,
       ],
-      if (entryId != null) 'entryId': entryId,
-    };
+      entryId: entryId,
+    );
   }
 
   Future<dynamic> _handleCall(MethodCall call) async {

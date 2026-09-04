@@ -99,6 +99,7 @@ class MultiWindowManager: NSObject {
 
     func CreateWindow(arguments: [String: Any?]) -> WindowId {
         let windowId = WindowId.generate()
+        NSLog("[macos-minimal] create child begin windowId=\(windowId)")
 
         let config = WindowConfiguration.fromJson(arguments)
 
@@ -106,15 +107,14 @@ class MultiWindowManager: NSObject {
 
         let project = FlutterDartProject()
         project.dartEntrypointArguments = ["multi_window", windowId, config.arguments]
+        // A/B experiment for #183: use the upstream 0.2.1-style lifecycle.
+        // Let FlutterViewController own child-engine creation and startup.
         let flutterViewController = FlutterViewController(project: project)
+        NSLog("[macos-minimal] child controller created windowId=\(windowId)")
         window.contentViewController = flutterViewController
-        // Keep hidden windows out of the compositor until Dart has applied
-        // their final size and position. Calling orderFront here creates a
-        // visible frame at the default origin before window_manager runs.
-        window.setFrame(NSRect(x: 0, y: 0, width: 800, height: 600), display: false)
-        if !config.hiddenAtLaunch {
-            window.orderFront(nil)
-        }
+        window.setFrame(NSRect(x: 0, y: 0, width: 800, height: 600), display: true)
+        window.orderFront(nil)
+        window.setIsVisible(!config.hiddenAtLaunch)
 
         FlutterMultiWindowPlugin.onWindowCreatedCallback?(flutterViewController)
 
@@ -126,6 +126,7 @@ class MultiWindowManager: NSObject {
 
         let channel = registerMultiWindowChannel(window: flutterWindow, with: registrar)
         flutterWindow.setChannel(channel)
+        NSLog("[macos-minimal] child internal channels registered windowId=\(windowId)")
 
         notifyWindowsChanged()
 

@@ -11,10 +11,17 @@ import 'src/app_launch_arguments.dart';
 import 'src/presentation/startup_diagnostics.dart';
 import 'src/presentation/startup_launcher.dart';
 import 'src/presentation/desktop_windows.dart';
+import 'src/presentation/macos_minimal_child.dart';
 
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   final controller = await WindowController.fromCurrentEngine();
+  if (controller.arguments == macosMinimalChildArgument) {
+    macosMinimalTrace(
+        'application entrypoint selected minimal child windowId=${controller.windowId}');
+    await startMacosMinimalChild(controller.windowId);
+    return;
+  }
   final kind = windowKindFromArguments(controller.arguments);
   if (kind != DesktopWindowKind.main) {
     await configureChildWindow(kind);
