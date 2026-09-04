@@ -1,15 +1,13 @@
 # Local changes
 
-This is a source copy of `desktop_multi_window` 0.3.0, retained under its
-Apache-2.0 license. It is used as a path dependency so desktop builds are
-reproducible.
+This source copy is retained under the Apache-2.0 license and is used as a
+path dependency so desktop builds are reproducible.
 
-The macOS implementation keeps windows with `hiddenAtLaunch: true` out of the
-window compositor until Dart explicitly calls `show()`. Upstream called
-`orderFront(nil)` before honoring that flag, causing a visible frame at the
-default origin before the final size and position were configured.
-
-The Windows source documents the matching hidden-start contract.
+For the #183 macOS experiment, `macos/desktop_multi_window/Sources` is the
+hosted `desktop_multi_window` 0.3.1 implementation. Its only local change is
+in `FlutterMultiWindowPlugin.CreateWindow`: a child with
+`hiddenAtLaunch: true` is not ordered front until Dart explicitly calls
+`show()`. This is the macOS hidden-start anti-flicker patch under test.
 
 On Windows, closed child-window Flutter engines are removed after the current
 native message has finished dispatching. Previously they remained owned by the
