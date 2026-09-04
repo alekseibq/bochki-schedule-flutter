@@ -43,13 +43,13 @@ Future<void> main(List<String> args) async {
 
 Future<void> _runProbe() async {
   const smokeOnly = bool.fromEnvironment('UPSTREAM_MULTI_WINDOW_SMOKE');
-  final childReady = Completer<String>();
+  final childReady = _ChildReadySignal();
   await _probeChannel.setMethodCallHandler((call) async {
     _trace('main received ${call.method}');
     if (call.method != 'ready') {
       throw UnsupportedError('Unknown main method ${call.method}');
     }
-    if (!childReady.isCompleted) childReady.complete(call.arguments as String);
+    childReady.complete(call.arguments as String);
     return true;
   });
   runApp(_UpstreamMainWindow(
@@ -61,44 +61,62 @@ Future<void> _runProbe() async {
 }
 
 Future<void> _exerciseChildLifecycle(
-  Completer<String> childReady, {
+  _ChildReadySignal childReady, {
   required bool smokeOnly,
 }) async {
   try {
-    _trace('main creating upstream child window');
-    final child = await WindowController.create(
-      WindowConfiguration(
-        arguments: jsonEncode({'name': 'Upstream minimal child'}),
-        hiddenAtLaunch: true,
-      ),
-    );
-    _trace('main createWindow returned windowId=${child.windowId}');
-    final childId = await childReady.future.timeout(const Duration(seconds: 5));
-    if (childId != child.windowId) {
-      throw StateError('ready came from $childId, expected ${child.windowId}');
-    }
-    await child.show();
-    if (smokeOnly) {
+    final cycles = smokeOnly ? 1 : 2;
+    for (var cycle = 1; cycle <= cycles; cycle += 1) {
+      _trace('main creating upstream child window cycle=$cycle');
+      final child = await WindowController.create(
+        WindowConfiguration(
+          arguments: jsonEncode({'name': 'Upstream child $cycle'}),
+          hiddenAtLaunch: true,
+        ),
+      );
+      _trace('main createWindow returned windowId=${child.windowId}');
+      final childId =
+          await childReady.future.timeout(const Duration(seconds: 5));
+      if (childId != child.windowId) {
+        throw StateError(
+            'ready came from $childId, expected ${child.windowId}');
+      }
+      await child.show();
+      if (!smokeOnly) {
+        final reply = await child.invokeMethod<String>(
+          'message_from_main',
+          'Hello from the main window',
+        );
+        if (reply != 'Message received by child ${child.windowId}') {
+          throw StateError('unexpected child reply: $reply');
+        }
+      }
       await child.invokeMethod<void>('window_close');
       await _waitForChildClose(child.windowId);
+      childReady.reset();
+    }
+    if (smokeOnly) {
       _trace('PASS upstream child smoke lifecycle');
-      exit(0);
+    } else {
+      _trace('PASS upstream child lifecycle and message exchange');
     }
-    final reply = await child.invokeMethod<String>(
-      'message_from_main',
-      'Hello from the main window',
-    );
-    if (reply != 'Message received by child ${child.windowId}') {
-      throw StateError('unexpected child reply: $reply');
-    }
-    await child.invokeMethod<void>('window_close');
-    await _waitForChildClose(child.windowId);
-    _trace('PASS upstream child lifecycle and message exchange');
     exit(0);
   } catch (error, stackTrace) {
     _trace('FAIL $error\n$stackTrace');
     exit(1);
   }
+}
+
+class _ChildReadySignal {
+  var _current = Completer<String>();
+
+  Future<String> get future => _current.future;
+
+  void complete(String windowId) {
+    if (!_current.isCompleted) _current.complete(windowId);
+  }
+
+  void reset() => _current = Completer<String>();
 }
 
 Future<void> _waitForChildClose(String windowId) async {
