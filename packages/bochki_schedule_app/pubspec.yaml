@@ -12,9 +12,7 @@ dependencies:
     path: ../bochki_schedule_domain
   bochki_schedule_infra:
     path: ../bochki_schedule_infra
-  # #183 macOS A/B experiment: 0.3.1 native code plus the hidden-start patch.
-  desktop_multi_window:
-    path: ../../third_party/desktop_multi_window
+  desktop_multi_window: 0.3.1
   flutter:
     sdk: flutter
   flutter_localizations:

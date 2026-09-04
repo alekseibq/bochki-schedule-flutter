@@ -1,19 +1,8 @@
 # Local changes
 
-This source copy is retained under the Apache-2.0 license and is used as a
-path dependency so desktop builds are reproducible.
-
-For the #183 macOS experiment, `macos/desktop_multi_window/Sources` is the
-hosted `desktop_multi_window` 0.3.1 implementation. Its only local change is
-in `FlutterMultiWindowPlugin.CreateWindow`: a child with
-`hiddenAtLaunch: true` is not ordered front until Dart explicitly calls
-`show()`. The final frame is also set with `display: false` only after the
-child engine and its channels are ready. Together these changes form the
-macOS hidden-start anti-flicker patch under test.
-
-The generated-plugin callback runs after the child engine's internal
-multi-window channels are attached. Calling it earlier can send an initial
-platform message to an invalid engine handle.
+This is a source copy of `desktop_multi_window` 0.3.0, retained under its
+Apache-2.0 license. It is used as a path dependency so desktop builds are
+reproducible.
 
 On Windows, closed child-window Flutter engines are removed after the current
 native message has finished dispatching. Previously they remained owned by the
