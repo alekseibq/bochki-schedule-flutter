@@ -112,6 +112,11 @@ class MultiWindowManager: NSObject {
         let flutterViewController = FlutterViewController(project: project)
         NSLog("[macos-minimal] child controller created windowId=\(windowId)")
         window.contentViewController = flutterViewController
+        window.setFrame(NSRect(x: 0, y: 0, width: 800, height: 600), display: true)
+        window.orderFront(nil)
+        window.setIsVisible(!config.hiddenAtLaunch)
+
+        FlutterMultiWindowPlugin.onWindowCreatedCallback?(flutterViewController)
 
         let registrar = flutterViewController.registrar(forPlugin: "DesktopMultiWindowPlugin")
 
@@ -122,16 +127,6 @@ class MultiWindowManager: NSObject {
         let channel = registerMultiWindowChannel(window: flutterWindow, with: registrar)
         flutterWindow.setChannel(channel)
         NSLog("[macos-minimal] child internal channels registered windowId=\(windowId)")
-
-        NSLog("[macos-minimal] registering child generated plugins windowId=\(windowId)")
-        FlutterMultiWindowPlugin.onWindowCreatedCallback?(flutterViewController)
-        NSLog("[macos-minimal] child generated plugins registered windowId=\(windowId)")
-
-        window.setFrame(NSRect(x: 0, y: 0, width: 800, height: 600), display: false)
-        if !config.hiddenAtLaunch {
-            NSLog("[macos-minimal] child orderFront windowId=\(windowId)")
-            window.orderFront(nil)
-        }
 
         notifyWindowsChanged()
 
