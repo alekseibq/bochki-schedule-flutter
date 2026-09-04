@@ -11,15 +11,10 @@ import 'src/app_launch_arguments.dart';
 import 'src/presentation/startup_diagnostics.dart';
 import 'src/presentation/startup_launcher.dart';
 import 'src/presentation/desktop_windows.dart';
-import 'src/presentation/macos_framework_windowing_probe.dart';
 import 'src/presentation/macos_minimal_child.dart';
 
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (const bool.fromEnvironment('FRAMEWORK_WINDOWING_PROBE')) {
-    await runMacosFrameworkWindowingProbe();
-    return;
-  }
   final controller = await WindowController.fromCurrentEngine();
   if (controller.arguments == macosMinimalChildArgument) {
     macosMinimalTrace(
