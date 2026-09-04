@@ -15,7 +15,7 @@ const _probeChannel = WindowMethodChannel(
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   final current = await WindowController.fromCurrentEngine();
-  if (current.windowId != '0') {
+  if (current.arguments.isNotEmpty) {
     final arguments = jsonDecode(current.arguments) as Map<String, dynamic>;
     final windowName = arguments['name'] as String;
     _trace('child entrypoint windowId=${current.windowId} name=$windowName');
