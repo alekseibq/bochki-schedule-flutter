@@ -138,14 +138,30 @@ std::vector<std::string> MultiWindowManager::GetAllWindowIds() {
 }
 
 void MultiWindowManager::RemoveWindow(const std::string& window_id) {
+  std::cerr << "RemoveWindow requested: id=" << window_id << std::endl;
   auto it = windows_.find(window_id);
   if (it != windows_.end()) {
     windows_.erase(it);
     NotifyWindowsChanged();
+  } else {
+    std::cerr << "RemoveWindow ignored missing id=" << window_id << std::endl;
   }
-  
-  // quit application if no windows left
-  if (windows_.empty()) {
+
+  std::ostringstream remaining_ids;
+  for (auto iterator = windows_.begin(); iterator != windows_.end();
+       ++iterator) {
+    if (iterator != windows_.begin()) {
+      remaining_ids << ',';
+    }
+    remaining_ids << iterator->first;
+  }
+  const bool should_quit = windows_.empty();
+  std::cerr << "RemoveWindow completed: id=" << window_id
+            << " remainingIds=[" << remaining_ids.str()
+            << "] postQuitMessage=" << (should_quit ? "true" : "false")
+            << std::endl;
+
+  if (should_quit) {
     PostQuitMessage(0);
   }
 }
