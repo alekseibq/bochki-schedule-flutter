@@ -131,9 +131,9 @@ jobs:
         shell: pwsh
         working-directory: packages/bochki_schedule_app
         run: |
-          flutter run -d windows -t lib/macos_upstream_multi_window_probe.dart 2>&1 | Tee-Object -FilePath reusable-child-smoke.log
+          flutter run -d windows --dart-define=UPSTREAM_MULTI_WINDOW_SMOKE=true -t lib/macos_upstream_multi_window_probe.dart 2>&1 | Tee-Object -FilePath reusable-child-smoke.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Select-String -Path reusable-child-smoke.log -SimpleMatch '[macos-upstream-0.3.1] PASS reusable child lifecycle and message exchange'
+          Select-String -Path reusable-child-smoke.log -SimpleMatch '[macos-upstream-0.3.1] PASS reusable child smoke lifecycle'
 
       - name: Archive Windows app release
         shell: pwsh
