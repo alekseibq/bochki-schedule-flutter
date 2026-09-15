@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:bochki_schedule_app/src/presentation/desktop_windows.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 
@@ -69,6 +70,65 @@ void main() {
           isProcedureSessionVisible: false,
         ),
         isTrue,
+      );
+    });
+  });
+
+  group('shouldHideOnOrdinaryClose', () {
+    test('hides a procedure-session window on an ordinary close', () {
+      expect(
+        shouldHideOnOrdinaryClose(
+          kind: DesktopWindowKind.procedureSession,
+          cascade: false,
+        ),
+        isTrue,
+      );
+    });
+
+    test('destroys a procedure-session window during a cascade close', () {
+      expect(
+        shouldHideOnOrdinaryClose(
+          kind: DesktopWindowKind.procedureSession,
+          cascade: true,
+        ),
+        isFalse,
+      );
+    });
+  });
+
+  group('DesktopWindowFeatureMethodDispatcher', () {
+    test('routes a feature method through its scoped registration', () async {
+      final dispatcher = DesktopWindowFeatureMethodDispatcher();
+      final registration = dispatcher.register((call) async => call.arguments);
+
+      expect(
+        await dispatcher
+            .dispatch(const MethodCall('directory_changed', 'days')),
+        'days',
+      );
+
+      registration.dispose();
+    });
+
+    test('rejects a second feature handler for the same window', () {
+      final dispatcher = DesktopWindowFeatureMethodDispatcher();
+      dispatcher.register((_) async {});
+
+      expect(
+        () => dispatcher.register((_) async {}),
+        throwsStateError,
+      );
+    });
+
+    test('removes a handler when its registration is disposed', () async {
+      final dispatcher = DesktopWindowFeatureMethodDispatcher();
+      final registration = dispatcher.register((_) async => 'handled');
+
+      registration.dispose();
+
+      expect(
+        () => dispatcher.dispatch(const MethodCall('directory_changed')),
+        throwsA(isA<MissingPluginException>()),
       );
     });
   });

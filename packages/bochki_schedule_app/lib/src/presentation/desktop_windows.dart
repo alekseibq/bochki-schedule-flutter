@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
@@ -43,6 +44,9 @@ enum DesktopWindowKind {
 }
 
 typedef DirectoryChangedCallback = Future<void> Function(String directory);
+typedef DesktopWindowFeatureMethodHandler = Future<dynamic> Function(
+  MethodCall call,
+);
 
 const _mainChannel = WindowMethodChannel(
   'bochki_schedule/main_window',
@@ -67,6 +71,12 @@ bool isBlockingChildWindow({
 }) =>
     kind != DesktopWindowKind.main &&
     (kind != DesktopWindowKind.procedureSession || isProcedureSessionVisible);
+
+bool shouldHideOnOrdinaryClose({
+  required DesktopWindowKind kind,
+  required bool cascade,
+}) =>
+    kind == DesktopWindowKind.procedureSession && !cascade;
 
 final class DesktopWindowContext {
   const DesktopWindowContext({
@@ -246,6 +256,55 @@ Future<void> closeWindowAfterSchedulingCleanup({
 
 DesktopWindowLifecycle? _windowLifecycle;
 
+/// A scoped registration for methods owned by the feature rendered in a child
+/// window. System window methods remain owned by [DesktopWindowLifecycle].
+final class DesktopWindowFeatureHandlerRegistration {
+  DesktopWindowFeatureHandlerRegistration._(this._dispatcher, this._handler);
+
+  final DesktopWindowFeatureMethodDispatcher _dispatcher;
+  final DesktopWindowFeatureMethodHandler _handler;
+  bool _isDisposed = false;
+
+  void dispose() {
+    if (_isDisposed) return;
+    _isDisposed = true;
+    _dispatcher.unregister(_handler);
+  }
+}
+
+/// Routes feature-specific calls without allowing them to replace the native
+/// window method handler installed by [DesktopWindowLifecycle].
+final class DesktopWindowFeatureMethodDispatcher {
+  DesktopWindowFeatureMethodHandler? _handler;
+
+  DesktopWindowFeatureHandlerRegistration register(
+    DesktopWindowFeatureMethodHandler handler,
+  ) {
+    final existing = _handler;
+    if (existing != null && !identical(existing, handler)) {
+      throw StateError(
+        'A feature method handler is already registered for this window.',
+      );
+    }
+    _handler = handler;
+    return DesktopWindowFeatureHandlerRegistration._(this, handler);
+  }
+
+  void unregister(DesktopWindowFeatureMethodHandler handler) {
+    if (identical(_handler, handler)) {
+      _handler = null;
+    }
+  }
+
+  Future<dynamic> dispatch(MethodCall call) {
+    final handler = _handler;
+    if (handler == null) {
+      throw MissingPluginException('Unknown window method ${call.method}');
+    }
+    return handler(call);
+  }
+}
+
 Future<void> initializeDesktopWindowLifecycle() async {
   _windowLifecycle ??= DesktopWindowLifecycle();
   await _windowLifecycle!.initialize();
@@ -254,7 +313,18 @@ Future<void> initializeDesktopWindowLifecycle() async {
 Future<void> closeCurrentDesktopWindow({bool cascade = false}) async {
   final lifecycle = _windowLifecycle;
   if (lifecycle == null) return windowManager.close();
-  await lifecycle.close(cascade: cascade);
+  await lifecycle.close(cascade: cascade, source: 'application');
+}
+
+DesktopWindowFeatureHandlerRegistration
+    registerCurrentDesktopWindowFeatureHandler(
+  DesktopWindowFeatureMethodHandler handler,
+) {
+  final lifecycle = _windowLifecycle;
+  if (lifecycle == null) {
+    throw StateError('Desktop window lifecycle has not been initialized.');
+  }
+  return lifecycle.registerFeatureMethodHandler(handler);
 }
 
 /// Hides the procedure-session window without destroying its Flutter engine.
@@ -278,6 +348,7 @@ final class DesktopWindowLifecycle with WindowListener {
   bool _closing = false;
   bool _savingGeometry = false;
   bool _geometrySavePending = false;
+  final _featureMethodDispatcher = DesktopWindowFeatureMethodDispatcher();
 
   Future<void> initialize() async {
     if (_initialized) return;
@@ -294,12 +365,46 @@ final class DesktopWindowLifecycle with WindowListener {
         await windowManager.focus();
         return;
       case 'window_close':
-        await close(cascade: (call.arguments as Map?)?['cascade'] == true);
+        final cascade = (call.arguments as Map?)?['cascade'] == true;
+        final current = _current;
+        final kind = current == null
+            ? DesktopWindowKind.main
+            : windowKindFromArguments(current.arguments);
+        if (shouldHideOnOrdinaryClose(kind: kind, cascade: cascade)) {
+          await hideCurrentProcedureSessionWindow();
+        } else {
+          await close(cascade: cascade, source: 'ipc-window_close');
+        }
         return;
       case 'window_bounds':
         return currentWindowBoundsMap();
       default:
-        throw MissingPluginException('Unknown window lifecycle method');
+        return _handleFeatureCall(call);
+    }
+  }
+
+  DesktopWindowFeatureHandlerRegistration registerFeatureMethodHandler(
+    DesktopWindowFeatureMethodHandler handler,
+  ) =>
+      _featureMethodDispatcher.register(handler);
+
+  Future<dynamic> _handleFeatureCall(MethodCall call) async {
+    try {
+      return await _featureMethodDispatcher.dispatch(call);
+    } catch (error, stackTrace) {
+      final current = _current;
+      final descriptor = current == null
+          ? null
+          : windowDescriptorFromArguments(current.arguments);
+      developer.log(
+        'Feature window method failed: method=${call.method} '
+        'windowId=${current?.windowId} kind=${descriptor?.kind.name}',
+        name: 'bochki_schedule.desktop_windows',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+      rethrow;
     }
   }
 
@@ -308,12 +413,14 @@ final class DesktopWindowLifecycle with WindowListener {
     final current = _current;
     if (!_closing &&
         current != null &&
-        windowKindFromArguments(current.arguments) ==
-            DesktopWindowKind.procedureSession) {
+        shouldHideOnOrdinaryClose(
+          kind: windowKindFromArguments(current.arguments),
+          cascade: false,
+        )) {
       unawaited(hideCurrentProcedureSessionWindow());
       return;
     }
-    unawaited(close());
+    unawaited(close(source: 'native-window-close'));
   }
 
   @override
@@ -351,11 +458,23 @@ final class DesktopWindowLifecycle with WindowListener {
     }
   }
 
-  Future<void> close({bool cascade = false}) async {
+  Future<void> close({
+    bool cascade = false,
+    required String source,
+  }) async {
     if (_closing) return;
     _closing = true;
     try {
       final current = _current;
+      final descriptor = current == null
+          ? null
+          : windowDescriptorFromArguments(current.arguments);
+      developer.log(
+        'Closing desktop window: source=$source windowId=${current?.windowId} '
+        'kind=${descriptor?.kind.name} parentId=${descriptor?.parentWindowId} '
+        'cascade=$cascade',
+        name: 'bochki_schedule.desktop_windows',
+      );
       await closeWindowAfterSchedulingCleanup(
         requestDescendantCloses: current == null
             ? () async {}
@@ -373,8 +492,23 @@ final class DesktopWindowLifecycle with WindowListener {
   }
 
   Future<void> _closeNativeWindow() async {
-    await windowManager.setPreventClose(false);
-    await windowManager.close();
+    try {
+      await windowManager.setPreventClose(false);
+      await windowManager.close();
+      developer.log(
+        'Native desktop close requested successfully.',
+        name: 'bochki_schedule.desktop_windows',
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        'Native desktop close request failed.',
+        name: 'bochki_schedule.desktop_windows',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+      rethrow;
+    }
   }
 
   Future<void> _requestDescendantCloses(String parentWindowId) async {
@@ -906,23 +1040,6 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
     await windowManager.show();
     await windowManager.focus();
   });
-  final current = await WindowController.fromCurrentEngine();
-  await current.setWindowMethodHandler((call) async {
-    switch (call.method) {
-      case 'window_focus':
-        await windowManager.focus();
-        return null;
-      case 'window_close':
-        await closeCurrentDesktopWindow(
-          cascade: (call.arguments as Map?)?['cascade'] == true,
-        );
-        return null;
-      case 'window_bounds':
-        return currentWindowBoundsMap();
-      default:
-        throw MissingPluginException('Unknown window method ${call.method}');
-    }
-  });
 }
 
 Future<Rect?> _savedChildWindowBounds(DesktopWindowKind kind) async {
@@ -1005,6 +1122,7 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
   List<Human> _humans = const [];
   List<ProcedureKind> _kinds = const [];
   Map<String, int> _counts = const {};
+  DesktopWindowFeatureHandlerRegistration? _handlerRegistration;
 
   @override
   void initState() {
@@ -1014,19 +1132,9 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
   }
 
   Future<void> _listenForChanges() async {
-    final controller = await WindowController.fromCurrentEngine();
-    await controller.setWindowMethodHandler((call) async {
+    final registration =
+        registerCurrentDesktopWindowFeatureHandler((call) async {
       switch (call.method) {
-        case 'window_focus':
-          await windowManager.focus();
-          return null;
-        case 'window_close':
-          await closeCurrentDesktopWindow(
-            cascade: (call.arguments as Map?)?['cascade'] == true,
-          );
-          return null;
-        case 'window_bounds':
-          return currentWindowBoundsMap();
         case 'statistics_changed':
         case 'directory_changed':
           await _load();
@@ -1035,6 +1143,17 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
           throw MissingPluginException('Unknown statistics-window method');
       }
     });
+    if (!mounted) {
+      registration.dispose();
+      return;
+    }
+    _handlerRegistration = registration;
+  }
+
+  @override
+  void dispose() {
+    _handlerRegistration?.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -1109,6 +1228,7 @@ class _FreeTimeWindowState extends State<FreeTimeWindow> {
   List<Workday> _workdays = const [];
   List<Map<String, dynamic>> _gaps = const [];
   bool _loading = true;
+  DesktopWindowFeatureHandlerRegistration? _handlerRegistration;
 
   @override
   void initState() {
@@ -1118,26 +1238,26 @@ class _FreeTimeWindowState extends State<FreeTimeWindow> {
   }
 
   Future<void> _listen() async {
-    final controller = await WindowController.fromCurrentEngine();
-    await controller.setWindowMethodHandler((call) async {
+    final registration =
+        registerCurrentDesktopWindowFeatureHandler((call) async {
       if (call.method == 'free_time_changed' ||
           call.method == 'directory_changed') {
         await _load();
         return null;
       }
-      if (call.method == 'window_close') {
-        await closeCurrentDesktopWindow(
-          cascade: (call.arguments as Map?)?['cascade'] == true,
-        );
-        return null;
-      }
-      if (call.method == 'window_bounds') return currentWindowBoundsMap();
-      if (call.method == 'window_focus') {
-        await windowManager.focus();
-        return null;
-      }
       throw MissingPluginException('Unknown free-time-window method');
     });
+    if (!mounted) {
+      registration.dispose();
+      return;
+    }
+    _handlerRegistration = registration;
+  }
+
+  @override
+  void dispose() {
+    _handlerRegistration?.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -1364,6 +1484,7 @@ class ProcedureSessionWindow extends StatefulWidget {
 class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
   Map<String, dynamic>? _snapshot;
   var _formVersion = 0;
+  DesktopWindowFeatureHandlerRegistration? _handlerRegistration;
   @override
   void initState() {
     super.initState();
@@ -1372,20 +1493,19 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
   }
 
   Future<void> _listen() async {
-    final controller = await WindowController.fromCurrentEngine();
-    await controller.setWindowMethodHandler(_handleWindowMethod);
+    final registration =
+        registerCurrentDesktopWindowFeatureHandler(_handleWindowMethod);
+    if (!mounted) {
+      registration.dispose();
+      return;
+    }
+    _handlerRegistration = registration;
   }
 
   Future<dynamic> _handleWindowMethod(MethodCall call) async {
     if (call.method == 'directory_changed') {
       await _load();
       return null;
-    }
-    if (call.method == 'window_close') {
-      final cascade = (call.arguments as Map?)?['cascade'] == true;
-      return cascade
-          ? closeCurrentDesktopWindow(cascade: true)
-          : hideCurrentProcedureSessionWindow();
     }
     if (call.method == 'procedure_session_show') {
       await _load();
@@ -1397,9 +1517,13 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
       );
       return null;
     }
-    if (call.method == 'window_bounds') return currentWindowBoundsMap();
-    if (call.method == 'window_focus') return windowManager.focus();
     throw MissingPluginException('Unknown procedure-session-window method');
+  }
+
+  @override
+  void dispose() {
+    _handlerRegistration?.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -1638,6 +1762,7 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
   final _shortName = TextEditingController();
   final _date = TextEditingController();
   ProcedureKindsViewModel? _procedureKindsViewModel;
+  DesktopWindowFeatureHandlerRegistration? _handlerRegistration;
 
   bool get _isEditor =>
       _kind == DesktopWindowKind.procedureKindEditor ||
@@ -1680,18 +1805,9 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
       );
     }
     await _refreshModalChild();
-    await controller.setWindowMethodHandler((call) async {
+    final registration =
+        registerCurrentDesktopWindowFeatureHandler((call) async {
       switch (call.method) {
-        case 'window_focus':
-          await windowManager.focus();
-          return null;
-        case 'window_close':
-          await closeCurrentDesktopWindow(
-            cascade: (call.arguments as Map?)?['cascade'] == true,
-          );
-          return null;
-        case 'window_bounds':
-          return currentWindowBoundsMap();
         case 'directory_changed':
           if (_procedureKindsViewModel case final viewModel?) {
             await viewModel.loadProcedureKinds();
@@ -1702,6 +1818,11 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
           throw MissingPluginException('Unknown directory-window method');
       }
     });
+    if (!mounted) {
+      registration.dispose();
+      return;
+    }
+    _handlerRegistration = registration;
     await _load();
   }
 
@@ -1729,6 +1850,17 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    _handlerRegistration?.dispose();
+    _windowsSubscription?.cancel();
+    _name.dispose();
+    _shortName.dispose();
+    _date.dispose();
+    _procedureKindsViewModel?.dispose();
+    super.dispose();
   }
 
   Future<void> _refreshModalChild() async {
@@ -1788,16 +1920,6 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
       'parentWindowId': current.windowId,
       if (id != null) 'entryId': id,
     });
-  }
-
-  @override
-  void dispose() {
-    _windowsSubscription?.cancel();
-    _name.dispose();
-    _shortName.dispose();
-    _date.dispose();
-    _procedureKindsViewModel?.dispose();
-    super.dispose();
   }
 
   @override
