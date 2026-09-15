@@ -47,6 +47,14 @@ typedef DirectoryChangedCallback = Future<void> Function(String directory);
 typedef DesktopWindowFeatureMethodHandler = Future<dynamic> Function(
   MethodCall call,
 );
+typedef CascadeCloseTimeoutHandler = Future<void> Function();
+
+CascadeCloseTimeoutHandler? _cascadeCloseTimeoutHandler;
+
+/// Registers the main-window UI used when a real cascade close times out.
+void setCascadeCloseTimeoutHandler(CascadeCloseTimeoutHandler? handler) {
+  _cascadeCloseTimeoutHandler = handler;
+}
 
 const _mainChannel = WindowMethodChannel(
   'bochki_schedule/main_window',
@@ -76,7 +84,7 @@ bool shouldHideOnOrdinaryClose({
   required DesktopWindowKind kind,
   required bool cascade,
 }) =>
-    kind == DesktopWindowKind.procedureSession && !cascade;
+    kind != DesktopWindowKind.main && !cascade;
 
 final class DesktopWindowContext {
   const DesktopWindowContext({
@@ -327,18 +335,26 @@ DesktopWindowFeatureHandlerRegistration
   return lifecycle.registerFeatureMethodHandler(handler);
 }
 
-/// Hides the procedure-session window without destroying its Flutter engine.
-Future<void> hideCurrentProcedureSessionWindow() async {
+/// Hides a reusable child window without destroying its Flutter engine.
+Future<void> hideCurrentDesktopWindow() async {
+  final current = await WindowController.fromCurrentEngine();
   await windowManager.hide();
   try {
     await _mainChannel.invokeMethod<void>(
-      'procedureSessionVisibilityChanged',
-      false,
+      'childWindowVisibilityChanged',
+      {
+        'windowId': current.windowId,
+        'kind': windowKindFromArguments(current.arguments).name,
+        'visible': false,
+      },
     );
   } catch (_) {
     // The main window may already be closing.
   }
 }
+
+/// Kept as a compatibility name for the procedure form's close callback.
+Future<void> hideCurrentProcedureSessionWindow() => hideCurrentDesktopWindow();
 
 /// Coordinates native close events in one Flutter engine.  The window list and
 /// `parentWindowId` arguments are the shared source of truth across engines.
@@ -366,18 +382,23 @@ final class DesktopWindowLifecycle with WindowListener {
         return;
       case 'window_close':
         final cascade = (call.arguments as Map?)?['cascade'] == true;
-        final current = _current;
-        final kind = current == null
-            ? DesktopWindowKind.main
-            : windowKindFromArguments(current.arguments);
-        if (shouldHideOnOrdinaryClose(kind: kind, cascade: cascade)) {
-          await hideCurrentProcedureSessionWindow();
-        } else {
-          await close(cascade: cascade, source: 'ipc-window_close');
-        }
+        await close(cascade: cascade, source: 'ipc-window_close');
+        return;
+      case 'window_hide':
+        await _hide(activateParent: false);
+        return;
+      case 'window_reopen':
+        await _handleFeatureCall(call);
+        await windowManager.show();
+        await windowManager.focus();
+        await _notifyVisibility(true);
         return;
       case 'window_bounds':
         return currentWindowBoundsMap();
+      case 'window_visible':
+        return windowManager.isVisible();
+      case 'child_visibility_changed':
+        return _handleFeatureCall(call);
       default:
         return _handleFeatureCall(call);
     }
@@ -410,16 +431,6 @@ final class DesktopWindowLifecycle with WindowListener {
 
   @override
   void onWindowClose() {
-    final current = _current;
-    if (!_closing &&
-        current != null &&
-        shouldHideOnOrdinaryClose(
-          kind: windowKindFromArguments(current.arguments),
-          cascade: false,
-        )) {
-      unawaited(hideCurrentProcedureSessionWindow());
-      return;
-    }
     unawaited(close(source: 'native-window-close'));
   }
 
@@ -469,6 +480,25 @@ final class DesktopWindowLifecycle with WindowListener {
       final descriptor = current == null
           ? null
           : windowDescriptorFromArguments(current.arguments);
+      if (descriptor != null &&
+          shouldHideOnOrdinaryClose(kind: descriptor.kind, cascade: cascade)) {
+        await _hide(activateParent: true);
+        _closing = false;
+        return;
+      }
+      if (descriptor?.kind == DesktopWindowKind.main && current != null) {
+        final closed = await _cascadeCloseAndWait(current.windowId);
+        if (!closed) {
+          developer.log(
+            'Timed out waiting for child windows to close; continuing main close.',
+            name: 'bochki_schedule.desktop_windows',
+            level: 1000,
+          );
+          await _cascadeCloseTimeoutHandler?.call();
+        }
+        await _closeNativeWindow();
+        return;
+      }
       developer.log(
         'Closing desktop window: source=$source windowId=${current?.windowId} '
         'kind=${descriptor?.kind.name} parentId=${descriptor?.parentWindowId} '
@@ -488,6 +518,80 @@ final class DesktopWindowLifecycle with WindowListener {
     } catch (_) {
       _closing = false;
       rethrow;
+    }
+  }
+
+  Future<void> _hide({required bool activateParent}) async {
+    final current = _current;
+    if (current == null) return;
+    final windows = await WindowController.getAll();
+    final byId = {for (final window in windows) window.windowId: window};
+    final parentIds = {
+      for (final window in windows)
+        if (windowDescriptorFromArguments(window.arguments).parentWindowId
+            case final parentId?)
+          window.windowId: parentId,
+    };
+    for (final id in descendantWindowIdsInCloseOrder(
+      parentWindowId: current.windowId,
+      parentWindowIds: parentIds,
+    )) {
+      final descendant = byId[id];
+      if (descendant != null) {
+        await descendant.invokeMethod<void>('window_hide');
+      }
+    }
+    await hideCurrentDesktopWindow();
+    if (activateParent) await _activateParent(current.windowId);
+  }
+
+  Future<bool> _cascadeCloseAndWait(String parentWindowId) async {
+    final windows = await WindowController.getAll();
+    final byId = {for (final window in windows) window.windowId: window};
+    final parentIds = {
+      for (final window in windows)
+        if (windowDescriptorFromArguments(window.arguments).parentWindowId
+            case final parentId?)
+          window.windowId: parentId,
+    };
+    final descendants = descendantWindowIdsInCloseOrder(
+      parentWindowId: parentWindowId,
+      parentWindowIds: parentIds,
+    );
+    for (final id in descendants) {
+      try {
+        final descendant = byId[id];
+        if (descendant != null) {
+          await descendant
+              .invokeMethod<void>('window_close', {'cascade': true});
+        }
+      } catch (error, stackTrace) {
+        _reportCleanupError(error, stackTrace,
+            context: 'while requesting cascade close for descendant $id');
+      }
+    }
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
+    while (DateTime.now().isBefore(deadline)) {
+      final remaining = await WindowController.getAll();
+      if (remaining.every((window) => !descendants.contains(window.windowId))) {
+        return true;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+    return false;
+  }
+
+  Future<void> _notifyVisibility(bool visible) async {
+    final current = _current;
+    if (current == null) return;
+    try {
+      await _mainChannel.invokeMethod<void>('childWindowVisibilityChanged', {
+        'windowId': current.windowId,
+        'kind': windowKindFromArguments(current.arguments).name,
+        'visible': visible,
+      });
+    } catch (_) {
+      // The main window can be gone during a cascade close.
     }
   }
 
@@ -602,6 +706,7 @@ final class DesktopWindowCoordinator {
   final DirectoryChangedCallback _onDirectoryChanged;
   final ValueChanged<bool> _onProcedureSessionVisibilityChanged;
   final _childWindowGeometry = ChildWindowGeometryStore();
+  final _visibleChildWindowIds = <String>{};
   ProcedureSessionRaw? _sessionDraft;
   String? _mainWindowId;
   bool _isProcedureSessionVisible = false;
@@ -649,13 +754,9 @@ final class DesktopWindowCoordinator {
       (controller) => windowKindFromArguments(controller.arguments) == kind,
     );
     if (existing.isNotEmpty) {
-      if (kind == DesktopWindowKind.procedureSession &&
-          !_isProcedureSessionVisible) {
-        await existing.first.invokeMethod<void>('procedure_session_show');
-        return;
-      }
-      await existing.first.show();
-      await existing.first.invokeMethod<void>('window_focus');
+      await existing.first.invokeMethod<void>('window_reopen', {
+        if (entryId != null) 'entryId': entryId,
+      });
       return;
     }
     await _platform.create(await _windowContext(
@@ -663,9 +764,6 @@ final class DesktopWindowCoordinator {
       entryId: entryId,
       parentWindowId: parentWindowId ?? _mainWindowId,
     ));
-    if (kind == DesktopWindowKind.procedureSession) {
-      _setProcedureSessionVisible(true);
-    }
   }
 
   Future<DesktopWindowContext> _windowContext({
@@ -804,6 +902,41 @@ final class DesktopWindowCoordinator {
       case 'procedureSessionVisibilityChanged':
         _setProcedureSessionVisible(call.arguments as bool);
         if (call.arguments == false) await _focusMainWindow();
+        return null;
+      case 'childWindowVisibilityChanged':
+        final values = Map<String, dynamic>.from(call.arguments as Map);
+        final windowId = values['windowId'] as String;
+        final visible = values['visible'] as bool;
+        if (visible) {
+          _visibleChildWindowIds.add(windowId);
+        } else {
+          _visibleChildWindowIds.remove(windowId);
+        }
+        if (DesktopWindowKind.values.byName(values['kind'] as String) ==
+            DesktopWindowKind.procedureSession) {
+          _setProcedureSessionVisible(visible);
+        }
+        final windows = await WindowController.getAll();
+        final child = windows
+            .where((controller) => controller.windowId == windowId)
+            .firstOrNull;
+        final parentId = child == null
+            ? null
+            : windowDescriptorFromArguments(child.arguments).parentWindowId;
+        final parent = parentId == null
+            ? null
+            : windows
+                .where((controller) => controller.windowId == parentId)
+                .firstOrNull;
+        if (parent != null &&
+            windowKindFromArguments(parent.arguments) !=
+                DesktopWindowKind.main) {
+          try {
+            await parent.invokeMethod<void>('child_visibility_changed', values);
+          } catch (_) {
+            // A peer can disappear during a cascade close.
+          }
+        }
         return null;
       default:
         throw MissingPluginException(
@@ -1040,6 +1173,16 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
     await windowManager.show();
     await windowManager.focus();
   });
+  final current = await WindowController.fromCurrentEngine();
+  try {
+    await _mainChannel.invokeMethod<void>('childWindowVisibilityChanged', {
+      'windowId': current.windowId,
+      'kind': kind.name,
+      'visible': true,
+    });
+  } catch (_) {
+    // The main engine can disappear while a child is being configured.
+  }
 }
 
 Future<Rect?> _savedChildWindowBounds(DesktopWindowKind kind) async {
@@ -1137,6 +1280,7 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
       switch (call.method) {
         case 'statistics_changed':
         case 'directory_changed':
+        case 'window_reopen':
           await _load();
           return null;
         default:
@@ -1241,7 +1385,8 @@ class _FreeTimeWindowState extends State<FreeTimeWindow> {
     final registration =
         registerCurrentDesktopWindowFeatureHandler((call) async {
       if (call.method == 'free_time_changed' ||
-          call.method == 'directory_changed') {
+          call.method == 'directory_changed' ||
+          call.method == 'window_reopen') {
         await _load();
         return null;
       }
@@ -1507,14 +1652,9 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
       await _load();
       return null;
     }
-    if (call.method == 'procedure_session_show') {
+    if (call.method == 'procedure_session_show' ||
+        call.method == 'window_reopen') {
       await _load();
-      await windowManager.show();
-      await windowManager.focus();
-      await _mainChannel.invokeMethod<void>(
-        'procedureSessionVisibilityChanged',
-        true,
-      );
       return null;
     }
     throw MissingPluginException('Unknown procedure-session-window method');
@@ -1589,7 +1729,7 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
           },
           onSavedAndRendered: (operationId) => _mainChannel.invokeMethod<void>(
               'procedureSessionRendered', operationId),
-          onClose: hideCurrentProcedureSessionWindow,
+          onClose: closeCurrentDesktopWindow,
         ))));
   }
 }
@@ -1814,6 +1954,14 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
           }
           await _load();
           return null;
+        case 'window_reopen':
+          final values = Map<String, dynamic>.from(call.arguments as Map);
+          _entryId = values['entryId'] as String?;
+          await _load();
+          return null;
+        case 'child_visibility_changed':
+          await _refreshModalChild();
+          return null;
         default:
           throw MissingPluginException('Unknown directory-window method');
       }
@@ -1866,15 +2014,27 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
   Future<void> _refreshModalChild() async {
     if (_isEditor) return;
     final windows = await WindowController.getAll();
-    final active = windows.any((window) {
-      final kind = windowKindFromArguments(window.arguments);
-      return (_kind == DesktopWindowKind.procedureKinds &&
-              kind == DesktopWindowKind.procedureKindEditor) ||
-          (_kind == DesktopWindowKind.workdays &&
-              kind == DesktopWindowKind.workdayEditor);
-    });
+    final active = await _hasVisibleEditorChild(windows);
     if (mounted && active != _hasModalChild)
       setState(() => _hasModalChild = active);
+  }
+
+  Future<bool> _hasVisibleEditorChild(List<WindowController> windows) async {
+    // A hidden engine remains in getAll(). Ask candidate editors whether they
+    // are visible so a hidden form never keeps its directory disabled.
+    for (final window in windows) {
+      final kind = windowKindFromArguments(window.arguments);
+      if ((_kind == DesktopWindowKind.procedureKinds &&
+              kind == DesktopWindowKind.procedureKindEditor) ||
+          (_kind == DesktopWindowKind.workdays &&
+              kind == DesktopWindowKind.workdayEditor)) {
+        try {
+          final visible = await window.invokeMethod<bool>('window_visible');
+          if (visible == true) return true;
+        } catch (_) {}
+      }
+    }
+    return false;
   }
 
   void _fillEditor(Map<String, dynamic>? entry) {

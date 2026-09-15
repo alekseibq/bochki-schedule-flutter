@@ -26,6 +26,15 @@ Future<void> main(List<String> args) async {
         unawaited(windowManager.close());
         return null;
       }
+      if (call.method == 'window_hide') {
+        await windowManager.hide();
+        return null;
+      }
+      if (call.method == 'window_reopen') {
+        await windowManager.show();
+        await windowManager.focus();
+        return null;
+      }
       if (call.method == 'message_from_main') {
         return 'Message received by child ${current.windowId}';
       }
@@ -65,12 +74,23 @@ Future<void> _exerciseChildLifecycle(
   required bool smokeOnly,
 }) async {
   try {
-    final cycles = smokeOnly ? 1 : 2;
-    for (var cycle = 1; cycle <= cycles; cycle += 1) {
-      _trace('main creating upstream child window cycle=$cycle');
+    const kinds = [
+      'procedureStatistics',
+      'procedureSession',
+      'freeTime',
+      'participants',
+      'assistants',
+      'procedureKinds',
+      'workdays',
+      'procedureKindEditor',
+      'workdayEditor',
+    ];
+    final names = kinds;
+    for (final name in names) {
+      _trace('main creating reusable child window kind=$name');
       final child = await WindowController.create(
         WindowConfiguration(
-          arguments: jsonEncode({'name': 'Upstream child $cycle'}),
+          arguments: jsonEncode({'name': name}),
           hiddenAtLaunch: true,
         ),
       );
@@ -82,6 +102,8 @@ Future<void> _exerciseChildLifecycle(
             'ready came from $childId, expected ${child.windowId}');
       }
       await child.show();
+      await child.invokeMethod<void>('window_hide');
+      await child.invokeMethod<void>('window_reopen');
       if (!smokeOnly) {
         final reply = await child.invokeMethod<String>(
           'message_from_main',
@@ -96,9 +118,9 @@ Future<void> _exerciseChildLifecycle(
       childReady.reset();
     }
     if (smokeOnly) {
-      _trace('PASS upstream child smoke lifecycle');
+      _trace('PASS reusable child smoke lifecycle');
     } else {
-      _trace('PASS upstream child lifecycle and message exchange');
+      _trace('PASS reusable child lifecycle and message exchange');
     }
     exit(0);
   } catch (error, stackTrace) {

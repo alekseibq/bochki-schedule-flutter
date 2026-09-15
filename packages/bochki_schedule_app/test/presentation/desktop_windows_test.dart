@@ -75,14 +75,15 @@ void main() {
   });
 
   group('shouldHideOnOrdinaryClose', () {
-    test('hides a procedure-session window on an ordinary close', () {
-      expect(
-        shouldHideOnOrdinaryClose(
-          kind: DesktopWindowKind.procedureSession,
-          cascade: false,
-        ),
-        isTrue,
-      );
+    test('hides every reusable child kind on an ordinary close', () {
+      for (final kind in DesktopWindowKind.values
+          .where((kind) => kind != DesktopWindowKind.main)) {
+        expect(
+          shouldHideOnOrdinaryClose(kind: kind, cascade: false),
+          isTrue,
+          reason: kind.name,
+        );
+      }
     });
 
     test('destroys a procedure-session window during a cascade close', () {
@@ -90,6 +91,16 @@ void main() {
         shouldHideOnOrdinaryClose(
           kind: DesktopWindowKind.procedureSession,
           cascade: true,
+        ),
+        isFalse,
+      );
+    });
+
+    test('never hides the main window', () {
+      expect(
+        shouldHideOnOrdinaryClose(
+          kind: DesktopWindowKind.main,
+          cascade: false,
         ),
         isFalse,
       );

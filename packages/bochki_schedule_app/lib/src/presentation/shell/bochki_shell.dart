@@ -94,6 +94,7 @@ class _BochkiShellState extends State<BochkiShell> {
   @override
   void initState() {
     super.initState();
+    setCascadeCloseTimeoutHandler(_confirmCascadeCloseTimeout);
     _procedureSessionsViewModel = ProcedureSessionsViewModel(
       listProcedureSessionsWithConflictsUseCase:
           widget.services.listProcedureSessionsWithConflictsUseCase,
@@ -216,21 +217,48 @@ class _BochkiShellState extends State<BochkiShell> {
 
   @override
   void dispose() {
+    setCascadeCloseTimeoutHandler(null);
     _windowsSubscription?.cancel();
     unawaited(_desktopWindows?.dispose());
     _procedureSessionsViewModel.dispose();
     super.dispose();
   }
 
+  Future<void> _confirmCascadeCloseTimeout() async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Не удалось закрыть дочерние окна'),
+        content: const Text(
+          'Некоторые дочерние окна не завершили работу за 10 секунд. '
+          'Ошибка записана в журнал. Закрыть главное окно?',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Закрыть'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _refreshWindowModalState() async {
     try {
       final windows = await WindowController.getAll();
-      final sessionVisible =
-          _desktopWindows?.isProcedureSessionVisible ?? false;
-      final active = windows.any((window) => isBlockingChildWindow(
-            kind: windowKindFromArguments(window.arguments),
-            isProcedureSessionVisible: sessionVisible,
-          ));
+      var active = false;
+      for (final window in windows) {
+        if (windowKindFromArguments(window.arguments) ==
+            DesktopWindowKind.main) {
+          continue;
+        }
+        if (await window.invokeMethod<bool>('window_visible') == true) {
+          active = true;
+          break;
+        }
+      }
       if (mounted && active != _hasChildWindows) {
         setState(() => _hasChildWindows = active);
       }
