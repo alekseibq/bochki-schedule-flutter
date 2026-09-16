@@ -28,16 +28,6 @@ import '../../domain/workdays/workday.dart';
 
 import 'procedure_session_submit_result.dart';
 
-enum ProcedureSessionsPartOfDayFilter {
-  fullDay('Весь день'),
-  beforeLunch('До обеда'),
-  afterLunch('После обеда');
-
-  const ProcedureSessionsPartOfDayFilter(this.label);
-
-  final String label;
-}
-
 final class ProcedureSessionsViewModel extends ChangeNotifier {
   static const String draftConflictSessionId = '__draft_procedure_session__';
 
@@ -101,8 +91,6 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
   String? _actionErrorMessage;
   String? _selectedEntryId;
   String? _selectedDayId;
-  ProcedureSessionsPartOfDayFilter _partOfDayFilter =
-      ProcedureSessionsPartOfDayFilter.fullDay;
   String? _selectedProcedureKindId;
   String? _selectedParticipantId;
   bool _showConflictsOnly = false;
@@ -122,7 +110,6 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
   String? get actionErrorMessage => _actionErrorMessage;
   String? get selectedEntryId => _selectedEntryId;
   String? get selectedDayId => _selectedDayId;
-  ProcedureSessionsPartOfDayFilter get partOfDayFilter => _partOfDayFilter;
   String? get selectedProcedureKindId => _selectedProcedureKindId;
   String? get selectedParticipantId => _selectedParticipantId;
   bool get showConflictsOnly => _showConflictsOnly;
@@ -189,15 +176,6 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
 
   void setDayFilter(String? dayId) {
     _selectedDayId = dayId;
-    _syncSelection();
-    notifyListeners();
-  }
-
-  void setPartOfDayFilter(ProcedureSessionsPartOfDayFilter filter) {
-    if (_partOfDayFilter == filter) {
-      return;
-    }
-    _partOfDayFilter = filter;
     _syncSelection();
     notifyListeners();
   }
@@ -444,23 +422,6 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
       if (_selectedParticipantId != null &&
           entry.participantId != _selectedParticipantId) {
         return false;
-      }
-      final startMinutes = ProcedureSessionTime.toMinutes(entry.startTime);
-      final lunchStartMinutes = _programSettings.lunchStart.hour * 60 +
-          _programSettings.lunchStart.minute;
-      switch (_partOfDayFilter) {
-        case ProcedureSessionsPartOfDayFilter.fullDay:
-          break;
-        case ProcedureSessionsPartOfDayFilter.beforeLunch:
-          if (startMinutes >= lunchStartMinutes) {
-            return false;
-          }
-          break;
-        case ProcedureSessionsPartOfDayFilter.afterLunch:
-          if (startMinutes < lunchStartMinutes) {
-            return false;
-          }
-          break;
       }
       return true;
     }).toList(growable: false);

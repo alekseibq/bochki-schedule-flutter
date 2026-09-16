@@ -40,7 +40,7 @@ abstract final class ProcedureSessionValidator {
     if (procedureKind.requiresAssistant) {
       if (procedureSession.assistantId == null) {
         throw const ProcedureSessionsValidationException(
-          'Выберите ассистента.',
+          'Выберите сопровождающего.',
         );
       }
 
@@ -50,7 +50,7 @@ abstract final class ProcedureSessionValidator {
       );
       if (assistant == null) {
         throw const ProcedureSessionsValidationException(
-          'Выберите ассистента.',
+          'Выберите сопровождающего.',
         );
       }
       return procedureSession;

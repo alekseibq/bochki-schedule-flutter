@@ -113,7 +113,7 @@ void main() {
           isA<ProcedureSessionsValidationException>().having(
             (error) => error.message,
             'message',
-            'Выберите ассистента.',
+            'Выберите сопровождающего.',
           ),
         ),
       );
@@ -143,7 +143,7 @@ void main() {
           isA<ProcedureSessionsValidationException>().having(
             (error) => error.message,
             'message',
-            'Выберите ассистента.',
+            'Выберите сопровождающего.',
           ),
         ),
       );
@@ -465,7 +465,7 @@ void main() {
                   conflict.type == ScheduleConflictType.missingAssignment,
             )
             .map((conflict) => conflict.message),
-        containsAll(['Не назначен участник.', 'Не назначен ассистент.']),
+        containsAll(['Не назначен участник.', 'Не назначен сопровождающий.']),
       );
     });
 
@@ -507,7 +507,7 @@ void main() {
       expect(
         conflicts.map((item) => item.message),
         contains(allOf(
-          contains('ассистент до 19:50'),
+          contains('сопровождающий до 19:50'),
           contains('ресурс до 00:50 следующего дня'),
         )),
       );
@@ -604,7 +604,7 @@ ProcedureSessionRich _buildRichSession({
     procedureKind: procedureKind,
     assistant: assistantId == null
         ? null
-        : Assistant(id: assistantId, name: 'Ассистент $assistantId'),
+        : Assistant(id: assistantId, name: 'Сопровождающий $assistantId'),
   );
 }
 

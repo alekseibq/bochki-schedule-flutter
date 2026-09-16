@@ -81,7 +81,7 @@ final class BuildProcedureStatisticsDocumentUseCase {
               rows: [
                 for (final human in participants)
                   _row(human, pageWorkdays, cells, isAssistant: false),
-                const ProcedureStatisticsRow(name: 'Ассистенты', cells: []),
+                const ProcedureStatisticsRow(name: 'Сопровождающие', cells: []),
                 for (final human in assistants)
                   _row(human, pageWorkdays, cells, isAssistant: true),
               ],

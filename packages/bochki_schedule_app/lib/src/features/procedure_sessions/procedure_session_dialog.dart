@@ -127,9 +127,7 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
         widget.programSettings.minimumTime.hour.toString().padLeft(2, '0');
     final maximumHour =
         widget.programSettings.maximumTime.hour.toString().padLeft(2, '0');
-    return 'Доступные часы начала: $minimumHour-$maximumHour. '
-        'Обед: с ${_formatSettingsTime(widget.programSettings.lunchStart)} '
-        'до ${_formatSettingsTime(widget.programSettings.lunchEnd)}.';
+    return 'Доступные часы начала: $minimumHour-$maximumHour.';
   }
 
   List<DropdownMenuItem<String>> _buildWorkdayItems() {
@@ -204,7 +202,7 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
       items.add(
         DropdownMenuItem<String>(
           value: currentAssistantId,
-          child: Text('Ошибка: ассистент не найден ($currentAssistantId)'),
+          child: Text('Ошибка: сопровождающий не найден ($currentAssistantId)'),
         ),
       );
     }
@@ -245,7 +243,7 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
 
     if (requiresAssistant && procedureSession.assistantId == null) {
       setState(() {
-        _formErrorText = 'Выберите ассистента.';
+        _formErrorText = 'Выберите сопровождающего.';
       });
       return;
     }
@@ -515,13 +513,13 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
               ),
               const SizedBox(height: 12),
               _DialogRow(
-                label: 'Ассистент',
+                label: 'Сопровождающий',
                 child: DropdownButtonFormField<String>(
                   key: const Key('procedure_session_assistant_field'),
                   value: _assistantId,
                   isExpanded: true,
                   hint: Text(requiresAssistant
-                      ? 'Выберите ассистента'
+                      ? 'Выберите сопровождающего'
                       : 'Не требуется'),
                   items: _buildAssistantItems(),
                   onChanged: !requiresAssistant || _isBusy

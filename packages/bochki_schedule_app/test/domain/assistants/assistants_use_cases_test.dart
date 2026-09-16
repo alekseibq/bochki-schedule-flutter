@@ -72,7 +72,7 @@ void main() {
           isA<AssistantsValidationException>().having(
             (error) => error.message,
             'message',
-            'Введите имя ассистента.',
+            'Введите имя сопровождающего.',
           ),
         ),
       );

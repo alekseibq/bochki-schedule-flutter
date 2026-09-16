@@ -2,23 +2,27 @@ import 'program_settings_time.dart';
 
 final class ProgramSettings {
   const ProgramSettings({
-    required this.lunchStart,
-    required this.lunchEnd,
     required this.minimumTime,
     required this.maximumTime,
+    this.uiScale = 1.1,
+    @Deprecated('Lunch is no longer used')
+    this.lunchStart = const ProgramSettingsTime(hour: 14, minute: 0),
+    @Deprecated('Lunch is no longer used')
+    this.lunchEnd = const ProgramSettingsTime(hour: 15, minute: 0),
   });
 
   static const ProgramSettings defaults = ProgramSettings(
-    lunchStart: ProgramSettingsTime(hour: 14, minute: 0),
-    lunchEnd: ProgramSettingsTime(hour: 15, minute: 0),
     minimumTime: ProgramSettingsTime(hour: 8, minute: 0),
     maximumTime: ProgramSettingsTime(hour: 20, minute: 0),
   );
 
-  final ProgramSettingsTime lunchStart;
-  final ProgramSettingsTime lunchEnd;
   final ProgramSettingsTime minimumTime;
   final ProgramSettingsTime maximumTime;
+  final double uiScale;
+  @Deprecated('Lunch is no longer used')
+  final ProgramSettingsTime lunchStart;
+  @Deprecated('Lunch is no longer used')
+  final ProgramSettingsTime lunchEnd;
 
   factory ProgramSettings.fromJson(Object? json) {
     if (json is! Map) {
@@ -26,8 +30,6 @@ final class ProgramSettings {
     }
 
     return ProgramSettings(
-      lunchStart: ProgramSettingsTime.fromJson(json['lunchStart']),
-      lunchEnd: ProgramSettingsTime.fromJson(json['lunchEnd']),
       minimumTime: json.containsKey('minimumTime')
           ? ProgramSettingsTime.fromJson(json['minimumTime'])
           : ProgramSettingsTime(
@@ -40,29 +42,31 @@ final class ProgramSettings {
               hour: _readHour(json['maximumHour'], fieldName: 'maximumHour'),
               minute: 0,
             ),
+      uiScale: _readUiScale(json['uiScale']),
     );
   }
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
-      'lunchStart': lunchStart.toJson(),
-      'lunchEnd': lunchEnd.toJson(),
       'minimumTime': minimumTime.toJson(),
       'maximumTime': maximumTime.toJson(),
+      'uiScale': uiScale,
     };
   }
 
   ProgramSettings copyWith({
-    ProgramSettingsTime? lunchStart,
-    ProgramSettingsTime? lunchEnd,
     ProgramSettingsTime? minimumTime,
     ProgramSettingsTime? maximumTime,
+    double? uiScale,
+    @Deprecated('Lunch is no longer used') ProgramSettingsTime? lunchStart,
+    @Deprecated('Lunch is no longer used') ProgramSettingsTime? lunchEnd,
   }) {
     return ProgramSettings(
-      lunchStart: lunchStart ?? this.lunchStart,
-      lunchEnd: lunchEnd ?? this.lunchEnd,
       minimumTime: minimumTime ?? this.minimumTime,
       maximumTime: maximumTime ?? this.maximumTime,
+      uiScale: uiScale ?? this.uiScale,
+      lunchStart: lunchStart ?? this.lunchStart,
+      lunchEnd: lunchEnd ?? this.lunchEnd,
     );
   }
 
@@ -82,5 +86,16 @@ final class ProgramSettings {
       );
     }
     return hour;
+  }
+
+  static double _readUiScale(Object? value) {
+    if (value == null) return 1.1;
+    const allowed = [1.0, 1.05, 1.1, 1.15, 1.2];
+    if (value is! num || !allowed.contains(value.toDouble())) {
+      throw const FormatException(
+        'Program settings uiScale must be one of 1.0, 1.05, 1.1, 1.15, 1.2.',
+      );
+    }
+    return value.toDouble();
   }
 }

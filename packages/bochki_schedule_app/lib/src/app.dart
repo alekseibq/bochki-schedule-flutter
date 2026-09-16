@@ -23,6 +23,7 @@ class BochkiScheduleApp extends StatefulWidget {
 
 class _BochkiScheduleAppState extends State<BochkiScheduleApp> {
   late final AppLifecycleListener _lifecycleListener;
+  double _uiScale = 1.1;
 
   @override
   void initState() {
@@ -30,6 +31,9 @@ class _BochkiScheduleAppState extends State<BochkiScheduleApp> {
     _lifecycleListener = AppLifecycleListener(
       onExitRequested: _handleExitRequested,
     );
+    widget.services.getProgramSettingsUseCase.execute().then((settings) {
+      if (mounted) setState(() => _uiScale = settings.uiScale);
+    });
   }
 
   @override
@@ -68,6 +72,12 @@ class _BochkiScheduleAppState extends State<BochkiScheduleApp> {
           brightness: Brightness.light,
         ),
         scaffoldBackgroundColor: const Color(0xFFF6F7F9),
+      ),
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          textScaler: TextScaler.linear(_uiScale),
+        ),
+        child: child!,
       ),
       home: BochkiShell(
         services: widget.services,

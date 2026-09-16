@@ -9,8 +9,8 @@ final class CreateAssistantUseCase {
       : _repository = repository,
         _delegate = CreateNamedDirectoryEntryUseCase<Assistant>(
           repository,
-          emptyNameMessage: 'Введите имя ассистента.',
-          duplicateNameMessage: 'Ассистент с таким именем уже есть.',
+          emptyNameMessage: 'Введите имя сопровождающего.',
+          duplicateNameMessage: 'Сопровождающий с таким именем уже есть.',
           exceptionFactory: _validationException,
         );
 

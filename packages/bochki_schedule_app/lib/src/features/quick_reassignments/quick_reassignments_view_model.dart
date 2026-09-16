@@ -15,7 +15,7 @@ import '../../domain/program_settings/get_program_settings_use_case.dart';
 enum QuickPeopleFilter {
   all('Все'),
   participants('Только участники'),
-  assistants('Только ассистенты');
+  assistants('Только сопровождающие');
 
   const QuickPeopleFilter(this.label);
   final String label;
@@ -24,18 +24,9 @@ enum QuickPeopleFilter {
 enum QuickSort {
   time('По времени'),
   participants('По участникам'),
-  assistants('По ассистентам');
+  assistants('По сопровождающим');
 
   const QuickSort(this.label);
-  final String label;
-}
-
-enum QuickPart {
-  fullDay('Весь день'),
-  beforeLunch('До обеда'),
-  afterLunch('После обеда');
-
-  const QuickPart(this.label);
   final String label;
 }
 
@@ -68,7 +59,6 @@ final class QuickReassignmentsViewModel extends ChangeNotifier {
   List<ProcedureSessionRich> _all = const [];
   ProgramSettings _settings = ProgramSettings.defaults;
   String? dayId;
-  QuickPart part = QuickPart.fullDay;
   QuickPeopleFilter people = QuickPeopleFilter.all;
   QuickSort sort = QuickSort.time;
   bool loading = true;
@@ -76,11 +66,8 @@ final class QuickReassignmentsViewModel extends ChangeNotifier {
   String? error;
   List<ProcedureSessionRich> get entries {
     final r = _all
-        .where((s) =>
-            s.requiresAssistant &&
-            s.dayId == dayId &&
-            _partMatches(s) &&
-            _peopleMatches(s))
+        .where(
+            (s) => s.requiresAssistant && s.dayId == dayId && _peopleMatches(s))
         .toList();
     r.sort(_compare);
     return r;
@@ -106,11 +93,6 @@ final class QuickReassignmentsViewModel extends ChangeNotifier {
 
   void setDay(String? v) {
     dayId = v;
-    notifyListeners();
-  }
-
-  void setPart(QuickPart v) {
-    part = v;
     notifyListeners();
   }
 
@@ -212,13 +194,6 @@ final class QuickReassignmentsViewModel extends ChangeNotifier {
       right.assistantId != null &&
       left.participantId != right.assistantId &&
       right.participantId != left.assistantId;
-
-  bool _partMatches(ProcedureSessionRich s) {
-    final m = ProcedureSessionTime.toMinutes(s.startTime),
-        lunch = _settings.lunchStart.hour * 60 + _settings.lunchStart.minute;
-    return part == QuickPart.fullDay ||
-        (part == QuickPart.beforeLunch ? m < lunch : m >= lunch);
-  }
 
   bool _peopleMatches(ProcedureSessionRich s) {
     final a = s.participant?.isAssistant ?? false;

@@ -60,9 +60,9 @@ final class ProcedureSessionConflictCalculator {
     }
     if (session.requiresAssistant) {
       if (session.assistantId == null) {
-        add('Не назначен ассистент.');
+        add('Не назначен сопровождающий.');
       } else if (session.assistant == null) {
-        add('Ассистент не найден.');
+        add('Сопровождающий не найден.');
       }
     }
     return conflicts;
@@ -103,7 +103,7 @@ final class ProcedureSessionConflictCalculator {
 
     addEnd('участник', kind.participantBusyTime);
     if (session.assistantId != null) {
-      addEnd('ассистент', kind.assistantBusyTime);
+      addEnd('сопровождающий', kind.assistantBusyTime);
     }
     addEnd('ресурс', kind.resourceBusyTime);
     if (ends.isNotEmpty) {

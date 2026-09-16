@@ -16,14 +16,11 @@ class ProgramSettingsDialog extends StatefulWidget {
 }
 
 class _ProgramSettingsDialogState extends State<ProgramSettingsDialog> {
-  late int _lunchStartHour;
-  late int _lunchStartMinute;
-  late int _lunchEndHour;
-  late int _lunchEndMinute;
   late int _minimumHour;
   late int _minimumMinute;
   late int _maximumHour;
   late int _maximumMinute;
+  late double _uiScale;
 
   @override
   void initState() {
@@ -40,14 +37,11 @@ class _ProgramSettingsDialogState extends State<ProgramSettingsDialog> {
   }
 
   void _applySettings(ProgramSettings settings) {
-    _lunchStartHour = settings.lunchStart.hour;
-    _lunchStartMinute = settings.lunchStart.minute;
-    _lunchEndHour = settings.lunchEnd.hour;
-    _lunchEndMinute = settings.lunchEnd.minute;
     _minimumHour = settings.minimumTime.hour;
     _minimumMinute = settings.minimumTime.minute;
     _maximumHour = settings.maximumTime.hour;
     _maximumMinute = settings.maximumTime.minute;
+    _uiScale = settings.uiScale;
   }
 
   void _showActionErrorIfNeeded() {
@@ -69,14 +63,6 @@ class _ProgramSettingsDialogState extends State<ProgramSettingsDialog> {
 
   Future<void> _save() async {
     final settings = ProgramSettings(
-      lunchStart: ProgramSettingsTime(
-        hour: _lunchStartHour,
-        minute: _lunchStartMinute,
-      ),
-      lunchEnd: ProgramSettingsTime(
-        hour: _lunchEndHour,
-        minute: _lunchEndMinute,
-      ),
       minimumTime: ProgramSettingsTime(
         hour: _minimumHour,
         minute: _minimumMinute,
@@ -85,6 +71,7 @@ class _ProgramSettingsDialogState extends State<ProgramSettingsDialog> {
         hour: _maximumHour,
         minute: _maximumMinute,
       ),
+      uiScale: _uiScale,
     );
 
     final isSuccess = await widget.viewModel.saveProgramSettings(settings);
@@ -163,34 +150,6 @@ class _ProgramSettingsDialogState extends State<ProgramSettingsDialog> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _buildTimeRow(
-                  label: 'Начало обеда',
-                  hourKey: const Key('program_settings_lunch_start_hour_field'),
-                  minuteKey: const Key(
-                    'program_settings_lunch_start_minute_field',
-                  ),
-                  selectedHour: _lunchStartHour,
-                  selectedMinute: _lunchStartMinute,
-                  onHourChanged: (value) =>
-                      _updateField(() => _lunchStartHour = value),
-                  onMinuteChanged: (value) =>
-                      _updateField(() => _lunchStartMinute = value),
-                ),
-                const SizedBox(height: 16),
-                _buildTimeRow(
-                  label: 'Конец обеда',
-                  hourKey: const Key('program_settings_lunch_end_hour_field'),
-                  minuteKey: const Key(
-                    'program_settings_lunch_end_minute_field',
-                  ),
-                  selectedHour: _lunchEndHour,
-                  selectedMinute: _lunchEndMinute,
-                  onHourChanged: (value) =>
-                      _updateField(() => _lunchEndHour = value),
-                  onMinuteChanged: (value) =>
-                      _updateField(() => _lunchEndMinute = value),
-                ),
-                const SizedBox(height: 16),
-                _buildTimeRow(
                   label: 'Минимальное время',
                   tooltip:
                       'Процедура, начавшаяся раньше этого времени, будет отмечена как конфликт.',
@@ -207,7 +166,7 @@ class _ProgramSettingsDialogState extends State<ProgramSettingsDialog> {
                 _buildTimeRow(
                   label: 'Максимальное время',
                   tooltip:
-                      'Если участник, ассистент или ресурс занят позже этого времени, процедура будет отмечена как конфликт.',
+                      'Если участник, сопровождающий или ресурс занят позже этого времени, процедура будет отмечена как конфликт.',
                   hourKey: const Key('program_settings_maximum_hour_field'),
                   minuteKey: const Key('program_settings_maximum_minute_field'),
                   selectedHour: _maximumHour,
@@ -216,6 +175,27 @@ class _ProgramSettingsDialogState extends State<ProgramSettingsDialog> {
                       _updateField(() => _maximumHour = value),
                   onMinuteChanged: (value) =>
                       _updateField(() => _maximumMinute = value),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<double>(
+                  key: const Key('program_settings_ui_scale_field'),
+                  value: _uiScale,
+                  decoration: const InputDecoration(labelText: 'Размер UI'),
+                  items: const [
+                    1.0,
+                    1.05,
+                    1.1,
+                    1.15,
+                    1.2,
+                  ]
+                      .map((value) => DropdownMenuItem(
+                            value: value,
+                            child: Text('${(value * 100).round()}%'),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) _updateField(() => _uiScale = value);
+                  },
                 ),
                 if (widget.viewModel.formErrorMessage case final message?) ...[
                   const SizedBox(height: 16),

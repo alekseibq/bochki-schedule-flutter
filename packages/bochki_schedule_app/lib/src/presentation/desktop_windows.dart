@@ -1361,8 +1361,6 @@ final class DesktopWindowCoordinator {
         'settings': {
           'minimumTime': _sessions.programSettings.minimumTime.toJson(),
           'maximumTime': _sessions.programSettings.maximumTime.toJson(),
-          'lunchStart': _sessions.programSettings.lunchStart.toJson(),
-          'lunchEnd': _sessions.programSettings.lunchEnd.toJson(),
         },
       };
 
@@ -1499,7 +1497,7 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
     DesktopWindowKind.freeTime => 'Свободное время',
     DesktopWindowKind.procedureSession => 'Назначенная процедура',
     DesktopWindowKind.participants => 'Участники',
-    DesktopWindowKind.assistants => 'Ассистенты',
+    DesktopWindowKind.assistants => 'Сопровождающие',
     DesktopWindowKind.procedureKinds => 'Процедуры',
     DesktopWindowKind.workdays => 'Дни',
     DesktopWindowKind.procedureKindEditor => 'Процедура',
@@ -1904,13 +1902,13 @@ class _FreeTimeWindowState extends State<FreeTimeWindow> {
                               items: const [
                                 DropdownMenuItem(
                                     value: ScheduleGapPeopleFilter.all,
-                                    child: Text('Участники и Ассистенты')),
+                                    child: Text('Участники и Сопровождающие')),
                                 DropdownMenuItem(
                                     value: ScheduleGapPeopleFilter.participants,
                                     child: Text('Участники')),
                                 DropdownMenuItem(
                                     value: ScheduleGapPeopleFilter.assistants,
-                                    child: Text('Ассистенты'))
+                                    child: Text('Сопровождающие'))
                               ],
                               onChanged: (v) {
                                 if (v != null) {
@@ -2111,9 +2109,7 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
               minimumTime:
                   ProgramSettingsTime.fromJson(settings['minimumTime']),
               maximumTime:
-                  ProgramSettingsTime.fromJson(settings['maximumTime']),
-              lunchStart: ProgramSettingsTime.fromJson(settings['lunchStart']),
-              lunchEnd: ProgramSettingsTime.fromJson(settings['lunchEnd'])),
+                  ProgramSettingsTime.fromJson(settings['maximumTime'])),
           onSubmit: (session, allowConflicts) async {
             final response = await _mainChannel.invokeMethod<Map>(
                 'submitProcedureSession', {
@@ -2504,7 +2500,7 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
 
   String get _title => switch (_kind) {
         DesktopWindowKind.participants => 'Участники',
-        DesktopWindowKind.assistants => 'Ассистенты',
+        DesktopWindowKind.assistants => 'Сопровождающие',
         DesktopWindowKind.procedureKinds => 'Процедуры',
         DesktopWindowKind.workdays => 'Дни',
         DesktopWindowKind.procedureKindEditor =>

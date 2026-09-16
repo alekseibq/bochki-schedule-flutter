@@ -204,7 +204,7 @@ void main() {
     expect(find.text('Новая процедура'), findsOneWidget);
   });
 
-  testWidgets('procedure session filters use a two-row scrollable form', (
+  testWidgets('procedure session filters use a scrollable form', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(600, 800));
@@ -237,9 +237,6 @@ void main() {
     await tester.pumpAndSettle();
 
     final dayField = find.byKey(const Key('procedure_sessions_day_filter'));
-    final partOfDayField = find.byKey(
-      const Key('procedure_sessions_part_of_day_filter'),
-    );
     final procedureField = find.byKey(
       const Key('procedure_sessions_procedure_filter'),
     );
@@ -256,15 +253,9 @@ void main() {
     expect(filters, findsOneWidget);
     expect(divider, findsOneWidget);
     expect(find.text('День'), findsOneWidget);
-    expect(find.text('Часть дня'), findsOneWidget);
     expect(find.text('Процедура'), findsOneWidget);
     expect(find.text('Участник'), findsOneWidget);
-    expect(tester.getCenter(dayField).dy,
-        lessThan(tester.getCenter(participantField).dy));
-    expect(tester.getCenter(dayField).dy, tester.getCenter(partOfDayField).dy);
     expect(tester.getCenter(dayField).dy, tester.getCenter(procedureField).dy);
-    expect(tester.getSize(procedureField).width,
-        greaterThan(tester.getSize(partOfDayField).width));
     expect(
       tester.getTopLeft(divider).dy,
       greaterThan(tester.getBottomLeft(filters).dy),
@@ -602,14 +593,14 @@ void main() {
 
     expect(find.text('Процедуры (1)'), findsOneWidget);
     expect(find.text('Дни (3)'), findsOneWidget);
-    expect(find.text('Ассистенты (1)'), findsOneWidget);
+    expect(find.text('Сопровождающие (1)'), findsOneWidget);
     expect(find.text('Участники (2)'), findsOneWidget);
     expect(find.text('Настройки'), findsOneWidget);
     expect(find.text('Настройки (0)'), findsNothing);
 
     final labels = [
       'Участники (2)',
-      'Ассистенты (1)',
+      'Сопровождающие (1)',
       'Процедуры (1)',
       'Дни (3)',
       'Настройки',
@@ -657,8 +648,8 @@ void main() {
       find.byKey(const Key('assistants_directory_dialog')),
       findsOneWidget,
     );
-    expect(find.text('Список ассистентов'), findsOneWidget);
-    expect(find.text('Ассистенты (0)'), findsOneWidget);
+    expect(find.text('Список сопровождающих'), findsOneWidget);
+    expect(find.text('Сопровождающие (0)'), findsOneWidget);
     expect(find.byKey(const Key('assistants_table_divider')), findsOneWidget);
   });
 
@@ -702,40 +693,12 @@ void main() {
     expect(find.text('Сохранить'), findsOneWidget);
   });
 
-  testWidgets('program settings dialog validates and saves singleton object',
-      (tester) async {
+  testWidgets('program settings dialog saves singleton object', (tester) async {
     final context = _buildTestContext();
 
     await tester.pumpWidget(BochkiScheduleApp(services: context.services));
     await tester.pumpAndSettle();
     await _openProgramSettingsDialog(tester);
-
-    await tester.tap(
-      find.byKey(const Key('program_settings_lunch_end_hour_field')),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('13').last);
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const Key('program_settings_save_button')));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.text('Конец обеда должен быть позже начала обеда.'),
-      findsOneWidget,
-    );
-
-    await tester.tap(
-      find.byKey(const Key('program_settings_lunch_end_hour_field')),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('15').last);
-    await tester.pumpAndSettle();
-
-    expect(
-      find.text('Конец обеда должен быть позже начала обеда.'),
-      findsNothing,
-    );
 
     await tester.tap(find.byKey(const Key('program_settings_save_button')));
     await tester.pumpAndSettle();
@@ -1123,7 +1086,7 @@ void main() {
     );
   });
 
-  testWidgets('procedure sessions filters by part of day', (tester) async {
+  testWidgets('procedure sessions show all day entries', (tester) async {
     final context = _buildTestContext(
       participants: [
         Participant(id: '1', name: 'Иван'),
@@ -1181,19 +1144,11 @@ void main() {
     expect(find.byKey(const Key('procedure_session_row_1')), findsOneWidget);
     expect(find.byKey(const Key('procedure_session_row_2')), findsOneWidget);
 
-    await tester.tap(
-      find.byKey(const Key('procedure_sessions_part_of_day_filter')),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('До обеда').last);
-    await tester.pumpAndSettle();
-
     expect(find.byKey(const Key('procedure_session_row_1')), findsOneWidget);
-    expect(find.byKey(const Key('procedure_session_row_2')), findsNothing);
+    expect(find.byKey(const Key('procedure_session_row_2')), findsOneWidget);
   });
 
-  testWidgets(
-      'procedure sessions uses custom lunch start for part of day filter',
+  testWidgets('procedure sessions ignore legacy lunch settings',
       (tester) async {
     final context = _buildTestContext(
       participants: [
@@ -1249,15 +1204,8 @@ void main() {
     await tester.pumpWidget(BochkiScheduleApp(services: context.services));
     await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.byKey(const Key('procedure_sessions_part_of_day_filter')),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('До обеда').last);
-    await tester.pumpAndSettle();
-
     expect(find.byKey(const Key('procedure_session_row_1')), findsOneWidget);
-    expect(find.byKey(const Key('procedure_session_row_2')), findsNothing);
+    expect(find.byKey(const Key('procedure_session_row_2')), findsOneWidget);
   });
 
   testWidgets('procedure sessions screen supports edit existing record', (
@@ -1418,7 +1366,7 @@ void main() {
     );
     expect(
       find.text(
-        'Доступные часы начала: 10-18. Обед: с 14:00 до 15:00.',
+        'Доступные часы начала: 10-18.',
       ),
       findsOneWidget,
     );
@@ -1624,14 +1572,14 @@ void main() {
 
     await tester.enterText(
       find.byKey(const Key('assistant_name_field')),
-      '  Иван   Ассистент  ',
+      '  Иван   Сопровождающий  ',
     );
-    await tester.tap(find.text('Ассистенты (0)'));
+    await tester.tap(find.text('Сопровождающие (0)'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Иван Ассистент'), findsOneWidget);
-    expect(
-        context.assistantsRepository.assistants.single.name, 'Иван Ассистент');
+    expect(find.text('Иван Сопровождающий'), findsOneWidget);
+    expect(context.assistantsRepository.assistants.single.name,
+        'Иван Сопровождающий');
 
     await tester.tap(find.byKey(const Key('assistant_add_row')));
     await tester.pumpAndSettle();
@@ -1639,7 +1587,7 @@ void main() {
       find.byKey(const Key('assistant_name_field')),
       'Борис',
     );
-    await tester.tap(find.text('Ассистенты (1)'));
+    await tester.tap(find.text('Сопровождающие (1)'));
     await tester.pumpAndSettle();
 
     final firstRow = find.byKey(const Key('assistant_row_1'));
@@ -1667,7 +1615,7 @@ void main() {
           .map((assistant) => assistant.name),
       ['Иван Петров'],
     );
-    expect(find.text('Ассистенты (1)'), findsOneWidget);
+    expect(find.text('Сопровождающие (1)'), findsOneWidget);
   });
 
   testWidgets('procedure kinds dialog supports create edit and delete', (
@@ -2402,7 +2350,7 @@ Future<void> _openParticipantsDialog(WidgetTester tester) async {
 Future<void> _openAssistantsDialog(WidgetTester tester) async {
   await tester.tap(find.byKey(const Key('directories_menu_button')));
   await tester.pumpAndSettle();
-  await tester.tap(find.textContaining('Ассистенты (').last);
+  await tester.tap(find.textContaining('Сопровождающие (').last);
   await tester.pumpAndSettle();
 }
 

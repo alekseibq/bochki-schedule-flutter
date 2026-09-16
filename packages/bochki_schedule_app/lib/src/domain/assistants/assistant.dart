@@ -14,12 +14,12 @@ final class Assistant extends NamedDirectoryEntry {
         ) {
     if (this.id.isEmpty) {
       throw const AssistantsValidationException(
-        'Идентификатор ассистента не должен быть пустым.',
+        'Идентификатор сопровождающего не должен быть пустым.',
       );
     }
     if (this.name.isEmpty) {
       throw const AssistantsValidationException(
-        'Введите имя ассистента.',
+        'Введите имя сопровождающего.',
       );
     }
   }

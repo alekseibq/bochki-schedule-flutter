@@ -34,12 +34,6 @@ class QuickReassignmentsDialog extends StatelessWidget {
                       DropdownMenuItem(value: d.id, child: Text(d.name))
                   ],
                   viewModel.setDay),
-              _field('Части дня', viewModel.part, [
-                for (final v in QuickPart.values)
-                  DropdownMenuItem(value: v, child: Text(v.label))
-              ], (v) {
-                if (v != null) viewModel.setPart(v);
-              }),
               _field('Участники', viewModel.people, [
                 for (final v in QuickPeopleFilter.values)
                   DropdownMenuItem(value: v, child: Text(v.label))
@@ -58,13 +52,13 @@ class QuickReassignmentsDialog extends StatelessWidget {
                 child: entries.isEmpty
                     ? const Center(
                         child: Text(
-                            'Нет назначенных процедур с ассистентом по выбранным фильтрам'))
+                            'Нет назначенных процедур с сопровождающим по выбранным фильтрам'))
                     : DataTable(
                         columns: const [
                           DataColumn(label: Text('Время')),
                           DataColumn(label: Text('Процедура')),
                           DataColumn(label: Text('Участник')),
-                          DataColumn(label: Text('Ассистент'))
+                          DataColumn(label: Text('Сопровождающий'))
                         ],
                         rows: [
                           for (final s in entries)
@@ -80,7 +74,7 @@ class QuickReassignmentsDialog extends StatelessWidget {
                               DataCell(_person(
                                   s.assistantId,
                                   s.assistantId == null
-                                      ? 'Ассистент не назначен'
+                                      ? 'Сопровождающий не назначен'
                                       : s.assistant?.name ?? 'Не найден',
                                   viewModel.assistantCandidates(s),
                                   (id) => viewModel.chooseAssistant(s, id),

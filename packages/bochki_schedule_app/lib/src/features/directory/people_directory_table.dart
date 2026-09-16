@@ -135,7 +135,7 @@ class _PeopleDirectoryTableState extends State<PeopleDirectoryTable> {
     if (_saving) return;
     final typeName = widget.type == PeopleDirectoryType.participants
         ? 'участника'
-        : 'ассистента';
+        : 'сопровождающего';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(

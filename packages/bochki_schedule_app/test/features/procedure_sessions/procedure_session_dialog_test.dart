@@ -68,7 +68,7 @@ void main() {
 
     expect(
       find.text(
-        'Доступные часы начала: 10-12. Обед: с 13:30 до 14:30.',
+        'Доступные часы начала: 10-12.',
       ),
       findsOneWidget,
     );
@@ -142,7 +142,7 @@ void main() {
     );
 
     expect(field.onChanged, isNotNull);
-    expect(find.text('Выберите ассистента'), findsOneWidget);
+    expect(find.text('Выберите сопровождающего'), findsOneWidget);
   });
 
   testWidgets('cancel delegates closing to the dialog owner', (tester) async {
