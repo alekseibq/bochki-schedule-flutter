@@ -85,8 +85,8 @@ Future<void> _exerciseChildLifecycle(
       'procedureKindEditor',
       'workdayEditor',
     ];
-    final names = kinds;
-    for (final name in names) {
+    final children = <WindowController>[];
+    for (final name in kinds) {
       _trace('main creating reusable child window kind=$name');
       final child = await WindowController.create(
         WindowConfiguration(
@@ -101,6 +101,10 @@ Future<void> _exerciseChildLifecycle(
         throw StateError(
             'ready came from $childId, expected ${child.windowId}');
       }
+      children.add(child);
+      childReady.reset();
+    }
+    for (final child in children) {
       await child.show();
       await child.invokeMethod<void>('window_hide');
       await child.invokeMethod<void>('window_reopen');
@@ -113,9 +117,12 @@ Future<void> _exerciseChildLifecycle(
           throw StateError('unexpected child reply: $reply');
         }
       }
+    }
+    // Close the complete set deepest-first. This mirrors the production
+    // cascade path and avoids testing an unrelated rapid create/destroy loop.
+    for (final child in children.reversed) {
       await child.invokeMethod<void>('window_close');
       await _waitForChildClose(child.windowId);
-      childReady.reset();
     }
     if (smokeOnly) {
       _trace('PASS reusable child smoke lifecycle');
