@@ -16,7 +16,8 @@ final class DeleteAssistantUseCase {
         _procedureSessionsRepository = procedureSessionsRepository,
         _delegate = DeleteNamedDirectoryEntryUseCase<Assistant>(
           repository,
-          emptyIdMessage: 'Идентификатор сопровождающего не должен быть пустым.',
+          emptyIdMessage:
+              'Идентификатор сопровождающего не должен быть пустым.',
           exceptionFactory: _validationException,
         );
 
