@@ -29,8 +29,6 @@ void main() {
 
   test('serializes program settings into project document json', () {
     const settings = ProgramSettings(
-      lunchStart: ProgramSettingsTime(hour: 12, minute: 0),
-      lunchEnd: ProgramSettingsTime(hour: 13, minute: 0),
       minimumTime: ProgramSettingsTime(hour: 8, minute: 0),
       maximumTime: ProgramSettingsTime(hour: 18, minute: 0),
     );

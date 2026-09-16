@@ -5,10 +5,6 @@ final class ProgramSettings {
     required this.minimumTime,
     required this.maximumTime,
     this.uiScale = 1.1,
-    @Deprecated('Lunch is no longer used')
-    this.lunchStart = const ProgramSettingsTime(hour: 14, minute: 0),
-    @Deprecated('Lunch is no longer used')
-    this.lunchEnd = const ProgramSettingsTime(hour: 15, minute: 0),
   });
 
   static const ProgramSettings defaults = ProgramSettings(
@@ -19,10 +15,6 @@ final class ProgramSettings {
   final ProgramSettingsTime minimumTime;
   final ProgramSettingsTime maximumTime;
   final double uiScale;
-  @Deprecated('Lunch is no longer used')
-  final ProgramSettingsTime lunchStart;
-  @Deprecated('Lunch is no longer used')
-  final ProgramSettingsTime lunchEnd;
 
   factory ProgramSettings.fromJson(Object? json) {
     if (json is! Map) {
@@ -58,15 +50,11 @@ final class ProgramSettings {
     ProgramSettingsTime? minimumTime,
     ProgramSettingsTime? maximumTime,
     double? uiScale,
-    @Deprecated('Lunch is no longer used') ProgramSettingsTime? lunchStart,
-    @Deprecated('Lunch is no longer used') ProgramSettingsTime? lunchEnd,
   }) {
     return ProgramSettings(
       minimumTime: minimumTime ?? this.minimumTime,
       maximumTime: maximumTime ?? this.maximumTime,
       uiScale: uiScale ?? this.uiScale,
-      lunchStart: lunchStart ?? this.lunchStart,
-      lunchEnd: lunchEnd ?? this.lunchEnd,
     );
   }
 

@@ -24,8 +24,6 @@ void main() {
     );
 
     const updated = ProgramSettings(
-      lunchStart: ProgramSettingsTime(hour: 13, minute: 0),
-      lunchEnd: ProgramSettingsTime(hour: 14, minute: 0),
       minimumTime: ProgramSettingsTime(hour: 7, minute: 0),
       maximumTime: ProgramSettingsTime(hour: 19, minute: 0),
     );

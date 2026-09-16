@@ -6,8 +6,6 @@ void main() {
   group('program settings use cases', () {
     test('get returns stored singleton object', () async {
       const settings = ProgramSettings(
-        lunchStart: ProgramSettingsTime(hour: 14, minute: 0),
-        lunchEnd: ProgramSettingsTime(hour: 15, minute: 0),
         minimumTime: ProgramSettingsTime(hour: 8, minute: 0),
         maximumTime: ProgramSettingsTime(hour: 20, minute: 0),
       );

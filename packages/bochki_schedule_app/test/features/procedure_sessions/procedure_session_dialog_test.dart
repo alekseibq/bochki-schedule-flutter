@@ -54,8 +54,6 @@ void main() {
               Assistant(id: '2', name: 'Петр'),
             ],
             programSettings: const ProgramSettings(
-              lunchStart: ProgramSettingsTime(hour: 13, minute: 30),
-              lunchEnd: ProgramSettingsTime(hour: 14, minute: 30),
               minimumTime: ProgramSettingsTime(hour: 10, minute: 0),
               maximumTime: ProgramSettingsTime(hour: 12, minute: 0),
             ),

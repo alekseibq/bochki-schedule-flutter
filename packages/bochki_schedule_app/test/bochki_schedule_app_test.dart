@@ -1128,8 +1128,6 @@ void main() {
         ),
       ],
       programSettings: const ProgramSettings(
-        lunchStart: ProgramSettingsTime(hour: 13, minute: 0),
-        lunchEnd: ProgramSettingsTime(hour: 14, minute: 0),
         minimumTime: ProgramSettingsTime(hour: 8, minute: 0),
         maximumTime: ProgramSettingsTime(hour: 20, minute: 0),
       ),
@@ -1191,8 +1189,6 @@ void main() {
         ),
       ],
       programSettings: const ProgramSettings(
-        lunchStart: ProgramSettingsTime(hour: 14, minute: 0),
-        lunchEnd: ProgramSettingsTime(hour: 15, minute: 0),
         minimumTime: ProgramSettingsTime(hour: 8, minute: 0),
         maximumTime: ProgramSettingsTime(hour: 20, minute: 0),
       ),
@@ -1341,8 +1337,6 @@ void main() {
         ),
       ],
       programSettings: const ProgramSettings(
-        lunchStart: ProgramSettingsTime(hour: 14, minute: 0),
-        lunchEnd: ProgramSettingsTime(hour: 15, minute: 0),
         minimumTime: ProgramSettingsTime(hour: 10, minute: 0),
         maximumTime: ProgramSettingsTime(hour: 18, minute: 0),
       ),

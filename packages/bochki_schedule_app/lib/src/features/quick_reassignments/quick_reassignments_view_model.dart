@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 
 import '../../domain/humans/human.dart';
 import '../../domain/procedure_sessions/procedure_session_rich.dart';

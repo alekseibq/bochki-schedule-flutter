@@ -472,8 +472,6 @@ void main() {
     test('conflict calculator reports exact time-boundary violations', () {
       const calculator = ProcedureSessionConflictCalculator();
       const settings = ProgramSettings(
-        lunchStart: ProgramSettingsTime(hour: 12, minute: 0),
-        lunchEnd: ProgramSettingsTime(hour: 13, minute: 0),
         minimumTime: ProgramSettingsTime(hour: 8, minute: 15),
         maximumTime: ProgramSettingsTime(hour: 19, minute: 40),
       );
