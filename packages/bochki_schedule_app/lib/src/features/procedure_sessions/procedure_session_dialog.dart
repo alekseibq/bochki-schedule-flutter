@@ -598,7 +598,6 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
       ],
     );
   }
-
 }
 
 class _DialogRow extends StatelessWidget {
