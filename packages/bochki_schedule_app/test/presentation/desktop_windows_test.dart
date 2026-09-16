@@ -9,13 +9,9 @@ import 'package:screen_retriever/screen_retriever.dart';
 void main() {
   testWidgets('child windows apply the persisted scale to their dialogs',
       (tester) async {
-    final scale = ValueNotifier<double>(1.5);
-    addTearDown(scale.dispose);
-
     await tester.pumpWidget(
       DesktopWindowUiScale(
-        scale: scale,
-        loadScale: () async => 1.5,
+        uiScale: 1.5,
         child: MaterialApp(
           home: Builder(
             builder: (context) => Text(
@@ -28,11 +24,6 @@ void main() {
     await tester.pump();
 
     expect(find.text('15.0'), findsOneWidget);
-
-    scale.value = 1.25;
-    await tester.pump();
-
-    expect(find.text('12.5'), findsOneWidget);
   });
 
   group('windowKindFromArguments', () {
@@ -67,6 +58,14 @@ void main() {
       expect(descriptor.kind, DesktopWindowKind.procedureKindEditor);
       expect(descriptor.parentWindowId, 'directory');
       expect(descriptor.ancestorWindowIds, ['directory', 'main']);
+    });
+
+    test('reads the startup UI scale for a child window', () {
+      final descriptor = windowDescriptorFromArguments(
+        '{"kind":"participants","uiScale":1.5}',
+      );
+
+      expect(descriptor.uiScale, 1.5);
     });
   });
 

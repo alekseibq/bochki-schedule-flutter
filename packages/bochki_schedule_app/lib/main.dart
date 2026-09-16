@@ -27,6 +27,7 @@ Future<void> main(List<String> args) async {
     await configureChildWindow(kind);
     runApp(
       DesktopWindowUiScale(
+        uiScale: windowDescriptorFromArguments(controller.arguments).uiScale,
         child: kind == DesktopWindowKind.procedureStatistics
             ? const ProcedureStatisticsWindow()
             : kind == DesktopWindowKind.freeTime

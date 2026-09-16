@@ -723,7 +723,7 @@ void main() {
     expect(find.byKey(const Key('program_settings_dialog')), findsNothing);
     expect(context.programSettingsRepository.settings.uiScale, 1.2);
     final shellContext = tester.element(find.text('Добавить запись...'));
-    expect(MediaQuery.textScalerOf(shellContext).scale(10), 12);
+    expect(MediaQuery.textScalerOf(shellContext).scale(10), 11);
   });
 
   testWidgets('procedure sessions screen supports create', (

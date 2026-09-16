@@ -82,9 +82,6 @@ class _BochkiScheduleAppState extends State<BochkiScheduleApp> {
       home: BochkiShell(
         services: widget.services,
         onProjectLoaded: widget.onProjectLoaded,
-        onUiScaleChanged: (uiScale) {
-          if (mounted) setState(() => _uiScale = uiScale);
-        },
       ),
     );
   }
