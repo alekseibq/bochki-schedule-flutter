@@ -23,25 +23,6 @@ void main() {
       expect(viewModel.settings, ProgramSettings.defaults);
       expect(viewModel.loadErrorMessage, isNull);
     });
-
-    test('surfaces validation error on save', () async {
-      await viewModel.loadProgramSettings();
-
-      final isSuccess = await viewModel.saveProgramSettings(
-        const ProgramSettings(
-          lunchStart: ProgramSettingsTime(hour: 15, minute: 0),
-          lunchEnd: ProgramSettingsTime(hour: 14, minute: 0),
-          minimumTime: ProgramSettingsTime(hour: 8, minute: 0),
-          maximumTime: ProgramSettingsTime(hour: 20, minute: 0),
-        ),
-      );
-
-      expect(isSuccess, isFalse);
-      expect(
-        viewModel.formErrorMessage,
-        'Конец обеда должен быть позже начала обеда.',
-      );
-    });
   });
 }
 

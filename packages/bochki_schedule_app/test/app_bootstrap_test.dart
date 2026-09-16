@@ -108,8 +108,8 @@ void main() {
         },
         <String, Object?>{
           'id': 11,
-          'name': 'Новый ассистент',
-          'shortName': 'Ассистент',
+          'name': 'Новый сопровождающий',
+          'shortName': 'Сопровождающий',
           'isParticipant': false,
           'isAssistant': true,
           'deleted': false,
@@ -147,8 +147,6 @@ void main() {
         },
       ],
       programSettings: ProgramSettings(
-        lunchStart: ProgramSettingsTime(hour: 12, minute: 0),
-        lunchEnd: ProgramSettingsTime(hour: 13, minute: 0),
         minimumTime: ProgramSettingsTime(hour: 7, minute: 0),
         maximumTime: ProgramSettingsTime(hour: 22, minute: 0),
       ),
@@ -181,7 +179,7 @@ void main() {
     );
     expect(
       (await reloaded.listAssistantsUseCase.execute()).single.name,
-      'Новый ассистент',
+      'Новый сопровождающий',
     );
     expect((await reloaded.listWorkdaysUseCase.execute()).single.name,
         'Новый день');
@@ -193,14 +191,6 @@ void main() {
     );
     final reloadedProgramSettings =
         await reloaded.getProgramSettingsUseCase.execute();
-    expect(reloadedProgramSettings.lunchStart.hour,
-        templateDocument.programSettings.lunchStart.hour);
-    expect(reloadedProgramSettings.lunchStart.minute,
-        templateDocument.programSettings.lunchStart.minute);
-    expect(reloadedProgramSettings.lunchEnd.hour,
-        templateDocument.programSettings.lunchEnd.hour);
-    expect(reloadedProgramSettings.lunchEnd.minute,
-        templateDocument.programSettings.lunchEnd.minute);
     expect(reloadedProgramSettings.minimumTime.hour,
         templateDocument.programSettings.minimumTime.hour);
     expect(reloadedProgramSettings.minimumTime.minute,
@@ -209,6 +199,7 @@ void main() {
         templateDocument.programSettings.maximumTime.hour);
     expect(reloadedProgramSettings.maximumTime.minute,
         templateDocument.programSettings.maximumTime.minute);
+    expect(reloadedProgramSettings.uiScale, 1.1);
     final reloadedPrintPresetParams =
         await reloaded.getPrintPresetParamsUseCase.execute();
     expect(

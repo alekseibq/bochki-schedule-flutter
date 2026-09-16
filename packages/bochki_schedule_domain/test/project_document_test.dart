@@ -29,8 +29,6 @@ void main() {
 
   test('serializes program settings into project document json', () {
     const settings = ProgramSettings(
-      lunchStart: ProgramSettingsTime(hour: 12, minute: 0),
-      lunchEnd: ProgramSettingsTime(hour: 13, minute: 0),
       minimumTime: ProgramSettingsTime(hour: 8, minute: 0),
       maximumTime: ProgramSettingsTime(hour: 18, minute: 0),
     );
@@ -55,10 +53,9 @@ void main() {
     expect(document.programSettings.maximumTime.hour, 18);
     expect(document.programSettings.maximumTime.minute, 0);
     expect(document.toJson()['programSettings'], <String, Object?>{
-      'lunchStart': <String, Object?>{'hour': 12, 'minute': 0},
-      'lunchEnd': <String, Object?>{'hour': 13, 'minute': 0},
       'minimumTime': <String, Object?>{'hour': 8, 'minute': 0},
       'maximumTime': <String, Object?>{'hour': 18, 'minute': 0},
+      'uiScale': 1.1,
     });
   });
 

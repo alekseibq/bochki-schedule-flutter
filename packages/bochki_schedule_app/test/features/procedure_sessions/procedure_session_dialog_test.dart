@@ -54,8 +54,6 @@ void main() {
               Assistant(id: '2', name: 'Петр'),
             ],
             programSettings: const ProgramSettings(
-              lunchStart: ProgramSettingsTime(hour: 13, minute: 30),
-              lunchEnd: ProgramSettingsTime(hour: 14, minute: 30),
               minimumTime: ProgramSettingsTime(hour: 10, minute: 0),
               maximumTime: ProgramSettingsTime(hour: 12, minute: 0),
             ),
@@ -68,7 +66,7 @@ void main() {
 
     expect(
       find.text(
-        'Доступные часы начала: 10-12. Обед: с 13:30 до 14:30.',
+        'Доступные часы начала: 10-12.',
       ),
       findsOneWidget,
     );
@@ -142,7 +140,7 @@ void main() {
     );
 
     expect(field.onChanged, isNotNull);
-    expect(find.text('Выберите ассистента'), findsOneWidget);
+    expect(find.text('Выберите сопровождающего'), findsOneWidget);
   });
 
   testWidgets('cancel delegates closing to the dialog owner', (tester) async {

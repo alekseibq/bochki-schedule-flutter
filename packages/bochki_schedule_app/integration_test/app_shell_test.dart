@@ -130,15 +130,15 @@ void main() {
 
     _openDirectoriesMenu(tester);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Ассистенты (0)').last);
+    await tester.tap(find.text('Сопровождающие (0)').last);
     await tester.pumpAndSettle();
 
     expect(
       find.byKey(const Key('assistants_directory_dialog')),
       findsOneWidget,
     );
-    expect(find.text('Список ассистентов'), findsOneWidget);
-    expect(find.text('Ассистенты (0)'), findsOneWidget);
+    expect(find.text('Список сопровождающих'), findsOneWidget);
+    expect(find.text('Сопровождающие (0)'), findsOneWidget);
 
     _openDirectoriesMenu(tester);
     await tester.pumpAndSettle();

@@ -37,7 +37,7 @@ void main() {
       final isSuccess = await viewModel.createAssistant('   ');
 
       expect(isSuccess, isFalse);
-      expect(viewModel.formErrorMessage, 'Введите имя ассистента.');
+      expect(viewModel.formErrorMessage, 'Введите имя сопровождающего.');
     });
   });
 }

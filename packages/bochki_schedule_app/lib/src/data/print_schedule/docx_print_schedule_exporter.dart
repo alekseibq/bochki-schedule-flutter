@@ -154,7 +154,7 @@ final class DocxPrintScheduleExporter implements PrintScheduleExporter {
   String _tableXml(PrintScheduleDocument document) {
     final rows = <String>[
       _tableRowXml(
-        const ['Участник', 'Время', 'Процедура', 'Ассистент'],
+        const ['Участник', 'Время', 'Процедура', 'Сопровождающий'],
         isHeader: true,
       ),
       for (final row in document.rows)

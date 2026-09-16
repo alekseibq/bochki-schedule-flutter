@@ -17,7 +17,7 @@ final class UpdateAssistantUseCase {
     final normalizedId = Assistant.normalizeId(assistantId);
     if (normalizedId.isEmpty) {
       throw const AssistantsValidationException(
-        'Идентификатор ассистента не должен быть пустым.',
+        'Идентификатор сопровождающего не должен быть пустым.',
       );
     }
 
@@ -25,19 +25,19 @@ final class UpdateAssistantUseCase {
     final current =
         assistants.where((entry) => entry.id == normalizedId).firstOrNull;
     if (current == null) {
-      throw const AssistantsValidationException('Ассистент не найден.');
+      throw const AssistantsValidationException('Сопровождающий не найден.');
     }
 
     final name = Assistant.normalizeName(rawName ?? current.name);
     if (name.isEmpty) {
-      throw const AssistantsValidationException('Введите имя ассистента.');
+      throw const AssistantsValidationException('Введите имя сопровождающего.');
     }
     final sortKey = NamedDirectoryEntry.sortKeyForName(name);
     if (assistants.any((entry) =>
         entry.id != normalizedId &&
         NamedDirectoryEntry.sortKeyForName(entry.name) == sortKey)) {
       throw const AssistantsValidationException(
-          'Ассистент с таким именем уже есть.');
+          'Сопровождающий с таким именем уже есть.');
     }
 
     final shortName = rawShortName ??

@@ -6,8 +6,6 @@ void main() {
   group('program settings use cases', () {
     test('get returns stored singleton object', () async {
       const settings = ProgramSettings(
-        lunchStart: ProgramSettingsTime(hour: 14, minute: 0),
-        lunchEnd: ProgramSettingsTime(hour: 15, minute: 0),
         minimumTime: ProgramSettingsTime(hour: 8, minute: 0),
         maximumTime: ProgramSettingsTime(hour: 20, minute: 0),
       );
@@ -16,54 +14,6 @@ void main() {
       final loaded = await GetProgramSettingsUseCase(repository).execute();
 
       expect(loaded, settings);
-    });
-
-    test('update rejects lunch end before lunch start', () {
-      final repository = _InMemoryProgramSettingsRepository(
-        ProgramSettings.defaults,
-      );
-
-      expect(
-        () => UpdateProgramSettingsUseCase(repository).execute(
-          const ProgramSettings(
-            lunchStart: ProgramSettingsTime(hour: 14, minute: 0),
-            lunchEnd: ProgramSettingsTime(hour: 13, minute: 50),
-            minimumTime: ProgramSettingsTime(hour: 8, minute: 0),
-            maximumTime: ProgramSettingsTime(hour: 20, minute: 0),
-          ),
-        ),
-        throwsA(
-          isA<ProgramSettingsValidationException>().having(
-            (error) => error.message,
-            'message',
-            'Конец обеда должен быть позже начала обеда.',
-          ),
-        ),
-      );
-    });
-
-    test('update rejects lunch time outside min max range', () {
-      final repository = _InMemoryProgramSettingsRepository(
-        ProgramSettings.defaults,
-      );
-
-      expect(
-        () => UpdateProgramSettingsUseCase(repository).execute(
-          const ProgramSettings(
-            lunchStart: ProgramSettingsTime(hour: 7, minute: 50),
-            lunchEnd: ProgramSettingsTime(hour: 15, minute: 0),
-            minimumTime: ProgramSettingsTime(hour: 8, minute: 0),
-            maximumTime: ProgramSettingsTime(hour: 20, minute: 0),
-          ),
-        ),
-        throwsA(
-          isA<ProgramSettingsValidationException>().having(
-            (error) => error.message,
-            'message',
-            'Начало обеда должно быть внутри диапазона времени.',
-          ),
-        ),
-      );
     });
   });
 }

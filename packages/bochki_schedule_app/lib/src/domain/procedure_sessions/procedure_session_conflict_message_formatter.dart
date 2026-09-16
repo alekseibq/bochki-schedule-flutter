@@ -19,7 +19,7 @@ final class ProcedureSessionConflictMessageFormatter {
     switch (conflict.resourceType!) {
       case ConflictResourceType.human:
         final humanName = _findHumanName(humans, conflict.humanId);
-        return 'Участник/ассистент $humanName занят с '
+        return 'Участник/сопровождающий $humanName занят с '
             '${conflict.timeStart} до ${conflict.timeFinish} '
             '(${conflict.capacityRegistered} из ${conflict.capacityAllowed}).';
       case ConflictResourceType.item:

@@ -83,7 +83,7 @@ class ProcedureStatisticsContent extends StatelessWidget {
                       child: Text('Участники')),
                   DropdownMenuItem(
                       value: ProcedureStatisticsPeopleFilter.assistants,
-                      child: Text('Ассистенты')),
+                      child: Text('Сопровождающие')),
                 ],
                 onChanged: (value) {
                   if (value != null) onPeopleChanged(value);

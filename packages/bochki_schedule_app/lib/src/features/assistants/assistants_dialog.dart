@@ -18,11 +18,11 @@ class AssistantsDialog extends NamedDirectoryDialog<Assistant> {
     dialogKey: 'assistants_directory_dialog',
     tableDividerKey: 'assistants_table_divider',
     entryKeyPrefix: 'assistant',
-    dialogTitle: 'Список ассистентов',
+    dialogTitle: 'Список сопровождающих',
     sectionTitleBuilder: _sectionTitle,
-    inlineFieldHintText: 'Введите имя ассистента',
+    inlineFieldHintText: 'Введите имя сопровождающего',
     addRowLabel: 'Добавить новую запись',
-    deleteConfirmationTitle: 'Удалить ассистента?',
+    deleteConfirmationTitle: 'Удалить сопровождающего?',
     deleteConfirmationMessage: _deleteConfirmationMessage,
     columns: [
       DirectoryColumnSpec<Assistant>(
@@ -54,7 +54,7 @@ class AssistantsDialog extends NamedDirectoryDialog<Assistant> {
     ],
   );
 
-  static String _sectionTitle(int count) => 'Ассистенты ($count)';
+  static String _sectionTitle(int count) => 'Сопровождающие ($count)';
 
   static String _nameCellText(Assistant assistant) => assistant.name;
 
@@ -65,7 +65,7 @@ class AssistantsDialog extends NamedDirectoryDialog<Assistant> {
   }
 
   static String _deleteConfirmationMessage(Assistant assistant) {
-    return 'Ассистент "${assistant.name}" будет скрыт из списка.';
+    return 'Сопровождающий "${assistant.name}" будет скрыт из списка.';
   }
 
   static Future<void> _editAction(

@@ -27,7 +27,7 @@ import '../desktop_windows.dart';
 enum DirectorySection {
   procedureKinds('Процедуры'),
   workdays('Дни'),
-  assistants('Ассистенты'),
+  assistants('Сопровождающие'),
   participants('Участники'),
   settings('Настройки');
 
@@ -1195,10 +1195,6 @@ class _ProcedureSessionFilters extends StatelessWidget {
       'Все',
       for (final workday in viewModel.workdays) workday.name,
     ];
-    final partOfDayOptions = [
-      for (final filter in ProcedureSessionsPartOfDayFilter.values)
-        filter.label,
-    ];
     final procedureOptions = [
       'Все',
       for (final procedureKind in viewModel.procedureKinds) procedureKind.name,
@@ -1238,30 +1234,6 @@ class _ProcedureSessionFilters extends StatelessWidget {
                         ),
                     ],
                     onChanged: (value) => viewModel.setDayFilter(value),
-                  ),
-                ),
-                const SizedBox(width: 24),
-                _FilterField(
-                  label: 'Часть дня',
-                  width: _dropdownWidth(context, partOfDayOptions),
-                  child:
-                      DropdownButtonFormField<ProcedureSessionsPartOfDayFilter>(
-                    key: const Key('procedure_sessions_part_of_day_filter'),
-                    value: viewModel.partOfDayFilter,
-                    decoration: const InputDecoration(isDense: true),
-                    items: [
-                      for (final filter
-                          in ProcedureSessionsPartOfDayFilter.values)
-                        DropdownMenuItem<ProcedureSessionsPartOfDayFilter>(
-                          value: filter,
-                          child: Text(filter.label),
-                        ),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) {
-                        viewModel.setPartOfDayFilter(value);
-                      }
-                    },
                   ),
                 ),
                 const SizedBox(width: 24),
@@ -1516,77 +1488,81 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
           key: Key('procedure_session_row_content_${entry.id}'),
           height: _rowHeight,
           decoration: BoxDecoration(
-            color: isSelected
-                ? (hasConflicts
-                    ? const Color(0xFFFFE6E2)
-                    : const Color(0xFFE7F1FB))
-                : (hasConflicts ? const Color(0xFFFFF4F2) : Colors.white),
+            color: isSelected ? const Color(0xFFE7F1FB) : Colors.white,
           ),
-          child: Row(
-            children: [
-              _TableCell(width: _dataColumnWidths[0], text: _dayText(entry)),
-              _buildPersonSummaryCell(
-                width: _dataColumnWidths[1],
-                entryId: entry.id,
-                column: 'participant',
-                humanId: entry.participant?.id,
-                humanName: entry.participant?.name,
-                fallbackText: _participantText(entry),
-              ),
-              _TableCell(width: _dataColumnWidths[2], text: entry.startTime),
-              _TableCell(
-                width: _dataColumnWidths[3],
-                text: entry.finishTime ?? '',
-              ),
-              _TableCell(
-                width: _dataColumnWidths[4],
-                text: _procedureText(entry),
-              ),
-              _buildPersonSummaryCell(
-                width: _dataColumnWidths[5],
-                entryId: entry.id,
-                column: 'assistant',
-                humanId: entry.requiresAssistant ? entry.assistant?.id : null,
-                humanName:
-                    entry.requiresAssistant ? entry.assistant?.name : null,
-                fallbackText: _assistantText(entry),
-              ),
-              _TableCell(
-                width: _conflictColumnWidth,
-                alignment: Alignment.center,
-                child: hasConflicts
-                    ? const Tooltip(
-                        message: 'Есть конфликты',
-                        child: Icon(
-                          Icons.warning_amber_rounded,
-                          color: Color(0xFFD66A57),
-                          size: 18,
-                        ),
-                      )
-                    : null,
-              ),
-              _TableCell(
-                width: _actionColumnWidth,
-                alignment: Alignment.center,
-                child: TextButton(
-                  key: Key('procedure_session_edit_${entry.id}'),
-                  style: _compactButtonStyle,
-                  onPressed: () => widget.onEdit(entry.id),
-                  child: const Text('Изм.'),
+          child: DefaultTextStyle(
+            style: hasConflicts
+                ? const TextStyle(color: Color(0xFFFF0000))
+                : DefaultTextStyle.of(context).style,
+            child: Row(
+              children: [
+                _TableCell(
+                    width: _dataColumnWidths[0],
+                    text: _dayText(entry),
+                    textStyle: _rowTextStyle(hasConflicts)),
+                _buildPersonSummaryCell(
+                  width: _dataColumnWidths[1],
+                  entryId: entry.id,
+                  column: 'participant',
+                  humanId: entry.participant?.id,
+                  humanName: entry.participant?.name,
+                  fallbackText: _participantText(entry),
                 ),
-              ),
-              _TableCell(
-                width: _actionColumnWidth,
-                alignment: Alignment.center,
-                showRightDivider: false,
-                child: TextButton(
-                  key: Key('procedure_session_delete_${entry.id}'),
-                  style: _compactButtonStyle,
-                  onPressed: () => widget.onDelete(entry.id),
-                  child: const Text('Удл.'),
+                _TableCell(width: _dataColumnWidths[2], text: entry.startTime),
+                _TableCell(
+                  width: _dataColumnWidths[3],
+                  text: entry.finishTime ?? '',
                 ),
-              ),
-            ],
+                _TableCell(
+                  width: _dataColumnWidths[4],
+                  text: _procedureText(entry),
+                ),
+                _buildPersonSummaryCell(
+                  width: _dataColumnWidths[5],
+                  entryId: entry.id,
+                  column: 'assistant',
+                  humanId: entry.requiresAssistant ? entry.assistant?.id : null,
+                  humanName:
+                      entry.requiresAssistant ? entry.assistant?.name : null,
+                  fallbackText: _assistantText(entry),
+                ),
+                _TableCell(
+                  width: _conflictColumnWidth,
+                  alignment: Alignment.center,
+                  child: hasConflicts
+                      ? const Tooltip(
+                          message: 'Есть конфликты',
+                          child: Icon(
+                            Icons.warning_amber_rounded,
+                            color: Color(0xFFD66A57),
+                            size: 18,
+                          ),
+                        )
+                      : null,
+                ),
+                _TableCell(
+                  width: _actionColumnWidth,
+                  alignment: Alignment.center,
+                  child: TextButton(
+                    key: Key('procedure_session_edit_${entry.id}'),
+                    style: _compactButtonStyle,
+                    onPressed: () => widget.onEdit(entry.id),
+                    child: const Text('Изм.'),
+                  ),
+                ),
+                _TableCell(
+                  width: _actionColumnWidth,
+                  alignment: Alignment.center,
+                  showRightDivider: false,
+                  child: TextButton(
+                    key: Key('procedure_session_delete_${entry.id}'),
+                    style: _compactButtonStyle,
+                    onPressed: () => widget.onDelete(entry.id),
+                    child: const Text('Удл.'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1598,6 +1574,9 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
     padding: EdgeInsets.zero,
     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
   );
+
+  TextStyle? _rowTextStyle(bool hasConflicts) =>
+      hasConflicts ? const TextStyle(color: Color(0xFFFF0000)) : null;
 
   String _dayText(dynamic entry) {
     return entry.day?.name ?? 'Ошибка: день не найден';
@@ -1621,7 +1600,7 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
     if (entry.assistant != null) return entry.assistant!.name;
     return entry.assistantId == null
         ? 'Не назначен'
-        : 'Ошибка: ассистент не найден';
+        : 'Ошибка: сопровождающий не найден';
   }
 
   Widget _buildPersonSummaryCell({
@@ -1656,7 +1635,7 @@ const List<_ProcedureSessionsDataColumn> _dataColumns = [
   _ProcedureSessionsDataColumn('Начало', 75, 60),
   _ProcedureSessionsDataColumn('Конец', 75, 60),
   _ProcedureSessionsDataColumn('Процедура', 220, 130),
-  _ProcedureSessionsDataColumn('Ассистент/Напарник', 180, 120),
+  _ProcedureSessionsDataColumn('Сопровождающий', 180, 120),
 ];
 
 class _ProcedureSessionsDataColumn {
