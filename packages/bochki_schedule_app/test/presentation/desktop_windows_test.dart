@@ -7,6 +7,25 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 
 void main() {
+  testWidgets('child windows apply the persisted scale to their dialogs',
+      (tester) async {
+    await tester.pumpWidget(
+      DesktopWindowUiScale(
+        uiScale: 1.5,
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) => Text(
+              '${MediaQuery.textScalerOf(context).scale(10)}',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('15.0'), findsOneWidget);
+  });
+
   group('windowKindFromArguments', () {
     test('reads a statistics window argument', () {
       expect(
@@ -39,6 +58,14 @@ void main() {
       expect(descriptor.kind, DesktopWindowKind.procedureKindEditor);
       expect(descriptor.parentWindowId, 'directory');
       expect(descriptor.ancestorWindowIds, ['directory', 'main']);
+    });
+
+    test('reads the startup UI scale for a child window', () {
+      final descriptor = windowDescriptorFromArguments(
+        '{"kind":"participants","uiScale":1.5}',
+      );
+
+      expect(descriptor.uiScale, 1.5);
     });
   });
 

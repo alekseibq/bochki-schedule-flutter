@@ -63,6 +63,26 @@ const _mainChannel = WindowMethodChannel(
   mode: ChannelMode.unidirectional,
 );
 
+/// Applies the immutable startup scale to a child engine and its dialogs.
+class DesktopWindowUiScale extends StatelessWidget {
+  const DesktopWindowUiScale({
+    required this.child,
+    required this.uiScale,
+    super.key,
+  });
+
+  final Widget child;
+  final double uiScale;
+
+  @override
+  Widget build(BuildContext context) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          textScaler: TextScaler.linear(uiScale),
+        ),
+        child: child,
+      );
+}
+
 WindowConfiguration childWindowConfiguration(String arguments) =>
     WindowConfiguration(arguments: arguments, hiddenAtLaunch: true);
 
@@ -171,18 +191,21 @@ final class DesktopWindowContext {
     this.parentWindowId,
     this.ancestorWindowIds = const [],
     this.entryId,
+    this.uiScale = 1.1,
   });
 
   final DesktopWindowKind kind;
   final String? parentWindowId;
   final List<String> ancestorWindowIds;
   final String? entryId;
+  final double uiScale;
 
   Map<String, dynamic> toJson() => {
         'kind': kind.name,
         if (parentWindowId != null) 'parentWindowId': parentWindowId,
         'ancestorWindowIds': ancestorWindowIds,
         if (entryId != null) 'entryId': entryId,
+        'uiScale': uiScale,
       };
 }
 
@@ -198,6 +221,7 @@ DesktopWindowDescriptor windowDescriptorFromArguments(String value) {
         values['ancestorWindowIds'] as List? ?? const [],
       ),
       entryId: values['entryId'] as String?,
+      uiScale: (values['uiScale'] as num?)?.toDouble() ?? 1.1,
     );
   } catch (_) {
     return const DesktopWindowContext(kind: DesktopWindowKind.main);
@@ -556,6 +580,7 @@ final class DesktopWindowLifecycle with WindowListener {
       entryId: values.containsKey('entryId')
           ? values['entryId'] as String?
           : current.entryId,
+      uiScale: current.uiScale,
     );
   }
 
@@ -895,6 +920,7 @@ final class DesktopWindowCoordinator {
   String? _mainWindowId;
   MainWindowClosingHandler? _registeredMainWindowClosingHandler;
   bool _lastBlockingState = false;
+  late final double _startupUiScale;
 
   bool get isProcedureSessionVisible =>
       _windowStates[DesktopWindowKind.procedureSession] ==
@@ -903,6 +929,8 @@ final class DesktopWindowCoordinator {
   bool get hasBlockingChildWindow => _windowStates.hasBlockingWindow;
 
   Future<void> start() async {
+    _startupUiScale =
+        (await _services.getProgramSettingsUseCase.execute()).uiScale;
     _mainWindowId = (await _platform.current()).windowId;
     await _mainChannel.setMethodCallHandler(_handleCall);
     final closingHandler = _handleMainWindowClosing;
@@ -1097,6 +1125,7 @@ final class DesktopWindowCoordinator {
         ...ancestors,
       ],
       entryId: entryId,
+      uiScale: _startupUiScale,
     );
   }
 

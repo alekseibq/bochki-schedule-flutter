@@ -13,6 +13,22 @@ void main() {
     expect(BochkiScheduleApp, isNotNull);
   });
 
+  testWidgets('main window applies the persisted UI scale', (tester) async {
+    final context = _buildTestContext(
+      programSettings: const ProgramSettings(
+        minimumTime: ProgramSettingsTime(hour: 8, minute: 0),
+        maximumTime: ProgramSettingsTime(hour: 20, minute: 0),
+        uiScale: 1.5,
+      ),
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+
+    final shellContext = tester.element(find.text('Добавить запись...'));
+    expect(MediaQuery.textScalerOf(shellContext).scale(10), 15);
+  });
+
   testWidgets('shell shows top menu and procedure sessions workspace', (
     tester,
   ) async {
@@ -697,14 +713,17 @@ void main() {
     await tester.pumpAndSettle();
     await _openProgramSettingsDialog(tester);
 
+    await tester.tap(find.byKey(const Key('program_settings_ui_scale_field')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('120%').last);
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('program_settings_save_button')));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('program_settings_dialog')), findsNothing);
-    expect(
-      context.programSettingsRepository.settings.toJson(),
-      ProgramSettings.defaults.toJson(),
-    );
+    expect(context.programSettingsRepository.settings.uiScale, 1.2);
+    final shellContext = tester.element(find.text('Добавить запись...'));
+    expect(MediaQuery.textScalerOf(shellContext).scale(10), 11);
   });
 
   testWidgets('procedure sessions screen supports create', (
