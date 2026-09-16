@@ -57,7 +57,6 @@ final class QuickReassignmentsViewModel extends ChangeNotifier {
   List<Workday> workdays = const [];
   List<Human> humans = const [];
   List<ProcedureSessionRich> _all = const [];
-  ProgramSettings _settings = ProgramSettings.defaults;
   String? dayId;
   QuickPeopleFilter people = QuickPeopleFilter.all;
   QuickSort sort = QuickSort.time;
@@ -79,7 +78,7 @@ final class QuickReassignmentsViewModel extends ChangeNotifier {
     try {
       workdays = await _workdaysUseCase.execute();
       humans = await _humansUseCase.execute();
-      _settings = await _settingsUseCase.execute();
+      await _settingsUseCase.execute();
       _all = await _sessions.execute();
       dayId ??= workdays.isEmpty ? null : workdays.first.id;
       error = null;

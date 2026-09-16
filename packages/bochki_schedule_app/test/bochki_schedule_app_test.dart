@@ -240,9 +240,6 @@ void main() {
     final procedureField = find.byKey(
       const Key('procedure_sessions_procedure_filter'),
     );
-    final participantField = find.byKey(
-      const Key('procedure_sessions_participant_filter'),
-    );
     final filters = find.byKey(
       const Key('procedure_sessions_filters_scroll_view'),
     );
