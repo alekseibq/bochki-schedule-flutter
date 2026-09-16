@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.15.0
+
+Release date: 2026-09-16
+
+### Highlights
+
+- Added schedule interface scaling for all desktop windows.
+- Improved schedule interface settings and desktop child-window reuse.
+
+### Details
+
+- `feat(ui): apply scale to all desktop windows`
+- `feat(ui): update schedule interface settings (#199)`
+- `feat(desktop): reuse child windows on ordinary close (#196)`
+- `fix(desktop): centralize child window method dispatch (#195)`
+
 ## v0.14.1
 
 Release date: 2026-09-04
