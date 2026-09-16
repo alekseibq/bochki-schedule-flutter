@@ -107,6 +107,106 @@ void main() {
     });
   });
 
+  group('DesktopChildWindowStateStore', () {
+    test('blocks while a child is opening or visible', () {
+      final store = DesktopChildWindowStateStore();
+
+      store.update(
+        DesktopWindowKind.procedureKinds,
+        DesktopChildWindowState.opening,
+      );
+      expect(store.hasBlockingWindow, isTrue);
+
+      store.update(
+        DesktopWindowKind.procedureKinds,
+        DesktopChildWindowState.visible,
+      );
+      expect(store.hasBlockingWindow, isTrue);
+    });
+
+    test('hidden children do not block but a visible descendant still does',
+        () {
+      final store = DesktopChildWindowStateStore();
+      store.update(
+        DesktopWindowKind.procedureKinds,
+        DesktopChildWindowState.hidden,
+      );
+      store.update(
+        DesktopWindowKind.procedureKindEditor,
+        DesktopChildWindowState.visible,
+      );
+
+      expect(store.hasBlockingWindow, isTrue);
+
+      store.update(
+        DesktopWindowKind.procedureKindEditor,
+        DesktopChildWindowState.hidden,
+      );
+      expect(store.hasBlockingWindow, isFalse);
+    });
+
+    test('closing children no longer keep the main UI modal', () {
+      final store = DesktopChildWindowStateStore();
+      store.update(
+        DesktopWindowKind.workdays,
+        DesktopChildWindowState.visible,
+      );
+
+      store.markAllClosing();
+
+      expect(
+          store[DesktopWindowKind.workdays], DesktopChildWindowState.closing);
+      expect(store.hasBlockingWindow, isFalse);
+    });
+  });
+
+  group('DesktopWindowOpenGate', () {
+    test('shares one create operation between repeated opens', () async {
+      final gate = DesktopWindowOpenGate<String>();
+      final createResult = Completer<String>();
+      var createCount = 0;
+
+      Future<String> create() {
+        createCount += 1;
+        return createResult.future;
+      }
+
+      final first = gate.run(DesktopWindowKind.workdays, create);
+      final second = gate.run(DesktopWindowKind.workdays, create);
+
+      expect(identical(first, second), isTrue);
+      expect(createCount, 1);
+      expect(gate.isOpening(DesktopWindowKind.workdays), isTrue);
+
+      createResult.complete('workdays-window');
+      expect(await first, 'workdays-window');
+      expect(await second, 'workdays-window');
+      await Future<void>.delayed(Duration.zero);
+      expect(gate.isOpening(DesktopWindowKind.workdays), isFalse);
+    });
+
+    test('releases a kind after create fails', () async {
+      final gate = DesktopWindowOpenGate<String>();
+
+      await expectLater(
+        gate.run(
+          DesktopWindowKind.participants,
+          () async => throw StateError('create failed'),
+        ),
+        throwsStateError,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        await gate.run(
+          DesktopWindowKind.participants,
+          () async => 'retry-window',
+        ),
+        'retry-window',
+      );
+    });
+  });
+
   group('DesktopWindowFeatureMethodDispatcher', () {
     test('routes a feature method through its scoped registration', () async {
       final dispatcher = DesktopWindowFeatureMethodDispatcher();
@@ -257,6 +357,41 @@ void main() {
       );
 
       expect(requestedIds, ['editor', 'directory']);
+    });
+  });
+
+  group('waitForDescendantWindowsToClose', () {
+    test('waits for the complete cascade rather than one child at a time',
+        () async {
+      var poll = 0;
+
+      final closed = await waitForDescendantWindowsToClose(
+        descendantWindowIds: const {'directory', 'editor'},
+        listWindowIds: () async {
+          poll += 1;
+          return poll == 1
+              ? const ['main', 'directory', 'editor']
+              : const ['main'];
+        },
+        timeout: const Duration(seconds: 1),
+        pollInterval: Duration.zero,
+      );
+
+      expect(closed, isTrue);
+      expect(poll, 2);
+    });
+
+    test('bounds a hung Windows window-list request', () async {
+      final neverCompletes = Completer<Iterable<String>>();
+
+      final closed = await waitForDescendantWindowsToClose(
+        descendantWindowIds: const {'child'},
+        listWindowIds: () => neverCompletes.future,
+        timeout: const Duration(milliseconds: 20),
+        pollInterval: const Duration(milliseconds: 1),
+      );
+
+      expect(closed, isFalse);
     });
   });
 

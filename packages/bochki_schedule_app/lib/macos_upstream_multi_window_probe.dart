@@ -118,12 +118,21 @@ Future<void> _exerciseChildLifecycle(
         }
       }
     }
-    // Close the complete set deepest-first. This mirrors the production
-    // cascade path and avoids testing an unrelated rapid create/destroy loop.
+    // Dispatch the complete cascade deepest-first without awaiting individual
+    // IPC responses. On Windows an engine can disappear while its response is
+    // being delivered, so one stale response must not prevent the remaining
+    // children from receiving their close request.
     for (final child in children.reversed) {
-      await child.invokeMethod<void>('window_close');
-      await _waitForChildClose(child.windowId);
+      unawaited(
+          child.invokeMethod<void>('window_close', {'cascade': true}).then(
+        (_) {},
+        onError: (Object error, StackTrace stackTrace) {
+          _trace('close request failed windowId=${child.windowId}: $error');
+        },
+      ));
     }
+    await _waitForChildrenClose(
+        children.map((child) => child.windowId).toSet());
     if (smokeOnly) {
       _trace('PASS reusable child smoke lifecycle');
     } else {
@@ -148,13 +157,15 @@ class _ChildReadySignal {
   void reset() => _current = Completer<String>();
 }
 
-Future<void> _waitForChildClose(String windowId) async {
-  for (var attempt = 0; attempt < 100; attempt += 1) {
-    final windows = await WindowController.getAll();
-    if (windows.every((window) => window.windowId != windowId)) return;
-    await Future<void>.delayed(const Duration(milliseconds: 50));
+Future<void> _waitForChildrenClose(Set<String> windowIds) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 10));
+  while (DateTime.now().isBefore(deadline)) {
+    final remainingTime = deadline.difference(DateTime.now());
+    final windows = await WindowController.getAll().timeout(remainingTime);
+    if (windows.every((window) => !windowIds.contains(window.windowId))) return;
+    await Future<void>.delayed(const Duration(milliseconds: 100));
   }
-  throw StateError('timed out closing child $windowId');
+  throw StateError('timed out closing children $windowIds');
 }
 
 void _trace(String message) {
