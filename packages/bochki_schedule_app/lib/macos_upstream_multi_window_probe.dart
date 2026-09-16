@@ -26,6 +26,15 @@ Future<void> main(List<String> args) async {
         unawaited(windowManager.close());
         return null;
       }
+      if (call.method == 'window_hide') {
+        await windowManager.hide();
+        return null;
+      }
+      if (call.method == 'window_reopen') {
+        await windowManager.show();
+        await windowManager.focus();
+        return null;
+      }
       if (call.method == 'message_from_main') {
         return 'Message received by child ${current.windowId}';
       }
@@ -65,12 +74,23 @@ Future<void> _exerciseChildLifecycle(
   required bool smokeOnly,
 }) async {
   try {
-    final cycles = smokeOnly ? 1 : 2;
-    for (var cycle = 1; cycle <= cycles; cycle += 1) {
-      _trace('main creating upstream child window cycle=$cycle');
+    const kinds = [
+      'procedureStatistics',
+      'procedureSession',
+      'freeTime',
+      'participants',
+      'assistants',
+      'procedureKinds',
+      'workdays',
+      'procedureKindEditor',
+      'workdayEditor',
+    ];
+    final children = <WindowController>[];
+    for (final name in kinds) {
+      _trace('main creating reusable child window kind=$name');
       final child = await WindowController.create(
         WindowConfiguration(
-          arguments: jsonEncode({'name': 'Upstream child $cycle'}),
+          arguments: jsonEncode({'name': name}),
           hiddenAtLaunch: true,
         ),
       );
@@ -81,7 +101,13 @@ Future<void> _exerciseChildLifecycle(
         throw StateError(
             'ready came from $childId, expected ${child.windowId}');
       }
+      children.add(child);
+      childReady.reset();
+    }
+    for (final child in children) {
       await child.show();
+      await child.invokeMethod<void>('window_hide');
+      await child.invokeMethod<void>('window_reopen');
       if (!smokeOnly) {
         final reply = await child.invokeMethod<String>(
           'message_from_main',
@@ -91,14 +117,26 @@ Future<void> _exerciseChildLifecycle(
           throw StateError('unexpected child reply: $reply');
         }
       }
-      await child.invokeMethod<void>('window_close');
-      await _waitForChildClose(child.windowId);
-      childReady.reset();
     }
+    // Dispatch the complete cascade deepest-first without awaiting individual
+    // IPC responses. On Windows an engine can disappear while its response is
+    // being delivered, so one stale response must not prevent the remaining
+    // children from receiving their close request.
+    for (final child in children.reversed) {
+      unawaited(
+          child.invokeMethod<void>('window_close', {'cascade': true}).then(
+        (_) {},
+        onError: (Object error, StackTrace stackTrace) {
+          _trace('close request failed windowId=${child.windowId}: $error');
+        },
+      ));
+    }
+    await _waitForChildrenClose(
+        children.map((child) => child.windowId).toSet());
     if (smokeOnly) {
-      _trace('PASS upstream child smoke lifecycle');
+      _trace('PASS reusable child smoke lifecycle');
     } else {
-      _trace('PASS upstream child lifecycle and message exchange');
+      _trace('PASS reusable child lifecycle and message exchange');
     }
     exit(0);
   } catch (error, stackTrace) {
@@ -119,13 +157,15 @@ class _ChildReadySignal {
   void reset() => _current = Completer<String>();
 }
 
-Future<void> _waitForChildClose(String windowId) async {
-  for (var attempt = 0; attempt < 100; attempt += 1) {
-    final windows = await WindowController.getAll();
-    if (windows.every((window) => window.windowId != windowId)) return;
-    await Future<void>.delayed(const Duration(milliseconds: 50));
+Future<void> _waitForChildrenClose(Set<String> windowIds) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 10));
+  while (DateTime.now().isBefore(deadline)) {
+    final remainingTime = deadline.difference(DateTime.now());
+    final windows = await WindowController.getAll().timeout(remainingTime);
+    if (windows.every((window) => !windowIds.contains(window.windowId))) return;
+    await Future<void>.delayed(const Duration(milliseconds: 100));
   }
-  throw StateError('timed out closing child $windowId');
+  throw StateError('timed out closing children $windowIds');
 }
 
 void _trace(String message) {

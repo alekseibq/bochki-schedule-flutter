@@ -56,7 +56,7 @@ Run this check on both Windows and macOS:
 2. Switch to another application, then return to the editor window.
 3. Close the editor with the system close button; verify that the directory window is shown and focused.
 4. Repeat using Cancel and a successful save; verify the same focus result.
-5. With the editor open, close the directory window with the system close button; verify that the editor closes too, without reactivating the directory.
+5. With the editor open, close the directory window with the system close button; verify that both windows hide, the main window is focused, and reopening each window reuses it correctly.
 6. Move the parent window to a secondary monitor, then open each child-window type; verify that it first appears once, centered on that monitor, without a flash at the top-left corner.
 
 ## Linux Integration Prerequisites

@@ -127,6 +127,23 @@ jobs:
         working-directory: packages/bochki_schedule_app
         run: ctest --test-dir build/windows/x64/plugins/desktop_multi_window --build-config Release --output-on-failure
 
+      - name: Run native reusable-child smoke test
+        shell: pwsh
+        timeout-minutes: 3
+        working-directory: packages/bochki_schedule_app
+        run: |
+          flutter run -d windows --dart-define=UPSTREAM_MULTI_WINDOW_SMOKE=true -t lib/macos_upstream_multi_window_probe.dart 2>&1 | Tee-Object -FilePath reusable-child-smoke.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Select-String -Path reusable-child-smoke.log -SimpleMatch '[macos-upstream-0.3.1] PASS reusable child smoke lifecycle'
+
+      - name: Upload Windows reusable-child smoke log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-reusable-child-smoke-log
+          path: packages/bochki_schedule_app/reusable-child-smoke.log
+          if-no-files-found: ignore
+
       - name: Archive Windows app release
         shell: pwsh
         working-directory: packages/bochki_schedule_app/build/windows/x64/runner/Release
@@ -147,6 +164,27 @@ jobs:
       - name: Run Windows desktop integration test
         working-directory: packages/bochki_schedule_app
         run: flutter test integration_test/app_shell_test.dart -d windows -r expanded
+
+  macos-reuse-smoke:
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.24.5
+          channel: stable
+          cache: true
+      - run: flutter config --enable-macos-desktop
+      - run: |
+          dart pub get
+          dart run melos bootstrap
+      - name: Run native reusable-child smoke test
+        working-directory: packages/bochki_schedule_app
+        run: |
+          set -o pipefail
+          flutter run -d macos -t lib/macos_upstream_multi_window_probe.dart 2>&1 | tee reusable-child-smoke.log
+          grep -F '[macos-upstream-0.3.1] PASS reusable child lifecycle and message exchange' reusable-child-smoke.log
 
   macos-release-build:
     if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')

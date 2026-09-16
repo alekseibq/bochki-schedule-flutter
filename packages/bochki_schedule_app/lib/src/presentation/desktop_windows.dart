@@ -47,6 +47,16 @@ typedef DirectoryChangedCallback = Future<void> Function(String directory);
 typedef DesktopWindowFeatureMethodHandler = Future<dynamic> Function(
   MethodCall call,
 );
+typedef CascadeCloseTimeoutHandler = Future<void> Function();
+typedef MainWindowClosingHandler = void Function();
+
+CascadeCloseTimeoutHandler? _cascadeCloseTimeoutHandler;
+MainWindowClosingHandler? _mainWindowClosingHandler;
+
+/// Registers the main-window UI used when a real cascade close times out.
+void setCascadeCloseTimeoutHandler(CascadeCloseTimeoutHandler? handler) {
+  _cascadeCloseTimeoutHandler = handler;
+}
 
 const _mainChannel = WindowMethodChannel(
   'bochki_schedule/main_window',
@@ -76,7 +86,84 @@ bool shouldHideOnOrdinaryClose({
   required DesktopWindowKind kind,
   required bool cascade,
 }) =>
-    kind == DesktopWindowKind.procedureSession && !cascade;
+    kind != DesktopWindowKind.main && !cascade;
+
+enum DesktopChildWindowState { opening, visible, hidden, closing }
+
+bool isBlockingDesktopChildState(DesktopChildWindowState state) =>
+    state == DesktopChildWindowState.opening ||
+    state == DesktopChildWindowState.visible;
+
+/// Main-engine-owned lifecycle state for reusable child windows.
+///
+/// Native presence is deliberately not represented here: a hidden reusable
+/// engine remains present in `WindowController.getAll()`.
+final class DesktopChildWindowStateStore {
+  final _states = <DesktopWindowKind, DesktopChildWindowState>{};
+
+  DesktopChildWindowState? operator [](DesktopWindowKind kind) => _states[kind];
+
+  bool get hasBlockingWindow => _states.values.any(isBlockingDesktopChildState);
+
+  Iterable<DesktopWindowKind> get blockingKinds => _states.entries
+      .where((entry) => isBlockingDesktopChildState(entry.value))
+      .map((entry) => entry.key);
+
+  void update(DesktopWindowKind kind, DesktopChildWindowState state) {
+    _states[kind] = state;
+  }
+
+  void remove(DesktopWindowKind kind) {
+    _states.remove(kind);
+  }
+
+  void markAllClosing() {
+    for (final kind in _states.keys.toList(growable: false)) {
+      _states[kind] = DesktopChildWindowState.closing;
+    }
+  }
+}
+
+/// Coalesces concurrent work for the same child kind.
+///
+/// The completer is stored before [operation] is called, so even an operation
+/// that reaches an `await` immediately has already reserved its singleton.
+final class DesktopWindowOpenGate<T> {
+  final _inFlight = <DesktopWindowKind, Future<T>>{};
+
+  bool isOpening(DesktopWindowKind kind) => _inFlight.containsKey(kind);
+
+  Future<T> run(
+    DesktopWindowKind kind,
+    Future<T> Function() operation,
+  ) {
+    final existing = _inFlight[kind];
+    if (existing != null) return existing;
+
+    final completer = Completer<T>();
+    final future = completer.future;
+    _inFlight[kind] = future;
+    try {
+      operation().then(
+        completer.complete,
+        onError: completer.completeError,
+      );
+    } catch (error, stackTrace) {
+      completer.completeError(error, stackTrace);
+    }
+    void removeReservation() {
+      if (identical(_inFlight[kind], future)) {
+        _inFlight.remove(kind);
+      }
+    }
+
+    unawaited(future.then<void>(
+      (_) => removeReservation(),
+      onError: (Object _, StackTrace __) => removeReservation(),
+    ));
+    return future;
+  }
+}
 
 final class DesktopWindowContext {
   const DesktopWindowContext({
@@ -226,6 +313,39 @@ void requestDescendantWindowCloses({
   }
 }
 
+/// Waits until all [descendantWindowIds] disappear, without allowing a hung
+/// native window-list request to extend the overall timeout.
+Future<bool> waitForDescendantWindowsToClose({
+  required Set<String> descendantWindowIds,
+  required Future<Iterable<String>> Function() listWindowIds,
+  Duration timeout = const Duration(seconds: 10),
+  Duration pollInterval = const Duration(milliseconds: 100),
+}) async {
+  if (descendantWindowIds.isEmpty) return true;
+  final stopwatch = Stopwatch()..start();
+  while (stopwatch.elapsed < timeout) {
+    final remainingTime = timeout - stopwatch.elapsed;
+    Iterable<String> currentWindowIds;
+    try {
+      currentWindowIds = await listWindowIds().timeout(remainingTime);
+    } on TimeoutException {
+      return false;
+    } catch (_) {
+      return false;
+    }
+    if (currentWindowIds.every(
+      (windowId) => !descendantWindowIds.contains(windowId),
+    )) {
+      return true;
+    }
+    final delay = timeout - stopwatch.elapsed < pollInterval
+        ? timeout - stopwatch.elapsed
+        : pollInterval;
+    if (delay > Duration.zero) await Future<void>.delayed(delay);
+  }
+  return false;
+}
+
 /// Schedules non-essential cross-window work, then closes the native window.
 ///
 /// Closing the current native window is deliberately the only awaited action.
@@ -327,32 +447,55 @@ DesktopWindowFeatureHandlerRegistration
   return lifecycle.registerFeatureMethodHandler(handler);
 }
 
-/// Hides the procedure-session window without destroying its Flutter engine.
-Future<void> hideCurrentProcedureSessionWindow() async {
+/// Hides a reusable child window without destroying its Flutter engine.
+Future<void> hideCurrentDesktopWindow() async {
+  final current = await WindowController.fromCurrentEngine();
+  final descriptor = windowDescriptorFromArguments(current.arguments);
   await windowManager.hide();
   try {
     await _mainChannel.invokeMethod<void>(
-      'procedureSessionVisibilityChanged',
-      false,
+      'childWindowVisibilityChanged',
+      {
+        'windowId': current.windowId,
+        'kind': descriptor.kind.name,
+        'parentWindowId': descriptor.parentWindowId,
+        'visible': false,
+      },
     );
   } catch (_) {
     // The main window may already be closing.
   }
 }
 
+/// Kept as a compatibility name for the procedure form's close callback.
+Future<void> hideCurrentProcedureSessionWindow() => hideCurrentDesktopWindow();
+
+Future<void> openProcedureSessionFromCurrentWindow([
+  Map<String, dynamic> arguments = const {},
+]) async {
+  final current = await WindowController.fromCurrentEngine();
+  await _mainChannel.invokeMethod<void>('openProcedureSession', {
+    ...arguments,
+    'parentWindowId': current.windowId,
+  });
+}
+
 /// Coordinates native close events in one Flutter engine.  The window list and
 /// `parentWindowId` arguments are the shared source of truth across engines.
 final class DesktopWindowLifecycle with WindowListener {
   WindowController? _current;
+  DesktopWindowContext? _descriptor;
   bool _initialized = false;
   bool _closing = false;
   bool _savingGeometry = false;
   bool _geometrySavePending = false;
+  final _visibleDirectChildWindowIds = <String>{};
   final _featureMethodDispatcher = DesktopWindowFeatureMethodDispatcher();
 
   Future<void> initialize() async {
     if (_initialized) return;
     _current = await WindowController.fromCurrentEngine();
+    _descriptor = windowDescriptorFromArguments(_current!.arguments);
     await windowManager.setPreventClose(true);
     windowManager.addListener(this);
     await _current!.setWindowMethodHandler(_handleControlCall);
@@ -366,21 +509,54 @@ final class DesktopWindowLifecycle with WindowListener {
         return;
       case 'window_close':
         final cascade = (call.arguments as Map?)?['cascade'] == true;
-        final current = _current;
-        final kind = current == null
-            ? DesktopWindowKind.main
-            : windowKindFromArguments(current.arguments);
-        if (shouldHideOnOrdinaryClose(kind: kind, cascade: cascade)) {
-          await hideCurrentProcedureSessionWindow();
-        } else {
-          await close(cascade: cascade, source: 'ipc-window_close');
-        }
+        await close(cascade: cascade, source: 'ipc-window_close');
+        return;
+      case 'window_hide':
+        await _hide(activateParent: false);
+        return;
+      case 'window_reopen':
+        _updateDescriptorFromReopen(call.arguments);
+        await _handleFeatureCall(call);
+        await windowManager.show();
+        await windowManager.focus();
+        await _notifyVisibility(true);
         return;
       case 'window_bounds':
         return currentWindowBoundsMap();
+      case 'window_visible':
+        return windowManager.isVisible();
+      case 'child_visibility_changed':
+        final values = Map<String, dynamic>.from(call.arguments as Map);
+        final windowId = values['windowId'] as String?;
+        if (windowId != null) {
+          if (values['visible'] == true) {
+            _visibleDirectChildWindowIds.add(windowId);
+          } else {
+            _visibleDirectChildWindowIds.remove(windowId);
+          }
+        }
+        return _handleFeatureCall(call);
       default:
         return _handleFeatureCall(call);
     }
+  }
+
+  void _updateDescriptorFromReopen(dynamic arguments) {
+    final current = _descriptor;
+    if (current == null || arguments is! Map) return;
+    final values = Map<String, dynamic>.from(arguments);
+    _descriptor = DesktopWindowContext(
+      kind: current.kind,
+      parentWindowId: values.containsKey('parentWindowId')
+          ? values['parentWindowId'] as String?
+          : current.parentWindowId,
+      ancestorWindowIds: values.containsKey('ancestorWindowIds')
+          ? List<String>.from(values['ancestorWindowIds'] as List)
+          : current.ancestorWindowIds,
+      entryId: values.containsKey('entryId')
+          ? values['entryId'] as String?
+          : current.entryId,
+    );
   }
 
   DesktopWindowFeatureHandlerRegistration registerFeatureMethodHandler(
@@ -393,9 +569,7 @@ final class DesktopWindowLifecycle with WindowListener {
       return await _featureMethodDispatcher.dispatch(call);
     } catch (error, stackTrace) {
       final current = _current;
-      final descriptor = current == null
-          ? null
-          : windowDescriptorFromArguments(current.arguments);
+      final descriptor = current == null ? null : _descriptor;
       developer.log(
         'Feature window method failed: method=${call.method} '
         'windowId=${current?.windowId} kind=${descriptor?.kind.name}',
@@ -410,16 +584,6 @@ final class DesktopWindowLifecycle with WindowListener {
 
   @override
   void onWindowClose() {
-    final current = _current;
-    if (!_closing &&
-        current != null &&
-        shouldHideOnOrdinaryClose(
-          kind: windowKindFromArguments(current.arguments),
-          cascade: false,
-        )) {
-      unawaited(hideCurrentProcedureSessionWindow());
-      return;
-    }
     unawaited(close(source: 'native-window-close'));
   }
 
@@ -442,7 +606,8 @@ final class DesktopWindowLifecycle with WindowListener {
         _geometrySavePending = false;
         final current = _current;
         if (current == null) return;
-        final descriptor = windowDescriptorFromArguments(current.arguments);
+        final descriptor =
+            _descriptor ?? windowDescriptorFromArguments(current.arguments);
         if (descriptor.kind == DesktopWindowKind.main) return;
         try {
           await _mainChannel.invokeMethod<void>('childWindowGeometryChanged', {
@@ -466,9 +631,35 @@ final class DesktopWindowLifecycle with WindowListener {
     _closing = true;
     try {
       final current = _current;
-      final descriptor = current == null
-          ? null
-          : windowDescriptorFromArguments(current.arguments);
+      final descriptor = current == null ? null : _descriptor;
+      if (descriptor != null &&
+          shouldHideOnOrdinaryClose(kind: descriptor.kind, cascade: cascade)) {
+        await _hide(activateParent: true);
+        _closing = false;
+        return;
+      }
+      if (descriptor?.kind == DesktopWindowKind.main && current != null) {
+        _mainWindowClosingHandler?.call();
+        final closed = await _cascadeCloseAndWait(current.windowId);
+        if (!closed) {
+          developer.log(
+            'Timed out waiting for child windows to close; continuing main close.',
+            name: 'bochki_schedule.desktop_windows',
+            level: 1000,
+          );
+          try {
+            await _cascadeCloseTimeoutHandler?.call();
+          } catch (error, stackTrace) {
+            _reportCleanupError(
+              error,
+              stackTrace,
+              context: 'while showing the cascade-close timeout alert',
+            );
+          }
+        }
+        await _closeNativeWindow();
+        return;
+      }
       developer.log(
         'Closing desktop window: source=$source windowId=${current?.windowId} '
         'kind=${descriptor?.kind.name} parentId=${descriptor?.parentWindowId} '
@@ -488,6 +679,97 @@ final class DesktopWindowLifecycle with WindowListener {
     } catch (_) {
       _closing = false;
       rethrow;
+    }
+  }
+
+  Future<void> _hide({required bool activateParent}) async {
+    final current = _current;
+    if (current == null) return;
+    final windows = await WindowController.getAll();
+    final byId = {for (final window in windows) window.windowId: window};
+    final parentIds = {
+      for (final window in windows)
+        if (windowDescriptorFromArguments(window.arguments).parentWindowId
+            case final parentId?)
+          window.windowId: parentId,
+    };
+    final descendantIds = descendantWindowIdsInCloseOrder(
+      parentWindowId: current.windowId,
+      parentWindowIds: parentIds,
+    );
+    for (final windowId in _visibleDirectChildWindowIds) {
+      if (!descendantIds.contains(windowId) && byId.containsKey(windowId)) {
+        descendantIds.add(windowId);
+      }
+    }
+    requestDescendantWindowCloses(
+      windowIds: descendantIds,
+      requestClose: (id) => byId[id]!.invokeMethod<void>('window_hide'),
+      onError: (windowId, error, stackTrace) => _reportCleanupError(
+        error,
+        stackTrace,
+        context: 'while requesting hide for descendant window $windowId',
+      ),
+    );
+    await windowManager.hide();
+    await _notifyVisibility(false);
+    if (activateParent) await _activateParent(current.windowId);
+  }
+
+  Future<bool> _cascadeCloseAndWait(String parentWindowId) async {
+    late final List<WindowController> windows;
+    try {
+      windows = await WindowController.getAll();
+    } catch (error, stackTrace) {
+      _reportCleanupError(
+        error,
+        stackTrace,
+        context: 'while listing descendants for cascade close',
+      );
+      return false;
+    }
+    final byId = {for (final window in windows) window.windowId: window};
+    final parentIds = {
+      for (final window in windows)
+        if (windowDescriptorFromArguments(window.arguments).parentWindowId
+            case final parentId?)
+          window.windowId: parentId,
+    };
+    final descendants = descendantWindowIdsInCloseOrder(
+      parentWindowId: parentWindowId,
+      parentWindowIds: parentIds,
+    );
+    requestDescendantWindowCloses(
+      windowIds: descendants,
+      requestClose: (id) =>
+          byId[id]!.invokeMethod<void>('window_close', {'cascade': true}),
+      onError: (windowId, error, stackTrace) => _reportCleanupError(
+        error,
+        stackTrace,
+        context: 'while requesting cascade close for descendant $windowId',
+      ),
+    );
+    return waitForDescendantWindowsToClose(
+      descendantWindowIds: descendants.toSet(),
+      listWindowIds: () async =>
+          (await WindowController.getAll()).map((window) => window.windowId),
+    );
+  }
+
+  Future<void> _notifyVisibility(bool visible) async {
+    final current = _current;
+    if (current == null) return;
+    final descriptor =
+        _descriptor ?? windowDescriptorFromArguments(current.arguments);
+    try {
+      await _mainChannel.invokeMethod<void>('childWindowVisibilityChanged', {
+        'windowId': current.windowId,
+        'kind': descriptor.kind.name,
+        'parentWindowId': descriptor.parentWindowId,
+        'visible': visible,
+      });
+    } catch (_) {
+      // The main window can be gone during a cascade close.
     }
   }
 
@@ -554,9 +836,11 @@ final class DesktopWindowLifecycle with WindowListener {
     final windows = await WindowController.getAll();
     final byId = {for (final window in windows) window.windowId: window};
     final current = byId[currentWindowId];
-    final descriptor = current == null
-        ? null
-        : windowDescriptorFromArguments(current.arguments);
+    final descriptor = currentWindowId == _current?.windowId
+        ? _descriptor
+        : current == null
+            ? null
+            : windowDescriptorFromArguments(current.arguments);
     final parentIds = [
       if (descriptor?.parentWindowId case final parentId?) parentId,
       if (descriptor != null) ...descriptor.ancestorWindowIds,
@@ -583,7 +867,7 @@ final class DesktopWindowCoordinator {
     required BuildScheduleGapsUseCase scheduleGaps,
     required ProcedureSessionsViewModel sessions,
     required DirectoryChangedCallback onDirectoryChanged,
-    required ValueChanged<bool> onProcedureSessionVisibilityChanged,
+    required ValueChanged<bool> onBlockingStateChanged,
     DesktopWindowPlatform platform = const DesktopWindowPlatform(),
   })  : _platform = platform,
         _services = services,
@@ -591,8 +875,7 @@ final class DesktopWindowCoordinator {
         _scheduleGaps = scheduleGaps,
         _sessions = sessions,
         _onDirectoryChanged = onDirectoryChanged,
-        _onProcedureSessionVisibilityChanged =
-            onProcedureSessionVisibilityChanged;
+        _onBlockingStateChanged = onBlockingStateChanged;
 
   final AppServices _services;
   final DesktopWindowPlatform _platform;
@@ -600,30 +883,59 @@ final class DesktopWindowCoordinator {
   final BuildScheduleGapsUseCase _scheduleGaps;
   final ProcedureSessionsViewModel _sessions;
   final DirectoryChangedCallback _onDirectoryChanged;
-  final ValueChanged<bool> _onProcedureSessionVisibilityChanged;
+  final ValueChanged<bool> _onBlockingStateChanged;
   final _childWindowGeometry = ChildWindowGeometryStore();
+  final _windowStates = DesktopChildWindowStateStore();
+  final _openGate = DesktopWindowOpenGate<void>();
+  final _controllersByKind = <DesktopWindowKind, WindowController>{};
+  final _contextsByKind = <DesktopWindowKind, DesktopWindowContext>{};
+  final _readyByKind = <DesktopWindowKind, Completer<void>>{};
+  final _parentNotificationTails = <String, Future<void>>{};
   ProcedureSessionRaw? _sessionDraft;
   String? _mainWindowId;
-  bool _isProcedureSessionVisible = false;
+  MainWindowClosingHandler? _registeredMainWindowClosingHandler;
+  bool _lastBlockingState = false;
 
-  bool get isProcedureSessionVisible => _isProcedureSessionVisible;
+  bool get isProcedureSessionVisible =>
+      _windowStates[DesktopWindowKind.procedureSession] ==
+      DesktopChildWindowState.visible;
+
+  bool get hasBlockingChildWindow => _windowStates.hasBlockingWindow;
 
   Future<void> start() async {
     _mainWindowId = (await _platform.current()).windowId;
     await _mainChannel.setMethodCallHandler(_handleCall);
+    final closingHandler = _handleMainWindowClosing;
+    _registeredMainWindowClosingHandler = closingHandler;
+    _mainWindowClosingHandler = closingHandler;
+    _emitBlockingState();
   }
 
-  Future<void> dispose() => _mainChannel.setMethodCallHandler(null);
+  Future<void> dispose() async {
+    if (identical(
+      _mainWindowClosingHandler,
+      _registeredMainWindowClosingHandler,
+    )) {
+      _mainWindowClosingHandler = null;
+    }
+    await _mainChannel.setMethodCallHandler(null);
+  }
 
   Future<void> openStatistics() async {
     await _sessions.load();
     await _open(DesktopWindowKind.procedureStatistics);
   }
 
-  Future<void> openSession({ProcedureSessionRaw? initialValue}) async {
+  Future<void> openSession({
+    ProcedureSessionRaw? initialValue,
+    String? parentWindowId,
+  }) async {
     await _sessions.load();
     _sessionDraft = initialValue;
-    await _open(DesktopWindowKind.procedureSession);
+    await _open(
+      DesktopWindowKind.procedureSession,
+      parentWindowId: parentWindowId,
+    );
   }
 
   Future<void> openFreeTime() async {
@@ -644,27 +956,123 @@ final class DesktopWindowCoordinator {
     DesktopWindowKind kind, {
     String? entryId,
     String? parentWindowId,
+  }) {
+    final resolvedParentWindowId = parentWindowId ?? _mainWindowId;
+    return _openGate
+        .run(
+            kind,
+            () => _openReserved(
+                  kind,
+                  entryId: entryId,
+                  parentWindowId: resolvedParentWindowId,
+                ))
+        .then<void>((_) {});
+  }
+
+  Future<void> _openReserved(
+    DesktopWindowKind kind, {
+    required String? entryId,
+    required String? parentWindowId,
   }) async {
-    final existing = (await _platform.all()).where(
-      (controller) => windowKindFromArguments(controller.arguments) == kind,
+    final conflictingKind = _conflictingActiveWindowKind(
+      requestedKind: kind,
+      parentWindowId: parentWindowId,
     );
-    if (existing.isNotEmpty) {
-      if (kind == DesktopWindowKind.procedureSession &&
-          !_isProcedureSessionVisible) {
-        await existing.first.invokeMethod<void>('procedure_session_show');
-        return;
-      }
-      await existing.first.show();
-      await existing.first.invokeMethod<void>('window_focus');
+    if (conflictingKind != null) {
+      await _focusWindow(conflictingKind);
       return;
     }
-    await _platform.create(await _windowContext(
+    _setWindowState(kind, DesktopChildWindowState.opening);
+    unawaited(_notifyParentBlockingState(
+      parentWindowId: parentWindowId,
       kind: kind,
-      entryId: entryId,
-      parentWindowId: parentWindowId ?? _mainWindowId,
+      active: true,
     ));
-    if (kind == DesktopWindowKind.procedureSession) {
-      _setProcedureSessionVisible(true);
+    try {
+      final existing = _controllersByKind[kind] ??
+          (await _platform.all())
+              .where(
+                (controller) =>
+                    windowKindFromArguments(controller.arguments) == kind,
+              )
+              .firstOrNull;
+      if (existing != null) {
+        final context = await _windowContext(
+          kind: kind,
+          entryId: entryId,
+          parentWindowId: parentWindowId,
+        );
+        _rememberWindow(existing, context);
+        await existing.invokeMethod<void>('window_reopen', {
+          'parentWindowId': context.parentWindowId,
+          'ancestorWindowIds': context.ancestorWindowIds,
+          if (entryId != null) 'entryId': entryId,
+        });
+        _setWindowState(kind, DesktopChildWindowState.visible);
+        return;
+      }
+      final context = await _windowContext(
+        kind: kind,
+        entryId: entryId,
+        parentWindowId: parentWindowId,
+      );
+      _contextsByKind[kind] = context;
+      final ready = Completer<void>();
+      _readyByKind[kind] = ready;
+      final created = await _platform.create(context);
+      _rememberWindow(created, context);
+      await ready.future.timeout(const Duration(seconds: 10));
+      _setWindowState(kind, DesktopChildWindowState.visible);
+      return;
+    } catch (_) {
+      _controllersByKind.remove(kind);
+      _contextsByKind.remove(kind);
+      _readyByKind.remove(kind);
+      _windowStates.remove(kind);
+      _emitBlockingState();
+      unawaited(_notifyParentBlockingState(
+        parentWindowId: parentWindowId,
+        kind: kind,
+        active: false,
+      ));
+      rethrow;
+    }
+  }
+
+  DesktopWindowKind? _conflictingActiveWindowKind({
+    required DesktopWindowKind requestedKind,
+    required String? parentWindowId,
+  }) {
+    final parentKind = _controllersByKind.entries
+        .where((entry) => entry.value.windowId == parentWindowId)
+        .map((entry) => entry.key)
+        .firstOrNull;
+    final allowedActiveWindowIds = {
+      if (parentWindowId != null) parentWindowId,
+      if (parentKind != null)
+        ...?_contextsByKind[parentKind]?.ancestorWindowIds,
+    };
+    final conflicts = _windowStates.blockingKinds
+        .where((kind) => kind != requestedKind)
+        .where((kind) => !allowedActiveWindowIds
+            .contains(_controllersByKind[kind]?.windowId))
+        .toList(growable: false)
+      ..sort((left, right) =>
+          (_contextsByKind[right]?.ancestorWindowIds.length ?? 0).compareTo(
+            _contextsByKind[left]?.ancestorWindowIds.length ?? 0,
+          ));
+    return conflicts.firstOrNull;
+  }
+
+  Future<void> _focusWindow(DesktopWindowKind kind) async {
+    final controller = _controllersByKind[kind];
+    if (controller != null) {
+      try {
+        await controller.show();
+        await controller.invokeMethod<void>('window_focus');
+      } catch (_) {
+        // The coordinator state will be corrected by the close notification.
+      }
     }
   }
 
@@ -692,6 +1100,84 @@ final class DesktopWindowCoordinator {
     );
   }
 
+  void _rememberWindow(
+    WindowController controller,
+    DesktopWindowContext context,
+  ) {
+    _controllersByKind[context.kind] = controller;
+    _contextsByKind[context.kind] = context;
+  }
+
+  void _setWindowState(
+    DesktopWindowKind kind,
+    DesktopChildWindowState state,
+  ) {
+    _windowStates.update(kind, state);
+    _emitBlockingState();
+  }
+
+  void _emitBlockingState() {
+    final value = _windowStates.hasBlockingWindow;
+    if (_lastBlockingState == value) return;
+    _lastBlockingState = value;
+    _onBlockingStateChanged(value);
+  }
+
+  void _handleMainWindowClosing() {
+    _windowStates.markAllClosing();
+    _emitBlockingState();
+  }
+
+  Future<void> _notifyParentBlockingState({
+    required String? parentWindowId,
+    required DesktopWindowKind kind,
+    required bool active,
+    String? windowId,
+  }) {
+    if (parentWindowId == null || parentWindowId == _mainWindowId) {
+      return Future<void>.value();
+    }
+    final previous =
+        _parentNotificationTails[parentWindowId] ?? Future<void>.value();
+    late final Future<void> notification;
+    notification = previous.then((_) => _deliverParentBlockingState(
+          parentWindowId: parentWindowId,
+          kind: kind,
+          active: active,
+          windowId: windowId,
+        ));
+    _parentNotificationTails[parentWindowId] = notification;
+    return notification.whenComplete(() {
+      if (identical(_parentNotificationTails[parentWindowId], notification)) {
+        _parentNotificationTails.remove(parentWindowId);
+      }
+    });
+  }
+
+  Future<void> _deliverParentBlockingState({
+    required String parentWindowId,
+    required DesktopWindowKind kind,
+    required bool active,
+    required String? windowId,
+  }) async {
+    try {
+      final windows = await _platform.all();
+      final parent = windows
+          .where((window) => window.windowId == parentWindowId)
+          .firstOrNull;
+      if (parent != null) {
+        await parent.invokeMethod<void>('child_visibility_changed', {
+          if (windowId != null) 'windowId': windowId,
+          'kind': kind.name,
+          'parentWindowId': parentWindowId,
+          'visible': active,
+        });
+      }
+    } catch (_) {
+      // A parent can disappear or close while its child changes state.
+    }
+  }
+
   Future<dynamic> _handleCall(MethodCall call) async {
     switch (call.method) {
       case 'statistics':
@@ -707,6 +1193,7 @@ final class DesktopWindowCoordinator {
       case 'openProcedureSession':
         final values = call.arguments as Map?;
         await openSession(
+          parentWindowId: values?['parentWindowId'] as String?,
           initialValue: values == null
               ? null
               : _sessions.createDraft().copyWith(
@@ -802,19 +1289,42 @@ final class DesktopWindowCoordinator {
         await _sessions.logRenderedSave(operationId);
         return null;
       case 'procedureSessionVisibilityChanged':
-        _setProcedureSessionVisible(call.arguments as bool);
-        if (call.arguments == false) await _focusMainWindow();
+        final visible = call.arguments as bool;
+        _setWindowState(
+          DesktopWindowKind.procedureSession,
+          visible
+              ? DesktopChildWindowState.visible
+              : DesktopChildWindowState.hidden,
+        );
+        if (!visible) await _focusMainWindow();
+        return null;
+      case 'childWindowVisibilityChanged':
+        final values = Map<String, dynamic>.from(call.arguments as Map);
+        final kind = DesktopWindowKind.values.byName(values['kind'] as String);
+        final visible = values['visible'] as bool;
+        if (visible) {
+          final ready = _readyByKind.remove(kind);
+          if (ready != null && !ready.isCompleted) ready.complete();
+        }
+        _setWindowState(
+          kind,
+          visible
+              ? DesktopChildWindowState.visible
+              : DesktopChildWindowState.hidden,
+        );
+        final context = _contextsByKind[kind];
+        await _notifyParentBlockingState(
+          parentWindowId:
+              context?.parentWindowId ?? values['parentWindowId'] as String?,
+          kind: kind,
+          active: visible,
+          windowId: values['windowId'] as String?,
+        );
         return null;
       default:
         throw MissingPluginException(
             'Unknown main-window method ${call.method}');
     }
-  }
-
-  void _setProcedureSessionVisible(bool value) {
-    if (_isProcedureSessionVisible == value) return;
-    _isProcedureSessionVisible = value;
-    _onProcedureSessionVisibilityChanged(value);
   }
 
   Future<void> _focusMainWindow() async {
@@ -1040,6 +1550,18 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
     await windowManager.show();
     await windowManager.focus();
   });
+  final current = await WindowController.fromCurrentEngine();
+  final descriptor = windowDescriptorFromArguments(current.arguments);
+  try {
+    await _mainChannel.invokeMethod<void>('childWindowVisibilityChanged', {
+      'windowId': current.windowId,
+      'kind': kind.name,
+      'parentWindowId': descriptor.parentWindowId,
+      'visible': true,
+    });
+  } catch (_) {
+    // The main engine can disappear while a child is being configured.
+  }
 }
 
 Future<Rect?> _savedChildWindowBounds(DesktopWindowKind kind) async {
@@ -1122,6 +1644,7 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
   List<Human> _humans = const [];
   List<ProcedureKind> _kinds = const [];
   Map<String, int> _counts = const {};
+  bool _hasModalChild = false;
   DesktopWindowFeatureHandlerRegistration? _handlerRegistration;
 
   @override
@@ -1137,7 +1660,15 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
       switch (call.method) {
         case 'statistics_changed':
         case 'directory_changed':
+        case 'window_reopen':
           await _load();
+          return null;
+        case 'child_visibility_changed':
+          final values = Map<String, dynamic>.from(call.arguments as Map);
+          final active = values['visible'] as bool;
+          if (mounted && active != _hasModalChild) {
+            setState(() => _hasModalChild = active);
+          }
           return null;
         default:
           throw MissingPluginException('Unknown statistics-window method');
@@ -1186,30 +1717,34 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
   Widget build(BuildContext context) => MaterialApp(
         debugShowCheckedModeBanner: false,
         home: Scaffold(
-            body: ProcedureStatisticsContent(
-          workdays: _workdays,
-          people: _humans,
-          kinds: _kinds,
-          countFor: (person, kind) => _counts['${person.id}/${kind.id}'] ?? 0,
-          isLoading: _loading,
-          error: _error,
-          dayId: _dayId,
-          peopleFilter: _people,
-          mode: _mode,
-          onDayChanged: (value) {
-            _dayId = value;
-            _load();
-          },
-          onPeopleChanged: (value) {
-            _people = value;
-            _load();
-          },
-          onModeChanged: (value) {
-            _mode = value;
-            _load();
-          },
-          onAdd: () => _mainChannel.invokeMethod<void>('openProcedureSession'),
-        )),
+          body: AbsorbPointer(
+              absorbing: _hasModalChild,
+              child: ProcedureStatisticsContent(
+                workdays: _workdays,
+                people: _humans,
+                kinds: _kinds,
+                countFor: (person, kind) =>
+                    _counts['${person.id}/${kind.id}'] ?? 0,
+                isLoading: _loading,
+                error: _error,
+                dayId: _dayId,
+                peopleFilter: _people,
+                mode: _mode,
+                onDayChanged: (value) {
+                  _dayId = value;
+                  _load();
+                },
+                onPeopleChanged: (value) {
+                  _people = value;
+                  _load();
+                },
+                onModeChanged: (value) {
+                  _mode = value;
+                  _load();
+                },
+                onAdd: openProcedureSessionFromCurrentWindow,
+              )),
+        ),
       );
 }
 
@@ -1228,6 +1763,7 @@ class _FreeTimeWindowState extends State<FreeTimeWindow> {
   List<Workday> _workdays = const [];
   List<Map<String, dynamic>> _gaps = const [];
   bool _loading = true;
+  bool _hasModalChild = false;
   DesktopWindowFeatureHandlerRegistration? _handlerRegistration;
 
   @override
@@ -1241,8 +1777,17 @@ class _FreeTimeWindowState extends State<FreeTimeWindow> {
     final registration =
         registerCurrentDesktopWindowFeatureHandler((call) async {
       if (call.method == 'free_time_changed' ||
-          call.method == 'directory_changed') {
+          call.method == 'directory_changed' ||
+          call.method == 'window_reopen') {
         await _load();
+        return null;
+      }
+      if (call.method == 'child_visibility_changed') {
+        final values = Map<String, dynamic>.from(call.arguments as Map);
+        final active = values['visible'] as bool;
+        if (mounted && active != _hasModalChild) {
+          setState(() => _hasModalChild = active);
+        }
         return null;
       }
       throw MissingPluginException('Unknown free-time-window method');
@@ -1286,130 +1831,137 @@ class _FreeTimeWindowState extends State<FreeTimeWindow> {
   Widget build(BuildContext context) => MaterialApp(
       debugShowCheckedModeBanner: false,
       home: Scaffold(
-          body: Column(children: [
-        Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(children: [
-              Expanded(
-                  child: DropdownButtonFormField<String?>(
-                      value: _dayId,
-                      decoration: const InputDecoration(labelText: 'День'),
-                      items: [
-                        const DropdownMenuItem(
-                            value: null, child: Text('Все дни')),
-                        ..._workdays.map((d) =>
-                            DropdownMenuItem(value: d.id, child: Text(d.name)))
-                      ],
-                      onChanged: (v) {
-                        _dayId = v;
-                        _load();
-                      })),
-              const SizedBox(width: 12),
-              Expanded(
-                  child: DropdownButtonFormField<int>(
-                      value: _from,
-                      decoration: const InputDecoration(labelText: 'Время с'),
-                      items: _times
-                          .map((v) =>
-                              DropdownMenuItem(value: v, child: Text(_time(v))))
-                          .toList(),
-                      onChanged: (v) {
-                        if (v != null) {
-                          _from = v;
-                          if (_from > _to) {
-                            final x = _from;
-                            _from = _to;
-                            _to = x;
-                          }
-                          _load();
-                        }
-                      })),
-              const SizedBox(width: 12),
-              Expanded(
-                  child: DropdownButtonFormField<int>(
-                      value: _to,
-                      decoration: const InputDecoration(labelText: 'Время до'),
-                      items: _times
-                          .map((v) =>
-                              DropdownMenuItem(value: v, child: Text(_time(v))))
-                          .toList(),
-                      onChanged: (v) {
-                        if (v != null) {
-                          _to = v;
-                          if (_from > _to) {
-                            final x = _from;
-                            _from = _to;
-                            _to = x;
-                          }
-                          _load();
-                        }
-                      })),
-              const SizedBox(width: 12),
-              Expanded(
-                  child: DropdownButtonFormField<ScheduleGapPeopleFilter>(
-                      value: _people,
-                      decoration:
-                          const InputDecoration(labelText: 'Искать для'),
-                      items: const [
-                        DropdownMenuItem(
-                            value: ScheduleGapPeopleFilter.all,
-                            child: Text('Участники и Ассистенты')),
-                        DropdownMenuItem(
-                            value: ScheduleGapPeopleFilter.participants,
-                            child: Text('Участники')),
-                        DropdownMenuItem(
-                            value: ScheduleGapPeopleFilter.assistants,
-                            child: Text('Ассистенты'))
-                      ],
-                      onChanged: (v) {
-                        if (v != null) {
-                          _people = v;
-                          _load();
-                        }
-                      })),
-              const SizedBox(width: 12),
-              Expanded(
-                  child: DropdownButtonFormField<int>(
-                      value: _minimum,
-                      decoration: const InputDecoration(
-                          labelText: 'Показывать интервалы более'),
-                      items: [
-                        for (var v = 30; v <= 300; v += 30)
-                          DropdownMenuItem(
-                              value: v,
-                              child: Text(v == 30
-                                  ? '30 мин'
-                                  : '${v ~/ 60}ч ${(v % 60).toString().padLeft(2, '0')}мин'))
-                      ],
-                      onChanged: (v) {
-                        if (v != null) {
-                          _minimum = v;
-                          _load();
-                        }
-                      })),
-            ])),
-        Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _gaps.isEmpty
-                    ? const Center(
-                        child: Text('Нет данных по выбранным фильтрам'))
-                    : FreeTimeResultsTable(
-                        gaps: _gaps,
-                        onOccupy: (gap) {
-                          final day = _workdayFromMap(
-                              Map<String, dynamic>.from(gap['day'] as Map));
-                          final human = _humanFromMap(
-                              Map<String, dynamic>.from(gap['human'] as Map));
-                          return _mainChannel
-                              .invokeMethod<void>('openProcedureSession', {
-                            'dayId': day.id,
-                            'participantId': human.id,
-                            'startTime': gap['start'] as String,
-                          });
-                        },
-                      )),
-      ])));
+          body: AbsorbPointer(
+              absorbing: _hasModalChild,
+              child: Column(children: [
+                Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(children: [
+                      Expanded(
+                          child: DropdownButtonFormField<String?>(
+                              value: _dayId,
+                              decoration:
+                                  const InputDecoration(labelText: 'День'),
+                              items: [
+                                const DropdownMenuItem(
+                                    value: null, child: Text('Все дни')),
+                                ..._workdays.map((d) => DropdownMenuItem(
+                                    value: d.id, child: Text(d.name)))
+                              ],
+                              onChanged: (v) {
+                                _dayId = v;
+                                _load();
+                              })),
+                      const SizedBox(width: 12),
+                      Expanded(
+                          child: DropdownButtonFormField<int>(
+                              value: _from,
+                              decoration:
+                                  const InputDecoration(labelText: 'Время с'),
+                              items: _times
+                                  .map((v) => DropdownMenuItem(
+                                      value: v, child: Text(_time(v))))
+                                  .toList(),
+                              onChanged: (v) {
+                                if (v != null) {
+                                  _from = v;
+                                  if (_from > _to) {
+                                    final x = _from;
+                                    _from = _to;
+                                    _to = x;
+                                  }
+                                  _load();
+                                }
+                              })),
+                      const SizedBox(width: 12),
+                      Expanded(
+                          child: DropdownButtonFormField<int>(
+                              value: _to,
+                              decoration:
+                                  const InputDecoration(labelText: 'Время до'),
+                              items: _times
+                                  .map((v) => DropdownMenuItem(
+                                      value: v, child: Text(_time(v))))
+                                  .toList(),
+                              onChanged: (v) {
+                                if (v != null) {
+                                  _to = v;
+                                  if (_from > _to) {
+                                    final x = _from;
+                                    _from = _to;
+                                    _to = x;
+                                  }
+                                  _load();
+                                }
+                              })),
+                      const SizedBox(width: 12),
+                      Expanded(
+                          child: DropdownButtonFormField<
+                                  ScheduleGapPeopleFilter>(
+                              value: _people,
+                              decoration: const InputDecoration(
+                                  labelText: 'Искать для'),
+                              items: const [
+                                DropdownMenuItem(
+                                    value: ScheduleGapPeopleFilter.all,
+                                    child: Text('Участники и Ассистенты')),
+                                DropdownMenuItem(
+                                    value: ScheduleGapPeopleFilter.participants,
+                                    child: Text('Участники')),
+                                DropdownMenuItem(
+                                    value: ScheduleGapPeopleFilter.assistants,
+                                    child: Text('Ассистенты'))
+                              ],
+                              onChanged: (v) {
+                                if (v != null) {
+                                  _people = v;
+                                  _load();
+                                }
+                              })),
+                      const SizedBox(width: 12),
+                      Expanded(
+                          child: DropdownButtonFormField<int>(
+                              value: _minimum,
+                              decoration: const InputDecoration(
+                                  labelText: 'Показывать интервалы более'),
+                              items: [
+                                for (var v = 30; v <= 300; v += 30)
+                                  DropdownMenuItem(
+                                      value: v,
+                                      child: Text(v == 30
+                                          ? '30 мин'
+                                          : '${v ~/ 60}ч ${(v % 60).toString().padLeft(2, '0')}мин'))
+                              ],
+                              onChanged: (v) {
+                                if (v != null) {
+                                  _minimum = v;
+                                  _load();
+                                }
+                              })),
+                    ])),
+                Expanded(
+                    child: _loading
+                        ? const Center(child: CircularProgressIndicator())
+                        : _gaps.isEmpty
+                            ? const Center(
+                                child: Text('Нет данных по выбранным фильтрам'))
+                            : FreeTimeResultsTable(
+                                gaps: _gaps,
+                                onOccupy: (gap) {
+                                  final day = _workdayFromMap(
+                                      Map<String, dynamic>.from(
+                                          gap['day'] as Map));
+                                  final human = _humanFromMap(
+                                      Map<String, dynamic>.from(
+                                          gap['human'] as Map));
+                                  return openProcedureSessionFromCurrentWindow({
+                                    'dayId': day.id,
+                                    'participantId': human.id,
+                                    'startTime': gap['start'] as String,
+                                  });
+                                },
+                              )),
+              ]))));
 }
 
 class FreeTimeResultsTable extends StatefulWidget {
@@ -1507,14 +2059,9 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
       await _load();
       return null;
     }
-    if (call.method == 'procedure_session_show') {
+    if (call.method == 'procedure_session_show' ||
+        call.method == 'window_reopen') {
       await _load();
-      await windowManager.show();
-      await windowManager.focus();
-      await _mainChannel.invokeMethod<void>(
-        'procedureSessionVisibilityChanged',
-        true,
-      );
       return null;
     }
     throw MissingPluginException('Unknown procedure-session-window method');
@@ -1589,7 +2136,7 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
           },
           onSavedAndRendered: (operationId) => _mainChannel.invokeMethod<void>(
               'procedureSessionRendered', operationId),
-          onClose: hideCurrentProcedureSessionWindow,
+          onClose: closeCurrentDesktopWindow,
         ))));
   }
 }
@@ -1756,7 +2303,6 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
   bool _loading = true;
   bool _saving = false;
   bool _hasModalChild = false;
-  StreamSubscription<void>? _windowsSubscription;
   String? _error;
   final _name = TextEditingController();
   final _shortName = TextEditingController();
@@ -1787,7 +2333,6 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
   void initState() {
     super.initState();
     _initialize();
-    _windowsSubscription = onWindowsChanged.listen((_) => _refreshModalChild());
   }
 
   Future<void> _initialize() async {
@@ -1804,7 +2349,6 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
         ),
       );
     }
-    await _refreshModalChild();
     final registration =
         registerCurrentDesktopWindowFeatureHandler((call) async {
       switch (call.method) {
@@ -1813,6 +2357,18 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
             await viewModel.loadProcedureKinds();
           }
           await _load();
+          return null;
+        case 'window_reopen':
+          final values = Map<String, dynamic>.from(call.arguments as Map);
+          _entryId = values['entryId'] as String?;
+          await _load();
+          return null;
+        case 'child_visibility_changed':
+          final values = Map<String, dynamic>.from(call.arguments as Map);
+          final active = values['visible'] as bool;
+          if (mounted && active != _hasModalChild) {
+            setState(() => _hasModalChild = active);
+          }
           return null;
         default:
           throw MissingPluginException('Unknown directory-window method');
@@ -1855,26 +2411,11 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
   @override
   void dispose() {
     _handlerRegistration?.dispose();
-    _windowsSubscription?.cancel();
     _name.dispose();
     _shortName.dispose();
     _date.dispose();
     _procedureKindsViewModel?.dispose();
     super.dispose();
-  }
-
-  Future<void> _refreshModalChild() async {
-    if (_isEditor) return;
-    final windows = await WindowController.getAll();
-    final active = windows.any((window) {
-      final kind = windowKindFromArguments(window.arguments);
-      return (_kind == DesktopWindowKind.procedureKinds &&
-              kind == DesktopWindowKind.procedureKindEditor) ||
-          (_kind == DesktopWindowKind.workdays &&
-              kind == DesktopWindowKind.workdayEditor);
-    });
-    if (mounted && active != _hasModalChild)
-      setState(() => _hasModalChild = active);
   }
 
   void _fillEditor(Map<String, dynamic>? entry) {

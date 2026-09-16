@@ -1,7 +1,5 @@
 import 'dart:async';
 
-import 'package:desktop_multi_window/desktop_multi_window.dart';
-
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
@@ -88,12 +86,12 @@ class _BochkiShellState extends State<BochkiShell> {
   int? _participantsCount;
   late final ProcedureSessionsViewModel _procedureSessionsViewModel;
   DesktopWindowCoordinator? _desktopWindows;
-  StreamSubscription<void>? _windowsSubscription;
   bool _hasChildWindows = false;
 
   @override
   void initState() {
     super.initState();
+    setCascadeCloseTimeoutHandler(_confirmCascadeCloseTimeout);
     _procedureSessionsViewModel = ProcedureSessionsViewModel(
       listProcedureSessionsWithConflictsUseCase:
           widget.services.listProcedureSessionsWithConflictsUseCase,
@@ -119,13 +117,9 @@ class _BochkiShellState extends State<BochkiShell> {
         scheduleGaps: scheduleGaps,
         sessions: _procedureSessionsViewModel,
         onDirectoryChanged: _refreshDirectoryCount,
-        onProcedureSessionVisibilityChanged: (_) =>
-            unawaited(_refreshWindowModalState()),
+        onBlockingStateChanged: _setWindowModalState,
       );
       unawaited(_startDesktopWindows());
-      _windowsSubscription =
-          onWindowsChanged.listen((_) => _refreshWindowModalState());
-      unawaited(_refreshWindowModalState());
     }
     unawaited(_procedureSessionsViewModel.load());
     unawaited(_loadDirectoryCounts());
@@ -216,26 +210,36 @@ class _BochkiShellState extends State<BochkiShell> {
 
   @override
   void dispose() {
-    _windowsSubscription?.cancel();
+    setCascadeCloseTimeoutHandler(null);
     unawaited(_desktopWindows?.dispose());
     _procedureSessionsViewModel.dispose();
     super.dispose();
   }
 
-  Future<void> _refreshWindowModalState() async {
-    try {
-      final windows = await WindowController.getAll();
-      final sessionVisible =
-          _desktopWindows?.isProcedureSessionVisible ?? false;
-      final active = windows.any((window) => isBlockingChildWindow(
-            kind: windowKindFromArguments(window.arguments),
-            isProcedureSessionVisible: sessionVisible,
-          ));
-      if (mounted && active != _hasChildWindows) {
-        setState(() => _hasChildWindows = active);
-      }
-    } catch (_) {
-      // Multi-window APIs are intentionally absent from widget tests.
+  Future<void> _confirmCascadeCloseTimeout() async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Не удалось закрыть дочерние окна'),
+        content: const Text(
+          'Некоторые дочерние окна не завершили работу за 10 секунд. '
+          'Ошибка записана в журнал. Закрыть главное окно?',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Закрыть'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _setWindowModalState(bool active) {
+    if (mounted && active != _hasChildWindows) {
+      setState(() => _hasChildWindows = active);
     }
   }
 

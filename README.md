@@ -29,6 +29,8 @@
 - `bochki_schedule_infra` - файловая и системная инфраструктура.
 
 Архитектурные решения фиксируются в [`docs/adr`](docs/adr).
+Целевая схема создания, повторного открытия и закрытия desktop-окон описана в
+[`docs/desktop-window-lifecycle.md`](docs/desktop-window-lifecycle.md).
 
 ## Текущая архитектура
 

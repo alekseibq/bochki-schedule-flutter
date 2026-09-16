@@ -44,7 +44,7 @@ jobs:
         run: |
           flutter run -d windows -t lib/macos_upstream_multi_window_probe.dart 2>&1 | Tee-Object -FilePath multi-window-lifecycle.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Select-String -Path multi-window-lifecycle.log -SimpleMatch '[macos-upstream-0.3.1] PASS upstream child lifecycle and message exchange'
+          Select-String -Path multi-window-lifecycle.log -SimpleMatch '[macos-upstream-0.3.1] PASS reusable child lifecycle and message exchange'
           if (Select-String -Path multi-window-lifecycle.log -Pattern 'FlutterEngineOnVsync.*kInternalInconsistency|Unhandled platform error|WindowChannelException') {
             throw 'Windows lifecycle probe emitted a forbidden error.'
           }
