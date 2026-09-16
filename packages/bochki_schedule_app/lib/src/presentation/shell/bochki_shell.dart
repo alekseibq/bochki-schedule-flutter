@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
@@ -61,11 +62,13 @@ class BochkiShell extends StatefulWidget {
   const BochkiShell({
     required this.services,
     this.onProjectLoaded,
+    this.onUiScaleChanged,
     super.key,
   });
 
   final AppServices services;
   final Future<void> Function()? onProjectLoaded;
+  final ValueChanged<double>? onUiScaleChanged;
 
   @override
   State<BochkiShell> createState() => _BochkiShellState();
@@ -409,13 +412,17 @@ class _BochkiShellState extends State<BochkiShell> {
       if (!mounted) {
         return;
       }
-      await showDialog<void>(
+      final settings = await showDialog<ProgramSettings>(
         context: context,
         barrierDismissible: false,
         builder: (context) {
           return ProgramSettingsDialog(viewModel: viewModel);
         },
       );
+      if (settings != null) {
+        widget.onUiScaleChanged?.call(settings.uiScale);
+        await _desktopWindows?.updateUiScale(settings.uiScale);
+      }
     } finally {
       viewModel.dispose();
       unawaited(_procedureSessionsViewModel.load());

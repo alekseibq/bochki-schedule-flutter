@@ -181,13 +181,7 @@ class _ProgramSettingsDialogState extends State<ProgramSettingsDialog> {
                   key: const Key('program_settings_ui_scale_field'),
                   value: _uiScale,
                   decoration: const InputDecoration(labelText: 'Размер UI'),
-                  items: const [
-                    1.0,
-                    1.05,
-                    1.1,
-                    1.15,
-                    1.2,
-                  ]
+                  items: ProgramSettings.allowedUiScales
                       .map((value) => DropdownMenuItem(
                             value: value,
                             child: Text('${(value * 100).round()}%'),

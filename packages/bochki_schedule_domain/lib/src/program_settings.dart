@@ -1,6 +1,20 @@
 import 'program_settings_time.dart';
 
 final class ProgramSettings {
+  static const List<double> allowedUiScales = <double>[
+    1.0,
+    1.05,
+    1.1,
+    1.15,
+    1.2,
+    1.25,
+    1.3,
+    1.35,
+    1.4,
+    1.45,
+    1.5,
+  ];
+
   const ProgramSettings({
     required this.minimumTime,
     required this.maximumTime,
@@ -78,10 +92,9 @@ final class ProgramSettings {
 
   static double _readUiScale(Object? value) {
     if (value == null) return 1.1;
-    const allowed = [1.0, 1.05, 1.1, 1.15, 1.2];
-    if (value is! num || !allowed.contains(value.toDouble())) {
+    if (value is! num || !allowedUiScales.contains(value.toDouble())) {
       throw const FormatException(
-        'Program settings uiScale must be one of 1.0, 1.05, 1.1, 1.15, 1.2.',
+        'Program settings uiScale must be between 1.0 and 1.5 in 0.05 increments.',
       );
     }
     return value.toDouble();

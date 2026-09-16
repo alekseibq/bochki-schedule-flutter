@@ -7,6 +7,34 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 
 void main() {
+  testWidgets('child windows apply the persisted scale to their dialogs',
+      (tester) async {
+    final scale = ValueNotifier<double>(1.5);
+    addTearDown(scale.dispose);
+
+    await tester.pumpWidget(
+      DesktopWindowUiScale(
+        scale: scale,
+        loadScale: () async => 1.5,
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) => Text(
+              '${MediaQuery.textScalerOf(context).scale(10)}',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('15.0'), findsOneWidget);
+
+    scale.value = 1.25;
+    await tester.pump();
+
+    expect(find.text('12.5'), findsOneWidget);
+  });
+
   group('windowKindFromArguments', () {
     test('reads a statistics window argument', () {
       expect(

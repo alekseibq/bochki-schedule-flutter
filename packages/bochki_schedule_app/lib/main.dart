@@ -25,13 +25,17 @@ Future<void> main(List<String> args) async {
   final kind = windowKindFromArguments(controller.arguments);
   if (kind != DesktopWindowKind.main) {
     await configureChildWindow(kind);
-    runApp(kind == DesktopWindowKind.procedureStatistics
-        ? const ProcedureStatisticsWindow()
-        : kind == DesktopWindowKind.freeTime
-            ? const FreeTimeWindow()
-            : kind == DesktopWindowKind.procedureSession
-                ? const ProcedureSessionWindow()
-                : const DirectoryChildWindow());
+    runApp(
+      DesktopWindowUiScale(
+        child: kind == DesktopWindowKind.procedureStatistics
+            ? const ProcedureStatisticsWindow()
+            : kind == DesktopWindowKind.freeTime
+                ? const FreeTimeWindow()
+                : kind == DesktopWindowKind.procedureSession
+                    ? const ProcedureSessionWindow()
+                    : const DirectoryChildWindow(),
+      ),
+    );
     return;
   }
   final diagnostics = StartupDiagnostics();

@@ -2,6 +2,27 @@ import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test('accepts UI scale values through 150 percent', () {
+    final settings = ProgramSettings.fromJson(<String, Object?>{
+      'minimumHour': 8,
+      'maximumHour': 20,
+      'uiScale': 1.5,
+    });
+
+    expect(settings.uiScale, 1.5);
+  });
+
+  test('rejects UI scale values outside the supported increments', () {
+    expect(
+      () => ProgramSettings.fromJson(<String, Object?>{
+        'minimumHour': 8,
+        'maximumHour': 20,
+        'uiScale': 1.23,
+      }),
+      throwsFormatException,
+    );
+  });
+
   test('package exports compile', () {
     expect(bochkiScheduleDomainPackageName, 'bochki_schedule_domain');
   });

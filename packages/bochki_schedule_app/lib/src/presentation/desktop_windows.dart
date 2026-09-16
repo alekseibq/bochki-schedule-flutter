@@ -63,6 +63,59 @@ const _mainChannel = WindowMethodChannel(
   mode: ChannelMode.unidirectional,
 );
 
+/// Scale shared by the UI and all dialogs in one child-window engine.
+///
+/// Each desktop child has its own Dart isolate, so it asks the main engine for
+/// the persisted value at launch and receives later updates over its window
+/// channel.
+final desktopWindowUiScale = ValueNotifier<double>(1.1);
+
+class DesktopWindowUiScale extends StatefulWidget {
+  DesktopWindowUiScale({
+    required this.child,
+    ValueNotifier<double>? scale,
+    this.loadScale,
+    super.key,
+  }) : scale = scale ?? desktopWindowUiScale;
+
+  final Widget child;
+  final ValueNotifier<double> scale;
+  final Future<double?> Function()? loadScale;
+
+  @override
+  State<DesktopWindowUiScale> createState() => _DesktopWindowUiScaleState();
+}
+
+class _DesktopWindowUiScaleState extends State<DesktopWindowUiScale> {
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadScale());
+  }
+
+  Future<void> _loadScale() async {
+    try {
+      final value = await (widget.loadScale?.call() ??
+          _mainChannel.invokeMethod<double>('uiScale'));
+      if (value != null) widget.scale.value = value;
+    } catch (_) {
+      // The main window can be closing while a child engine starts.
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<double>(
+        valueListenable: widget.scale,
+        builder: (context, scale, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(scale),
+          ),
+          child: child!,
+        ),
+        child: widget.child,
+      );
+}
+
 WindowConfiguration childWindowConfiguration(String arguments) =>
     WindowConfiguration(arguments: arguments, hiddenAtLaunch: true);
 
@@ -525,6 +578,10 @@ final class DesktopWindowLifecycle with WindowListener {
         return currentWindowBoundsMap();
       case 'window_visible':
         return windowManager.isVisible();
+      case 'ui_scale_changed':
+        final scale = call.arguments;
+        if (scale is num) desktopWindowUiScale.value = scale.toDouble();
+        return;
       case 'child_visibility_changed':
         final values = Map<String, dynamic>.from(call.arguments as Map);
         final windowId = values['windowId'] as String?;
@@ -926,6 +983,20 @@ final class DesktopWindowCoordinator {
     await _open(DesktopWindowKind.procedureStatistics);
   }
 
+  Future<void> updateUiScale(double scale) async {
+    for (final controller in await _platform.all()) {
+      if (windowKindFromArguments(controller.arguments) ==
+          DesktopWindowKind.main) {
+        continue;
+      }
+      try {
+        await controller.invokeMethod<void>('ui_scale_changed', scale);
+      } catch (_) {
+        // A child can be closing while settings are saved.
+      }
+    }
+  }
+
   Future<void> openSession({
     ProcedureSessionRaw? initialValue,
     String? parentWindowId,
@@ -1219,6 +1290,8 @@ final class DesktopWindowCoordinator {
         };
       case 'procedureSessionSnapshot':
         return _sessionSnapshot();
+      case 'uiScale':
+        return (await _services.getProgramSettingsUseCase.execute()).uiScale;
       case 'directorySnapshot':
         return _directorySnapshot(call.arguments as String);
       case 'directoryMutate':
