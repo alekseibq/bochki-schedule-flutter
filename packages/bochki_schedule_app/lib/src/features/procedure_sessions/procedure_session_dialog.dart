@@ -13,6 +13,7 @@ import '../../domain/procedure_sessions/procedure_session_time.dart';
 import '../../domain/procedure_sessions/conflict_resource_type.dart';
 import '../../domain/procedure_sessions/schedule_conflict_type.dart';
 import '../../domain/workdays/workday.dart';
+import '../../presentation/app_tooltips.dart';
 import 'procedure_session_submit_result.dart';
 
 class ProcedureSessionDialog extends StatefulWidget {
@@ -318,18 +319,12 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
         : TextSpan(
             children: [
               TextSpan(
-                  text: data.title,
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
+                  text: data.title.text,
+                  style: AppTooltips.textStyle(data.title)),
               for (final line in data.lines)
                 TextSpan(
                   text: '\n${line.text}',
-                  style: TextStyle(
-                      color: switch (line.tone) {
-                    ProcedureSessionTooltipTone.conflict => _conflictTextColor,
-                    ProcedureSessionTooltipTone.companion =>
-                      const Color(0xFF1B5E20),
-                    ProcedureSessionTooltipTone.normal => _normalTextColor,
-                  }),
+                  style: AppTooltips.textStyle(line),
                 ),
             ],
           );
