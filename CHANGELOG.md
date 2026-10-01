@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.16.1
+
+Release date: 2026-10-01
+
+### Highlights
+
+- Unified all application tooltips into a readable light visual style.
+
+### Details
+
+- `feat(ui): unify tooltip styles (#213)`
+
 ## v0.16.0
 
 Release date: 2026-10-01
