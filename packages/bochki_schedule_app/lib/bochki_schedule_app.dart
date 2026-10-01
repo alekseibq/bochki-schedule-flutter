@@ -50,6 +50,7 @@ export 'src/domain/procedure_sessions/procedure_session_occupancy_record.dart';
 export 'src/domain/procedure_sessions/procedure_session_raw.dart';
 export 'src/domain/procedure_sessions/procedure_session_rich.dart';
 export 'src/domain/procedure_sessions/procedure_session_rich_factory.dart';
+export 'src/domain/procedure_sessions/procedure_session_schedule_projection.dart';
 export 'src/domain/procedure_sessions/procedure_session_time.dart';
 export 'src/domain/procedure_sessions/procedure_session_with_conflicts.dart';
 export 'src/domain/procedure_sessions/schedule_conflict.dart';

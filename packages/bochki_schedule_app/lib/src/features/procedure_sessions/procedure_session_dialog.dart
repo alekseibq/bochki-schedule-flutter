@@ -7,7 +7,10 @@ import '../../domain/assistants/assistant.dart';
 import '../../domain/humans/human.dart';
 import '../../domain/procedure_kinds/procedure_kind.dart';
 import '../../domain/procedure_sessions/procedure_session_raw.dart';
+import '../../domain/procedure_sessions/procedure_session_schedule_projection.dart';
 import '../../domain/procedure_sessions/procedure_session_time.dart';
+import '../../domain/procedure_sessions/conflict_resource_type.dart';
+import '../../domain/procedure_sessions/schedule_conflict_type.dart';
 import '../../domain/workdays/workday.dart';
 import 'procedure_session_submit_result.dart';
 
@@ -18,6 +21,7 @@ class ProcedureSessionDialog extends StatefulWidget {
     required this.humans,
     required this.procedureKinds,
     required this.assistants,
+    this.procedureSessions = const [],
     required this.programSettings,
     required this.onSubmit,
     this.onSavedAndRendered,
@@ -31,6 +35,7 @@ class ProcedureSessionDialog extends StatefulWidget {
   final List<Human> humans;
   final List<ProcedureKind> procedureKinds;
   final List<Assistant> assistants;
+  final List<ProcedureSessionRaw> procedureSessions;
   final ProgramSettings programSettings;
   final Future<ProcedureSessionSubmitResult> Function(
     ProcedureSessionRaw procedureSession,
@@ -57,6 +62,11 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
   List<String> _conflictMessages = const [];
   String? _confirmedSnapshot;
   bool _isSubmitting = false;
+
+  static const _previewId = '__procedure_session_editor_preview__';
+  static const _normalTextColor = Colors.black;
+  static const _conflictTextColor = Colors.red;
+  final _scheduleProjection = const ProcedureSessionScheduleProjection();
 
   static final List<String> _minutes = [
     for (int minute = 0; minute <= 55; minute += 5) '$minute'.padLeft(2, '0'),
@@ -154,7 +164,10 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
       for (final participant in widget.humans)
         DropdownMenuItem<String>(
           value: participant.id,
-          child: Text(participant.name),
+          child: Text(participant.name,
+              style: _resourceTextStyle(
+                _hasParticipantConflict(participant.id),
+              )),
         ),
     ];
     if (_participantId != null &&
@@ -174,7 +187,10 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
       for (final procedureKind in widget.procedureKinds)
         DropdownMenuItem<String>(
           value: procedureKind.id,
-          child: Text(procedureKind.name),
+          child: Text(procedureKind.name,
+              style: _resourceTextStyle(
+                _hasProcedureConflict(procedureKind.id),
+              )),
         ),
     ];
     if (!items.any((item) => item.value == _procedureKindId)) {
@@ -193,7 +209,10 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
       for (final assistant in widget.assistants)
         DropdownMenuItem<String>(
           value: assistant.id,
-          child: Text(assistant.name),
+          child: Text(assistant.name,
+              style: _resourceTextStyle(
+                _hasAssistantConflict(assistant.id),
+              )),
         ),
     ];
     final currentAssistantId = _assistantId;
@@ -208,6 +227,69 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
     }
     return items;
   }
+
+  ProcedureSessionRaw get _currentSession => ProcedureSessionRaw(
+        id: widget.initialValue.id,
+        dayId: _dayId,
+        participantId: _participantId,
+        startTime: '$_hour:$_minute',
+        procedureKindId: _procedureKindId,
+        assistantId: requiresAssistant ? _assistantId : null,
+      );
+
+  bool get _selectedProcedureHasConflict =>
+      _hasProcedureConflict(_procedureKindId);
+  bool get _selectedParticipantHasConflict =>
+      _participantId != null && _hasParticipantConflict(_participantId!);
+  bool get _selectedAssistantHasConflict =>
+      _assistantId != null && _hasAssistantConflict(_assistantId!);
+
+  bool _hasProcedureConflict(String procedureKindId) => _hasResourceConflict(
+        _currentSession.copyWith(procedureKindId: procedureKindId),
+        resourceType: ConflictResourceType.item,
+        resourceId: procedureKindId,
+      );
+
+  bool _hasParticipantConflict(String humanId) => _hasResourceConflict(
+        _currentSession.copyWith(participantId: humanId),
+        resourceType: ConflictResourceType.human,
+        resourceId: humanId,
+      );
+
+  bool _hasAssistantConflict(String humanId) => _hasResourceConflict(
+        _currentSession.copyWith(assistantId: humanId),
+        resourceType: ConflictResourceType.human,
+        resourceId: humanId,
+      );
+
+  bool _hasResourceConflict(
+    ProcedureSessionRaw candidate, {
+    required ConflictResourceType resourceType,
+    required String resourceId,
+  }) {
+    final candidateId = candidate.id == 'draft' ? _previewId : candidate.id;
+    final projected = _scheduleProjection.project(
+      savedSessions: widget.procedureSessions,
+      candidate: candidate,
+      candidateId: candidateId,
+      workdays: widget.workdays,
+      humans: widget.humans,
+      procedureKinds: widget.procedureKinds,
+      assistants: widget.assistants,
+      programSettings: widget.programSettings,
+    );
+    final entry =
+        projected.where((entry) => entry.id == candidateId).firstOrNull;
+    return entry?.conflicts.any((conflict) =>
+            conflict.type == ScheduleConflictType.resourceOverload &&
+            conflict.resourceType == resourceType &&
+            conflict.resourceId == resourceId) ??
+        false;
+  }
+
+  TextStyle _resourceTextStyle(bool hasConflict) => TextStyle(
+        color: hasConflict ? _conflictTextColor : _normalTextColor,
+      );
 
   Future<void> _openStatisticsPlaceholder() async {
     await showDialog<void>(
@@ -372,10 +454,17 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Tooltip(
+                    Tooltip(
                       message:
                           'Информация о процедуре будет показана в следующем инкременте.',
-                      child: Icon(Icons.info_outline, size: 18),
+                      child: Icon(
+                        Icons.info_outline,
+                        key: const Key('procedure_session_procedure_kind_info'),
+                        size: 18,
+                        color: _selectedProcedureHasConflict
+                            ? _conflictTextColor
+                            : _normalTextColor,
+                      ),
                     ),
                   ],
                 ),
@@ -406,10 +495,17 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Tooltip(
+                    Tooltip(
                       message:
                           'Информация об участнике будет показана в следующем инкременте.',
-                      child: Icon(Icons.info_outline, size: 18),
+                      child: Icon(
+                        Icons.info_outline,
+                        key: const Key('procedure_session_participant_info'),
+                        size: 18,
+                        color: _selectedParticipantHasConflict
+                            ? _conflictTextColor
+                            : _normalTextColor,
+                      ),
                     ),
                   ],
                 ),
@@ -514,22 +610,41 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
               const SizedBox(height: 12),
               _DialogRow(
                 label: 'Сопровождающий',
-                child: DropdownButtonFormField<String>(
-                  key: const Key('procedure_session_assistant_field'),
-                  value: _assistantId,
-                  isExpanded: true,
-                  hint: Text(requiresAssistant
-                      ? 'Выберите сопровождающего'
-                      : 'Не требуется'),
-                  items: _buildAssistantItems(),
-                  onChanged: !requiresAssistant || _isBusy
-                      ? null
-                      : (value) {
-                          setState(() {
-                            _assistantId = value;
-                            _clearError();
-                          });
-                        },
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        key: const Key('procedure_session_assistant_field'),
+                        value: _assistantId,
+                        isExpanded: true,
+                        hint: Text(requiresAssistant
+                            ? 'Выберите сопровождающего'
+                            : 'Не требуется'),
+                        items: _buildAssistantItems(),
+                        onChanged: !requiresAssistant || _isBusy
+                            ? null
+                            : (value) {
+                                setState(() {
+                                  _assistantId = value;
+                                  _clearError();
+                                });
+                              },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Tooltip(
+                      message:
+                          'Информация о сопровождающем будет показана в следующем инкременте.',
+                      child: Icon(
+                        Icons.info_outline,
+                        key: const Key('procedure_session_assistant_info'),
+                        size: 18,
+                        color: _selectedAssistantHasConflict
+                            ? _conflictTextColor
+                            : _normalTextColor,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 18),

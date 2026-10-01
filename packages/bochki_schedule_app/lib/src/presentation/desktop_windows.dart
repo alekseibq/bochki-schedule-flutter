@@ -1387,6 +1387,8 @@ final class DesktopWindowCoordinator {
         'humans': _sessions.humans.map(_humanMap).toList(),
         'procedureKinds': _sessions.procedureKinds.map(_kindMap).toList(),
         'assistants': _sessions.assistants.map(_assistantMap).toList(),
+        'procedureSessions':
+            _sessions.allProcedureSessions.map(_sessionMap).toList(),
         'settings': {
           'minimumTime': _sessions.programSettings.minimumTime.toJson(),
           'maximumTime': _sessions.programSettings.maximumTime.toJson(),
@@ -2148,6 +2150,9 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
               _maps(snapshot['procedureKinds']).map(_kindFromMap).toList(),
           assistants:
               _maps(snapshot['assistants']).map(_assistantFromMap).toList(),
+          procedureSessions: _maps(snapshot['procedureSessions'])
+              .map(_sessionFromMap)
+              .toList(),
           programSettings: ProgramSettings(
               minimumTime:
                   ProgramSettingsTime.fromJson(settings['minimumTime']),

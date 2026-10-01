@@ -4,6 +4,112 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('marks conflicting resource choices and info icons red',
+      (tester) async {
+    final workday = Workday(
+      id: 'day',
+      name: 'День',
+      calendarDate: DateTime(2026, 7, 11),
+    );
+    ProcedureKind kind(String id, String name) => ProcedureKind(
+          id: id,
+          patternId: ProcedureKindPatterns.curated.patternId,
+          name: name,
+          capacity: 1,
+          participantBusyTime: 60,
+          assistantBusyTime: 60,
+          resourceBusyTime: 60,
+        );
+    final conflictingKind = kind('kind-conflict', 'Конфликтная процедура');
+    final freeKind = kind('kind-free', 'Свободная процедура');
+    final otherKind = kind('kind-other', 'Другая процедура');
+    final humans = [
+      Human(id: 'participant-conflict', name: 'Конфликтный участник'),
+      Human(id: 'participant-free', name: 'Свободный участник'),
+      Human(id: 'other', name: 'Другой участник'),
+    ];
+    final assistants = [
+      Assistant(id: 'assistant-conflict', name: 'Конфликтный сопровождающий'),
+      Assistant(id: 'assistant-free', name: 'Свободный сопровождающий'),
+      Assistant(id: 'other-assistant', name: 'Другой сопровождающий'),
+    ];
+    final sessions = [
+      ProcedureSessionRaw(
+        id: 'item-conflict',
+        dayId: workday.id,
+        participantId: 'other',
+        startTime: '10:00',
+        procedureKindId: conflictingKind.id,
+        assistantId: 'other-assistant',
+      ),
+      ProcedureSessionRaw(
+        id: 'participant-conflict',
+        dayId: workday.id,
+        participantId: 'participant-conflict',
+        startTime: '10:00',
+        procedureKindId: otherKind.id,
+        assistantId: 'other-assistant',
+      ),
+      ProcedureSessionRaw(
+        id: 'assistant-conflict',
+        dayId: workday.id,
+        participantId: 'other',
+        startTime: '10:00',
+        procedureKindId: otherKind.id,
+        assistantId: 'assistant-conflict',
+      ),
+    ];
+
+    await tester.pumpWidget(MaterialApp(
+      home: Material(
+        child: ProcedureSessionDialog(
+          initialValue: ProcedureSessionRaw(
+            id: 'draft',
+            dayId: workday.id,
+            participantId: 'participant-conflict',
+            startTime: '10:00',
+            procedureKindId: conflictingKind.id,
+            assistantId: 'assistant-conflict',
+          ),
+          workdays: [workday],
+          humans: humans,
+          procedureKinds: [conflictingKind, freeKind, otherKind],
+          assistants: assistants,
+          procedureSessions: sessions,
+          programSettings: ProgramSettings.defaults,
+          onSubmit: (_, __) async =>
+              const ProcedureSessionSubmitResult.saved(1),
+        ),
+      ),
+    ));
+
+    Text text(String value) => tester.widget<Text>(find.text(value).first);
+    expect(text('Конфликтная процедура').style?.color, Colors.red);
+    expect(text('Конфликтный участник').style?.color, Colors.red);
+    expect(text('Конфликтный сопровождающий').style?.color, Colors.red);
+    expect(
+      tester
+          .widget<Icon>(
+              find.byKey(const Key('procedure_session_procedure_kind_info')))
+          .color,
+      Colors.red,
+    );
+    expect(
+      tester
+          .widget<Icon>(
+              find.byKey(const Key('procedure_session_participant_info')))
+          .color,
+      Colors.red,
+    );
+    expect(
+      tester
+          .widget<Icon>(
+              find.byKey(const Key('procedure_session_assistant_info')))
+          .color,
+      Colors.red,
+    );
+  });
+
   testWidgets('dialog shows settings-driven hint and hour options', (
     tester,
   ) async {

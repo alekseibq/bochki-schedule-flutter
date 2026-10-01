@@ -18,6 +18,7 @@ import '../../domain/procedure_sessions/procedure_session_conflict_calculator.da
 import '../../domain/procedure_sessions/procedure_session_conflict_message_formatter.dart';
 import '../../domain/procedure_sessions/procedure_session_raw.dart';
 import '../../domain/procedure_sessions/procedure_session_rich_factory.dart';
+import '../../domain/procedure_sessions/procedure_session_schedule_projection.dart';
 import '../../domain/procedure_sessions/procedure_session_with_conflicts.dart';
 import '../../domain/procedure_sessions/procedure_sessions_validation_exception.dart';
 import '../../domain/procedure_sessions/schedule_conflict.dart';
@@ -76,6 +77,11 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
   final ProcedureSessionConflictCalculator _conflictCalculator;
   final ProcedureSessionConflictMessageFormatter _conflictMessageFormatter;
   final ProcedureSessionRichFactory _richFactory;
+  late final ProcedureSessionScheduleProjection _scheduleProjection =
+      ProcedureSessionScheduleProjection(
+    conflictCalculator: _conflictCalculator,
+    richFactory: _richFactory,
+  );
 
   List<ProcedureSessionWithConflicts> _allEntries = const [];
   List<Workday> _workdays = const [];
@@ -97,6 +103,8 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
   int _nextSaveOperationId = 1;
 
   List<ProcedureSessionWithConflicts> get entries => _applyFilters(_allEntries);
+  List<ProcedureSessionRaw> get allProcedureSessions =>
+      List.unmodifiable(_allEntries.map((entry) => entry.raw));
   List<Workday> get workdays => _workdays;
   List<Human> get participants => _participants;
   List<Human> get humans => _humans;
@@ -430,73 +438,16 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
     ProcedureSessionRaw candidate, {
     required String candidateId,
   }) {
-    final raws = _allEntries.map((entry) => entry.raw).toList(growable: true);
-    if (candidate.id == 'draft') {
-      raws.add(candidate.copyWith(id: candidateId));
-    } else {
-      final index = raws.indexWhere((entry) => entry.id == candidate.id);
-      final replacement = candidate.copyWith(id: candidateId);
-      if (index == -1) {
-        raws.add(replacement);
-      } else {
-        raws[index] = replacement;
-      }
-    }
-
-    final richSessions = [
-      for (final raw in raws)
-        _richFactory.create(
-          raw: raw,
-          workdays: _workdays,
-          humans: _humans,
-          procedureKinds: _procedureKinds,
-          assistants: _assistants,
-        ),
-    ]..sort((left, right) {
-        final leftDayName = left.day?.name ?? left.dayId;
-        final rightDayName = right.day?.name ?? right.dayId;
-        final byDay = leftDayName.compareTo(rightDayName);
-        if (byDay != 0) {
-          return byDay;
-        }
-
-        final byStartTime = left.startTime.compareTo(right.startTime);
-        if (byStartTime != 0) {
-          return byStartTime;
-        }
-
-        final leftProcedureName =
-            left.procedureKind?.name ?? left.procedureKindId;
-        final rightProcedureName =
-            right.procedureKind?.name ?? right.procedureKindId;
-        final byProcedure = leftProcedureName.compareTo(rightProcedureName);
-        if (byProcedure != 0) {
-          return byProcedure;
-        }
-
-        return left.id.compareTo(right.id);
-      });
-
-    final conflicts = _conflictCalculator.calculate(
-      richSessions,
+    return _scheduleProjection.project(
+      savedSessions: _allEntries.map((entry) => entry.raw),
+      candidate: candidate,
+      candidateId: candidateId,
+      workdays: _workdays,
+      humans: _humans,
+      procedureKinds: _procedureKinds,
+      assistants: _assistants,
       programSettings: _programSettings,
     );
-    final conflictsBySessionId = <String, List<ScheduleConflict>>{};
-    for (final conflict in conflicts) {
-      conflictsBySessionId
-          .putIfAbsent(conflict.procedureSessionId, () => <ScheduleConflict>[])
-          .add(conflict);
-    }
-
-    return [
-      for (final session in richSessions)
-        ProcedureSessionWithConflicts(
-          rich: session,
-          conflicts: List.unmodifiable(
-            conflictsBySessionId[session.id] ?? const <ScheduleConflict>[],
-          ),
-        ),
-    ];
   }
 
   List<String> _formatConflictMessages(List<ScheduleConflict> conflicts) {

@@ -846,6 +846,7 @@ class _BochkiShellState extends State<BochkiShell> {
           humans: _procedureSessionsViewModel.humans,
           procedureKinds: _procedureSessionsViewModel.procedureKinds,
           assistants: _procedureSessionsViewModel.assistants,
+          procedureSessions: _procedureSessionsViewModel.allProcedureSessions,
           programSettings: _procedureSessionsViewModel.programSettings,
           onSubmit: (procedureSession, allowConflicts) {
             return _procedureSessionsViewModel.submitProcedureSession(
