@@ -19,6 +19,7 @@ import '../../domain/procedure_sessions/procedure_session_conflict_message_forma
 import '../../domain/procedure_sessions/procedure_session_raw.dart';
 import '../../domain/procedure_sessions/procedure_session_rich_factory.dart';
 import '../../domain/procedure_sessions/procedure_session_schedule_projection.dart';
+import '../../domain/procedure_sessions/procedure_session_tooltip_builder.dart';
 import '../../domain/procedure_sessions/procedure_session_with_conflicts.dart';
 import '../../domain/procedure_sessions/procedure_sessions_validation_exception.dart';
 import '../../domain/procedure_sessions/schedule_conflict.dart';
@@ -82,6 +83,7 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
     conflictCalculator: _conflictCalculator,
     richFactory: _richFactory,
   );
+  static const _mainTableTooltipBuilder = ProcedureSessionTooltipBuilder();
 
   List<ProcedureSessionWithConflicts> _allEntries = const [];
   List<Workday> _workdays = const [];
@@ -121,30 +123,23 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
   String? get selectedParticipantId => _selectedParticipantId;
   bool get showConflictsOnly => _showConflictsOnly;
 
-  String participantSummaryTooltip({
+  ProcedureSessionTooltipData personScheduleTooltip({
     required String humanId,
-    required String humanName,
-  }) {
-    final countsByDayId = <String, int>{};
-    for (final entry in _allEntries) {
-      if (entry.participantId != humanId) {
-        continue;
-      }
-      countsByDayId.update(entry.dayId, (count) => count + 1,
-          ifAbsent: () => 1);
-    }
-
-    if (countsByDayId.isEmpty) {
-      return '$humanName\nНет процедур в роли участника';
-    }
-
-    return [
-      humanName,
-      for (final workday in _workdays)
-        if (countsByDayId[workday.id] case final count?)
-          '${workday.name}: $count',
-    ].join('\n');
-  }
+    required String? humanName,
+    required String dayId,
+    required String currentSessionId,
+  }) =>
+      _mainTableTooltipBuilder.mainTablePersonSchedule(
+        humanId: humanId,
+        humanName: humanName,
+        dayId: dayId,
+        currentSessionId: currentSessionId,
+        savedSessions: allProcedureSessions,
+        workdays: _workdays,
+        humans: _humans,
+        procedureKinds: _procedureKinds,
+        assistants: _assistants,
+      );
 
   Future<void> load() async {
     _isLoading = true;

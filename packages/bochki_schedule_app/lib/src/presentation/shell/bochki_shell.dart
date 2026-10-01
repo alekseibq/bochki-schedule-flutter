@@ -1504,8 +1504,9 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
                 _buildPersonSummaryCell(
                   width: _dataColumnWidths[1],
                   entryId: entry.id,
+                  dayId: entry.dayId,
                   column: 'participant',
-                  humanId: entry.participant?.id,
+                  humanId: entry.participant?.id ?? entry.participantId,
                   humanName: entry.participant?.name,
                   fallbackText: _participantText(entry),
                 ),
@@ -1521,8 +1522,11 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
                 _buildPersonSummaryCell(
                   width: _dataColumnWidths[5],
                   entryId: entry.id,
+                  dayId: entry.dayId,
                   column: 'assistant',
-                  humanId: entry.requiresAssistant ? entry.assistant?.id : null,
+                  humanId: entry.requiresAssistant
+                      ? entry.assistant?.id ?? entry.assistantId
+                      : null,
                   humanName:
                       entry.requiresAssistant ? entry.assistant?.name : null,
                   fallbackText: _assistantText(entry),
@@ -1607,22 +1611,39 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
   Widget _buildPersonSummaryCell({
     required double width,
     required String entryId,
+    required String dayId,
     required String column,
     required String? humanId,
     required String? humanName,
     required String fallbackText,
   }) {
     final cell = _TableCell(width: width, text: fallbackText);
-    if (humanId == null || humanName == null) {
+    if (humanId == null) {
       return cell;
     }
 
+    final tooltip = widget.viewModel.personScheduleTooltip(
+      humanId: humanId,
+      humanName: humanName,
+      dayId: dayId,
+      currentSessionId: entryId,
+    );
+
     return Tooltip(
       key: Key('procedure_session_${column}_summary_$entryId'),
-      message: widget.viewModel.participantSummaryTooltip(
-        humanId: humanId,
-        humanName: humanName,
+      richMessage: TextSpan(
+        children: [
+          TextSpan(text: '${tooltip.title}\n'),
+          for (final line in tooltip.lines)
+            TextSpan(
+              text: '${line.text}\n',
+              style: line.isCurrent
+                  ? const TextStyle(fontWeight: FontWeight.bold)
+                  : null,
+            ),
+        ],
       ),
+      constraints: const BoxConstraints(maxWidth: 480),
       waitDuration: const Duration(milliseconds: 300),
       exitDuration: Duration.zero,
       child: cell,
