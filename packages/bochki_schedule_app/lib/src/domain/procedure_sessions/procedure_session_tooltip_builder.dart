@@ -37,6 +37,31 @@ final class ProcedureSessionTooltipBuilder {
   final ProcedureSessionRichFactory richFactory;
   final ProcedureSessionConflictCalculator conflictCalculator;
 
+  /// Counts saved curated assignments for one participant/assistant pair.
+  ///
+  /// Group sessions deliberately do not contribute: the history hint belongs
+  /// only to procedures with accompaniment.
+  int assistantHistoryCount({
+    required String? participantId,
+    required String assistantId,
+    required String editingSessionId,
+    required Iterable<ProcedureSessionRaw> savedSessions,
+    required Iterable<ProcedureKind> procedureKinds,
+  }) {
+    if (participantId == null) return 0;
+    final curatedKindIds = procedureKinds
+        .where((procedureKind) => procedureKind.isCurated)
+        .map((procedureKind) => procedureKind.id)
+        .toSet();
+    return savedSessions
+        .where((session) =>
+            session.id != editingSessionId &&
+            session.participantId == participantId &&
+            session.assistantId == assistantId &&
+            curatedKindIds.contains(session.procedureKindId))
+        .length;
+  }
+
   ProcedureSessionTooltipData procedureAvailability({
     required String dayId,
     required String procedureKindId,

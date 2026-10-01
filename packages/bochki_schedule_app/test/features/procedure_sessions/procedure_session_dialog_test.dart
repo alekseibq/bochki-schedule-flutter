@@ -106,6 +106,77 @@ void main() {
     );
   });
 
+  test('counts only other curated assignments for an assistant history', () {
+    final curated = ProcedureKind(
+      id: 'curated',
+      patternId: ProcedureKindPatterns.curated.patternId,
+      name: 'С сопровождением',
+      capacity: 1,
+      participantBusyTime: 30,
+      assistantBusyTime: 30,
+    );
+    final grouped = ProcedureKind(
+      id: 'grouped',
+      patternId: ProcedureKindPatterns.grouped.patternId,
+      name: 'Групповая',
+      capacity: 2,
+      participantBusyTime: 30,
+      assistantBusyTime: 30,
+    );
+    const builder = ProcedureSessionTooltipBuilder();
+    final sessions = [
+      ProcedureSessionRaw(
+          id: 'current',
+          dayId: 'one',
+          participantId: 'participant',
+          startTime: '09:00',
+          procedureKindId: curated.id,
+          assistantId: 'assistant'),
+      ProcedureSessionRaw(
+          id: 'curated-other-day',
+          dayId: 'two',
+          participantId: 'participant',
+          startTime: '09:00',
+          procedureKindId: curated.id,
+          assistantId: 'assistant'),
+      ProcedureSessionRaw(
+          id: 'grouped',
+          dayId: 'one',
+          participantId: 'participant',
+          startTime: '10:00',
+          procedureKindId: grouped.id,
+          assistantId: 'assistant'),
+      ProcedureSessionRaw(
+          id: 'other-assistant',
+          dayId: 'one',
+          participantId: 'participant',
+          startTime: '11:00',
+          procedureKindId: curated.id,
+          assistantId: 'other'),
+    ];
+
+    expect(
+      builder.assistantHistoryCount(
+        participantId: 'participant',
+        assistantId: 'assistant',
+        editingSessionId: 'current',
+        savedSessions: sessions,
+        procedureKinds: [curated, grouped],
+      ),
+      1,
+    );
+    expect(
+      builder.assistantHistoryCount(
+        participantId: null,
+        assistantId: 'assistant',
+        editingSessionId: '',
+        savedSessions: sessions,
+        procedureKinds: [curated, grouped],
+      ),
+      0,
+    );
+  });
+
   testWidgets('marks conflicting resource choices and info icons red',
       (tester) async {
     final workday = Workday(

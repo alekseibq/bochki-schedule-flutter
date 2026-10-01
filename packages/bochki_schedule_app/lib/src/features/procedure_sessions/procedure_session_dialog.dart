@@ -211,7 +211,7 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
       for (final assistant in widget.assistants)
         DropdownMenuItem<String>(
           value: assistant.id,
-          child: Text(assistant.name,
+          child: Text(_assistantLabel(assistant),
               style: _resourceTextStyle(
                 _hasAssistantConflict(assistant.id),
               )),
@@ -228,6 +228,20 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
       );
     }
     return items;
+  }
+
+  String _assistantLabel(Assistant assistant) {
+    if (!(_selectedProcedureKind?.isCurated ?? false)) {
+      return assistant.name;
+    }
+    final count = _tooltipBuilder.assistantHistoryCount(
+      participantId: _participantId,
+      assistantId: assistant.id,
+      editingSessionId: widget.isEditing ? widget.initialValue.id : '',
+      savedSessions: widget.procedureSessions,
+      procedureKinds: widget.procedureKinds,
+    );
+    return count == 0 ? assistant.name : '${assistant.name} (был $count раз)';
   }
 
   ProcedureSessionRaw get _currentSession => ProcedureSessionRaw(
