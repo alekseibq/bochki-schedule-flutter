@@ -7,7 +7,11 @@ import '../../domain/assistants/assistant.dart';
 import '../../domain/humans/human.dart';
 import '../../domain/procedure_kinds/procedure_kind.dart';
 import '../../domain/procedure_sessions/procedure_session_raw.dart';
+import '../../domain/procedure_sessions/procedure_session_schedule_projection.dart';
+import '../../domain/procedure_sessions/procedure_session_tooltip_builder.dart';
 import '../../domain/procedure_sessions/procedure_session_time.dart';
+import '../../domain/procedure_sessions/conflict_resource_type.dart';
+import '../../domain/procedure_sessions/schedule_conflict_type.dart';
 import '../../domain/workdays/workday.dart';
 import 'procedure_session_submit_result.dart';
 
@@ -18,6 +22,7 @@ class ProcedureSessionDialog extends StatefulWidget {
     required this.humans,
     required this.procedureKinds,
     required this.assistants,
+    this.procedureSessions = const [],
     required this.programSettings,
     required this.onSubmit,
     this.onSavedAndRendered,
@@ -31,6 +36,7 @@ class ProcedureSessionDialog extends StatefulWidget {
   final List<Human> humans;
   final List<ProcedureKind> procedureKinds;
   final List<Assistant> assistants;
+  final List<ProcedureSessionRaw> procedureSessions;
   final ProgramSettings programSettings;
   final Future<ProcedureSessionSubmitResult> Function(
     ProcedureSessionRaw procedureSession,
@@ -57,6 +63,12 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
   List<String> _conflictMessages = const [];
   String? _confirmedSnapshot;
   bool _isSubmitting = false;
+
+  static const _previewId = '__procedure_session_editor_preview__';
+  static const _normalTextColor = Colors.black;
+  static const _conflictTextColor = Colors.red;
+  final _scheduleProjection = const ProcedureSessionScheduleProjection();
+  final _tooltipBuilder = const ProcedureSessionTooltipBuilder();
 
   static final List<String> _minutes = [
     for (int minute = 0; minute <= 55; minute += 5) '$minute'.padLeft(2, '0'),
@@ -154,7 +166,10 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
       for (final participant in widget.humans)
         DropdownMenuItem<String>(
           value: participant.id,
-          child: Text(participant.name),
+          child: Text(participant.name,
+              style: _resourceTextStyle(
+                _hasParticipantConflict(participant.id),
+              )),
         ),
     ];
     if (_participantId != null &&
@@ -174,7 +189,10 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
       for (final procedureKind in widget.procedureKinds)
         DropdownMenuItem<String>(
           value: procedureKind.id,
-          child: Text(procedureKind.name),
+          child: Text(procedureKind.name,
+              style: _resourceTextStyle(
+                _hasProcedureConflict(procedureKind.id),
+              )),
         ),
     ];
     if (!items.any((item) => item.value == _procedureKindId)) {
@@ -193,7 +211,10 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
       for (final assistant in widget.assistants)
         DropdownMenuItem<String>(
           value: assistant.id,
-          child: Text(assistant.name),
+          child: Text(_assistantLabel(assistant),
+              style: _resourceTextStyle(
+                _hasAssistantConflict(assistant.id),
+              )),
         ),
     ];
     final currentAssistantId = _assistantId;
@@ -207,6 +228,153 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
       );
     }
     return items;
+  }
+
+  String _assistantLabel(Assistant assistant) {
+    if (!(_selectedProcedureKind?.isCurated ?? false)) {
+      return assistant.name;
+    }
+    final count = _tooltipBuilder.assistantHistoryCount(
+      participantId: _participantId,
+      assistantId: assistant.id,
+      editingSessionId: widget.isEditing ? widget.initialValue.id : '',
+      savedSessions: widget.procedureSessions,
+      procedureKinds: widget.procedureKinds,
+    );
+    return count == 0 ? assistant.name : '${assistant.name} (был $count раз)';
+  }
+
+  ProcedureSessionRaw get _currentSession => ProcedureSessionRaw(
+        id: widget.initialValue.id,
+        dayId: _dayId,
+        participantId: _participantId,
+        startTime: '$_hour:$_minute',
+        procedureKindId: _procedureKindId,
+        assistantId: requiresAssistant ? _assistantId : null,
+      );
+
+  bool get _selectedProcedureHasConflict =>
+      _hasProcedureConflict(_procedureKindId);
+  bool get _selectedParticipantHasConflict =>
+      _participantId != null && _hasParticipantConflict(_participantId!);
+  bool get _selectedAssistantHasConflict =>
+      _assistantId != null && _hasAssistantConflict(_assistantId!);
+
+  bool _hasProcedureConflict(String procedureKindId) => _hasResourceConflict(
+        _currentSession.copyWith(procedureKindId: procedureKindId),
+        resourceType: ConflictResourceType.item,
+        resourceId: procedureKindId,
+      );
+
+  bool _hasParticipantConflict(String humanId) => _hasResourceConflict(
+        _currentSession.copyWith(participantId: humanId),
+        resourceType: ConflictResourceType.human,
+        resourceId: humanId,
+      );
+
+  bool _hasAssistantConflict(String humanId) => _hasResourceConflict(
+        _currentSession.copyWith(assistantId: humanId),
+        resourceType: ConflictResourceType.human,
+        resourceId: humanId,
+      );
+
+  bool _hasResourceConflict(
+    ProcedureSessionRaw candidate, {
+    required ConflictResourceType resourceType,
+    required String resourceId,
+  }) {
+    final candidateId = candidate.id == 'draft' ? _previewId : candidate.id;
+    final projected = _scheduleProjection.project(
+      savedSessions: widget.procedureSessions,
+      candidate: candidate,
+      candidateId: candidateId,
+      workdays: widget.workdays,
+      humans: widget.humans,
+      procedureKinds: widget.procedureKinds,
+      assistants: widget.assistants,
+      programSettings: widget.programSettings,
+    );
+    final entry =
+        projected.where((entry) => entry.id == candidateId).firstOrNull;
+    return entry?.conflicts.any((conflict) =>
+            conflict.type == ScheduleConflictType.resourceOverload &&
+            conflict.resourceType == resourceType &&
+            conflict.resourceId == resourceId) ??
+        false;
+  }
+
+  TextStyle _resourceTextStyle(bool hasConflict) => TextStyle(
+        color: hasConflict ? _conflictTextColor : _normalTextColor,
+      );
+
+  Widget _infoTooltip({
+    required Key key,
+    required ProcedureSessionTooltipData? data,
+    required String emptyMessage,
+    required bool hasConflict,
+  }) {
+    final message = data == null
+        ? TextSpan(text: emptyMessage)
+        : TextSpan(
+            children: [
+              TextSpan(
+                  text: data.title,
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              for (final line in data.lines)
+                TextSpan(
+                  text: '\n${line.text}',
+                  style: TextStyle(
+                      color: switch (line.tone) {
+                    ProcedureSessionTooltipTone.conflict => _conflictTextColor,
+                    ProcedureSessionTooltipTone.companion =>
+                      const Color(0xFF1B5E20),
+                    ProcedureSessionTooltipTone.normal => _normalTextColor,
+                  }),
+                ),
+            ],
+          );
+    return Tooltip(
+      richMessage: message,
+      child: Icon(
+        Icons.info_outline,
+        key: key,
+        size: 18,
+        color: hasConflict ? _conflictTextColor : _normalTextColor,
+      ),
+    );
+  }
+
+  ProcedureSessionTooltipData get _procedureTooltip =>
+      _tooltipBuilder.procedureAvailability(
+        dayId: _dayId,
+        procedureKindId: _procedureKindId,
+        editingSessionId: widget.isEditing ? widget.initialValue.id : '',
+        savedSessions: widget.procedureSessions,
+        workdays: widget.workdays,
+        procedureKinds: widget.procedureKinds,
+        programSettings: widget.programSettings,
+      );
+
+  ProcedureSessionTooltipData? _personTooltip(String? humanId) {
+    if (humanId == null) return null;
+    final name = [
+      for (final human in widget.humans)
+        if (human.id == humanId) human.name,
+      for (final assistant in widget.assistants)
+        if (assistant.id == humanId) assistant.name,
+    ].firstOrNull;
+    if (name == null) return null;
+    return _tooltipBuilder.personSchedule(
+      humanId: humanId,
+      humanName: name,
+      dayId: _dayId,
+      savedSessions: widget.procedureSessions,
+      workdays: widget.workdays,
+      humans: widget.humans,
+      procedureKinds: widget.procedureKinds,
+      assistants: widget.assistants,
+      programSettings: widget.programSettings,
+    );
   }
 
   Future<void> _openStatisticsPlaceholder() async {
@@ -372,10 +540,11 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Tooltip(
-                      message:
-                          'Информация о процедуре будет показана в следующем инкременте.',
-                      child: Icon(Icons.info_outline, size: 18),
+                    _infoTooltip(
+                      key: const Key('procedure_session_procedure_kind_info'),
+                      data: _procedureTooltip,
+                      emptyMessage: '',
+                      hasConflict: _selectedProcedureHasConflict,
                     ),
                   ],
                 ),
@@ -406,10 +575,11 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Tooltip(
-                      message:
-                          'Информация об участнике будет показана в следующем инкременте.',
-                      child: Icon(Icons.info_outline, size: 18),
+                    _infoTooltip(
+                      key: const Key('procedure_session_participant_info'),
+                      data: _personTooltip(_participantId),
+                      emptyMessage: 'Выберите участника',
+                      hasConflict: _selectedParticipantHasConflict,
                     ),
                   ],
                 ),
@@ -514,22 +684,35 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
               const SizedBox(height: 12),
               _DialogRow(
                 label: 'Сопровождающий',
-                child: DropdownButtonFormField<String>(
-                  key: const Key('procedure_session_assistant_field'),
-                  value: _assistantId,
-                  isExpanded: true,
-                  hint: Text(requiresAssistant
-                      ? 'Выберите сопровождающего'
-                      : 'Не требуется'),
-                  items: _buildAssistantItems(),
-                  onChanged: !requiresAssistant || _isBusy
-                      ? null
-                      : (value) {
-                          setState(() {
-                            _assistantId = value;
-                            _clearError();
-                          });
-                        },
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        key: const Key('procedure_session_assistant_field'),
+                        value: _assistantId,
+                        isExpanded: true,
+                        hint: Text(requiresAssistant
+                            ? 'Выберите сопровождающего'
+                            : 'Не требуется'),
+                        items: _buildAssistantItems(),
+                        onChanged: !requiresAssistant || _isBusy
+                            ? null
+                            : (value) {
+                                setState(() {
+                                  _assistantId = value;
+                                  _clearError();
+                                });
+                              },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _infoTooltip(
+                      key: const Key('procedure_session_assistant_info'),
+                      data: _personTooltip(_assistantId),
+                      emptyMessage: 'Выберите сопровождающего',
+                      hasConflict: _selectedAssistantHasConflict,
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 18),

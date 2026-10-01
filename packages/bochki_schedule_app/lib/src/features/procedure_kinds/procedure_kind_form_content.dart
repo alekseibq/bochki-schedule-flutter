@@ -13,6 +13,7 @@ class ProcedureKindFormContent extends StatelessWidget {
     this.initialProcedureKind,
     this.onSaved,
     this.onCancel,
+    this.formSession = 0,
     super.key,
   });
 
@@ -21,6 +22,7 @@ class ProcedureKindFormContent extends StatelessWidget {
   final ProcedureKind? initialProcedureKind;
   final Future<void> Function(ProcedureKind procedureKind)? onSaved;
   final VoidCallback? onCancel;
+  final int formSession;
 
   @override
   Widget build(BuildContext context) => ProcedureKindDialog(
@@ -29,5 +31,7 @@ class ProcedureKindFormContent extends StatelessWidget {
         initialProcedureKind: initialProcedureKind,
         onSaved: onSaved,
         onCancel: onCancel,
+        formSession: formSession,
+        windowMode: true,
       );
 }
