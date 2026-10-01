@@ -4,6 +4,108 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('builds capacity-aware procedure and person schedule tooltips', () {
+    final day = Workday(
+      id: 'day',
+      name: 'Суббота',
+      calendarDate: DateTime(2026, 7, 11),
+    );
+    final kind = ProcedureKind(
+      id: 'kind',
+      patternId: ProcedureKindPatterns.grouped.patternId,
+      name: 'Групповая процедура',
+      shortName: 'Группа',
+      capacity: 2,
+      participantBusyTime: 30,
+      assistantBusyTime: 30,
+      resourceBusyTime: 60,
+    );
+    final humans = [
+      Human(
+        id: 'anna',
+        name: 'Анна',
+        procedureRoles: const [ProcedureRole.client, ProcedureRole.companion],
+      ),
+      Human(id: 'boris', name: 'Борис'),
+    ];
+    final assistants = [Assistant(id: 'assistant', name: 'Ася')];
+    final sessions = [
+      ProcedureSessionRaw(
+        id: 'first',
+        dayId: day.id,
+        participantId: 'anna',
+        startTime: '09:00',
+        procedureKindId: kind.id,
+        assistantId: 'assistant',
+      ),
+      ProcedureSessionRaw(
+        id: 'second',
+        dayId: day.id,
+        participantId: 'anna',
+        startTime: '10:00',
+        procedureKindId: kind.id,
+        assistantId: 'assistant',
+      ),
+      ProcedureSessionRaw(
+        id: 'third',
+        dayId: day.id,
+        participantId: 'boris',
+        startTime: '10:00',
+        procedureKindId: kind.id,
+        assistantId: 'assistant',
+      ),
+    ];
+    const builder = ProcedureSessionTooltipBuilder();
+
+    final availability = builder.procedureAvailability(
+      dayId: day.id,
+      procedureKindId: kind.id,
+      editingSessionId: '',
+      savedSessions: sessions,
+      workdays: [day],
+      procedureKinds: [kind],
+      programSettings: ProgramSettings.defaults,
+    );
+    expect(availability.title, 'Свободные интервалы для процедуры в Суббота');
+    expect(
+      availability.lines.map((line) => line.text),
+      ['08:00-10:00', '11:00-20:00'],
+    );
+
+    final participant = builder.personSchedule(
+      humanId: 'anna',
+      humanName: 'Анна',
+      dayId: day.id,
+      savedSessions: sessions,
+      workdays: [day],
+      humans: humans,
+      procedureKinds: [kind],
+      assistants: assistants,
+      programSettings: ProgramSettings.defaults,
+    );
+    expect(participant.lines.first.text, '09:00-09:30 Группа — асс. Ася');
+    expect(participant.lines.first.tone, ProcedureSessionTooltipTone.companion);
+
+    final assistant = builder.personSchedule(
+      humanId: 'assistant',
+      humanName: 'Ася',
+      dayId: day.id,
+      savedSessions: sessions,
+      workdays: [day],
+      humans: humans,
+      procedureKinds: [kind],
+      assistants: assistants,
+      programSettings: ProgramSettings.defaults,
+    );
+    expect(
+      assistant.lines.map((line) => line.text),
+      [
+        '09:00-09:30 Группа-АССИСТЕНТ — уч. Анна',
+        '10:00-10:30 Группа-АССИСТЕНТ — уч. Анна, Борис'
+      ],
+    );
+  });
+
   testWidgets('marks conflicting resource choices and info icons red',
       (tester) async {
     final workday = Workday(

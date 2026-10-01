@@ -8,6 +8,7 @@ import '../../domain/humans/human.dart';
 import '../../domain/procedure_kinds/procedure_kind.dart';
 import '../../domain/procedure_sessions/procedure_session_raw.dart';
 import '../../domain/procedure_sessions/procedure_session_schedule_projection.dart';
+import '../../domain/procedure_sessions/procedure_session_tooltip_builder.dart';
 import '../../domain/procedure_sessions/procedure_session_time.dart';
 import '../../domain/procedure_sessions/conflict_resource_type.dart';
 import '../../domain/procedure_sessions/schedule_conflict_type.dart';
@@ -67,6 +68,7 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
   static const _normalTextColor = Colors.black;
   static const _conflictTextColor = Colors.red;
   final _scheduleProjection = const ProcedureSessionScheduleProjection();
+  final _tooltipBuilder = const ProcedureSessionTooltipBuilder();
 
   static final List<String> _minutes = [
     for (int minute = 0; minute <= 55; minute += 5) '$minute'.padLeft(2, '0'),
@@ -291,6 +293,76 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
         color: hasConflict ? _conflictTextColor : _normalTextColor,
       );
 
+  Widget _infoTooltip({
+    required Key key,
+    required ProcedureSessionTooltipData? data,
+    required String emptyMessage,
+    required bool hasConflict,
+  }) {
+    final message = data == null
+        ? TextSpan(text: emptyMessage)
+        : TextSpan(
+            children: [
+              TextSpan(
+                  text: data.title,
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              for (final line in data.lines)
+                TextSpan(
+                  text: '\n${line.text}',
+                  style: TextStyle(
+                      color: switch (line.tone) {
+                    ProcedureSessionTooltipTone.conflict => _conflictTextColor,
+                    ProcedureSessionTooltipTone.companion =>
+                      const Color(0xFF1B5E20),
+                    ProcedureSessionTooltipTone.normal => _normalTextColor,
+                  }),
+                ),
+            ],
+          );
+    return Tooltip(
+      richMessage: message,
+      child: Icon(
+        Icons.info_outline,
+        key: key,
+        size: 18,
+        color: hasConflict ? _conflictTextColor : _normalTextColor,
+      ),
+    );
+  }
+
+  ProcedureSessionTooltipData get _procedureTooltip =>
+      _tooltipBuilder.procedureAvailability(
+        dayId: _dayId,
+        procedureKindId: _procedureKindId,
+        editingSessionId: widget.isEditing ? widget.initialValue.id : '',
+        savedSessions: widget.procedureSessions,
+        workdays: widget.workdays,
+        procedureKinds: widget.procedureKinds,
+        programSettings: widget.programSettings,
+      );
+
+  ProcedureSessionTooltipData? _personTooltip(String? humanId) {
+    if (humanId == null) return null;
+    final name = [
+      for (final human in widget.humans)
+        if (human.id == humanId) human.name,
+      for (final assistant in widget.assistants)
+        if (assistant.id == humanId) assistant.name,
+    ].firstOrNull;
+    if (name == null) return null;
+    return _tooltipBuilder.personSchedule(
+      humanId: humanId,
+      humanName: name,
+      dayId: _dayId,
+      savedSessions: widget.procedureSessions,
+      workdays: widget.workdays,
+      humans: widget.humans,
+      procedureKinds: widget.procedureKinds,
+      assistants: widget.assistants,
+      programSettings: widget.programSettings,
+    );
+  }
+
   Future<void> _openStatisticsPlaceholder() async {
     await showDialog<void>(
       context: context,
@@ -454,17 +526,11 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Tooltip(
-                      message:
-                          'Информация о процедуре будет показана в следующем инкременте.',
-                      child: Icon(
-                        Icons.info_outline,
-                        key: const Key('procedure_session_procedure_kind_info'),
-                        size: 18,
-                        color: _selectedProcedureHasConflict
-                            ? _conflictTextColor
-                            : _normalTextColor,
-                      ),
+                    _infoTooltip(
+                      key: const Key('procedure_session_procedure_kind_info'),
+                      data: _procedureTooltip,
+                      emptyMessage: '',
+                      hasConflict: _selectedProcedureHasConflict,
                     ),
                   ],
                 ),
@@ -495,17 +561,11 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Tooltip(
-                      message:
-                          'Информация об участнике будет показана в следующем инкременте.',
-                      child: Icon(
-                        Icons.info_outline,
-                        key: const Key('procedure_session_participant_info'),
-                        size: 18,
-                        color: _selectedParticipantHasConflict
-                            ? _conflictTextColor
-                            : _normalTextColor,
-                      ),
+                    _infoTooltip(
+                      key: const Key('procedure_session_participant_info'),
+                      data: _personTooltip(_participantId),
+                      emptyMessage: 'Выберите участника',
+                      hasConflict: _selectedParticipantHasConflict,
                     ),
                   ],
                 ),
@@ -632,17 +692,11 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Tooltip(
-                      message:
-                          'Информация о сопровождающем будет показана в следующем инкременте.',
-                      child: Icon(
-                        Icons.info_outline,
-                        key: const Key('procedure_session_assistant_info'),
-                        size: 18,
-                        color: _selectedAssistantHasConflict
-                            ? _conflictTextColor
-                            : _normalTextColor,
-                      ),
+                    _infoTooltip(
+                      key: const Key('procedure_session_assistant_info'),
+                      data: _personTooltip(_assistantId),
+                      emptyMessage: 'Выберите сопровождающего',
+                      hasConflict: _selectedAssistantHasConflict,
                     ),
                   ],
                 ),
