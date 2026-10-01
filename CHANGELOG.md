@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.16.0
+
+Release date: 2026-10-01
+
+### Highlights
+
+- Added person schedule, assignment-information, and assistant-history tooltips.
+- Added visual markers for conflicting assignments.
+- Refined the procedure-kind editor form and reset behavior.
+
+### Details
+
+- `feat(procedure-sessions): add daily person schedule tooltips (#209)`
+- `feat(procedure-sessions): show assistant history counts (#207)`
+- `feat(procedure-sessions): add schedule info tooltips (#206)`
+- `feat(procedure-sessions): mark conflicting assignments (#205)`
+- `fix(procedure-kinds): reset and compact editor form (#203, #204)`
+- `fix(procedure-sessions): support pinned Flutter tooltip API`
+
 ## v0.15.0
 
 Release date: 2026-09-16
