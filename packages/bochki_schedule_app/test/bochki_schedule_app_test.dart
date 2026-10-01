@@ -1063,43 +1063,35 @@ void main() {
     final participantSummary = find.byKey(
       const Key('procedure_session_participant_summary_1'),
     );
-    const annaSummary = 'Анна\nПонедельник: 2\nВторник: 1';
     final participantTooltip = tester.widget<Tooltip>(participantSummary);
-    expect(participantTooltip.message, annaSummary);
+    expect(participantTooltip.message, isNull);
+    expect(participantTooltip.richMessage, isNotNull);
     expect(participantTooltip.waitDuration, const Duration(milliseconds: 300));
     expect(participantTooltip.exitDuration, Duration.zero);
 
-    tester.state<TooltipState>(participantSummary).ensureTooltipVisible();
-    await tester.pumpAndSettle();
-    expect(find.text(annaSummary), findsOneWidget);
-
-    Tooltip.dismissAllToolTips();
-    await tester.pumpAndSettle();
-    expect(find.text(annaSummary), findsNothing);
-
-    await tester.tap(find.byKey(const Key('procedure_sessions_day_filter')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Понедельник').last);
-    await tester.pumpAndSettle();
-    tester.state<TooltipState>(participantSummary).ensureTooltipVisible();
-    await tester.pumpAndSettle();
-    expect(find.text(annaSummary), findsOneWidget);
-
-    Tooltip.dismissAllToolTips();
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('procedure_sessions_day_filter')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Все').last);
-    await tester.pumpAndSettle();
+    expect(
+      participantTooltip.richMessage!.toPlainText(),
+      'Расписание Анна, Понедельник:\n'
+      'ТЕКУЩИЙ 09:00–09:30 Одиночная процедура\n'
+      '10:00–10:30 Одиночная процедура\n',
+    );
+    final participantSpans =
+        (participantTooltip.richMessage! as TextSpan).children!;
+    expect(
+        (participantSpans[1] as TextSpan).style!.fontWeight, FontWeight.bold);
     final assistantSummary = find.byKey(
       const Key('procedure_session_assistant_summary_4'),
     );
-    tester.state<TooltipState>(assistantSummary).ensureTooltipVisible();
-    await tester.pumpAndSettle();
+    final assistantTooltip = tester.widget<Tooltip>(assistantSummary);
     expect(
-      find.text('Алексей\nНет процедур в роли участника'),
-      findsOneWidget,
+      assistantTooltip.richMessage!.toPlainText(),
+      'Расписание Алексей, Вторник:\n'
+      '09:00–09:10 Парная процедура — АССИСТЕНТ — уч. Анна\n'
+      'ТЕКУЩИЙ 10:00–10:10 Парная процедура — АССИСТЕНТ — уч. Борис\n',
     );
+    final assistantSpans =
+        (assistantTooltip.richMessage! as TextSpan).children!;
+    expect((assistantSpans[2] as TextSpan).style!.fontWeight, FontWeight.bold);
   });
 
   testWidgets('procedure sessions show all day entries', (tester) async {

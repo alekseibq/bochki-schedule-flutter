@@ -106,6 +106,119 @@ void main() {
     );
   });
 
+  test('builds main table person schedule tooltip with current grouped entry',
+      () {
+    final day = Workday(
+      id: 'day',
+      name: 'Суббота',
+      calendarDate: DateTime(2026, 7, 11),
+    );
+    final single = ProcedureKind(
+      id: 'single',
+      patternId: ProcedureKindPatterns.single.patternId,
+      name: 'Одиночная',
+      capacity: 1,
+      participantBusyTime: 20,
+    );
+    final curated = ProcedureKind(
+      id: 'curated',
+      patternId: ProcedureKindPatterns.curated.patternId,
+      name: 'Парная',
+      capacity: 1,
+      participantBusyTime: 30,
+      assistantBusyTime: 15,
+    );
+    final grouped = ProcedureKind(
+      id: 'grouped',
+      patternId: ProcedureKindPatterns.grouped.patternId,
+      name: 'Медитация',
+      capacity: 2,
+      participantBusyTime: 40,
+      assistantBusyTime: 25,
+    );
+    final humans = [
+      Human(id: 'anna', name: 'Анна'),
+      Human(id: 'boris', name: 'Борис'),
+    ];
+    final assistants = [Assistant(id: 'asya', name: 'Ася')];
+    final sessions = [
+      ProcedureSessionRaw(
+        id: 'single',
+        dayId: day.id,
+        participantId: 'anna',
+        startTime: '09:00',
+        procedureKindId: single.id,
+      ),
+      ProcedureSessionRaw(
+        id: 'curated',
+        dayId: day.id,
+        participantId: 'anna',
+        startTime: '10:00',
+        procedureKindId: curated.id,
+        assistantId: 'asya',
+      ),
+      ProcedureSessionRaw(
+        id: 'group-anna',
+        dayId: day.id,
+        participantId: 'anna',
+        startTime: '11:00',
+        procedureKindId: grouped.id,
+        assistantId: 'asya',
+      ),
+      ProcedureSessionRaw(
+        id: 'group-boris',
+        dayId: day.id,
+        participantId: 'boris',
+        startTime: '11:00',
+        procedureKindId: grouped.id,
+        assistantId: 'asya',
+      ),
+    ];
+    const builder = ProcedureSessionTooltipBuilder();
+
+    final participant = builder.mainTablePersonSchedule(
+      humanId: 'anna',
+      humanName: 'Анна',
+      dayId: day.id,
+      currentSessionId: 'curated',
+      savedSessions: sessions,
+      workdays: [day],
+      humans: humans,
+      procedureKinds: [single, curated, grouped],
+      assistants: assistants,
+    );
+    expect(participant.title, 'Расписание Анна, Суббота:');
+    expect(
+      participant.lines.map((line) => line.text),
+      [
+        '09:00–09:20 Одиночная',
+        'ТЕКУЩИЙ 10:00–10:30 Парная — асс. Ася',
+        '11:00–11:40 Медитация — асс. Ася',
+      ],
+    );
+    expect(participant.lines[1].isCurrent, isTrue);
+
+    final assistant = builder.mainTablePersonSchedule(
+      humanId: 'asya',
+      humanName: 'Ася',
+      dayId: day.id,
+      currentSessionId: 'group-boris',
+      savedSessions: sessions,
+      workdays: [day],
+      humans: humans,
+      procedureKinds: [single, curated, grouped],
+      assistants: assistants,
+    );
+    expect(
+      assistant.lines.map((line) => line.text),
+      [
+        '10:00–10:15 Парная — АССИСТЕНТ — уч. Анна',
+        'ТЕКУЩИЙ 11:00–11:25 Медитация — АССИСТЕНТ — уч. Анна, Борис',
+      ],
+    );
+    expect(assistant.lines.last.isCurrent, isTrue);
+  });
+
   test('counts only other curated assignments for an assistant history', () {
     final curated = ProcedureKind(
       id: 'curated',
