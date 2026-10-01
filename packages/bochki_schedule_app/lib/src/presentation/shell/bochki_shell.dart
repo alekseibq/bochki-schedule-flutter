@@ -11,6 +11,7 @@ import '../../features/print_presets/print_preset_params_dialog.dart';
 import '../../features/print_presets/print_preset_params_view_model.dart';
 import '../../features/procedure_sessions/procedure_session_dialog.dart';
 import '../../features/procedure_sessions/procedure_sessions_view_model.dart';
+import '../app_tooltips.dart';
 import '../../features/procedure_kinds/procedure_kinds_dialog.dart';
 import '../../features/procedure_kinds/procedure_kinds_operations.dart';
 import '../../features/procedure_kinds/procedure_kinds_view_model.dart';
@@ -1633,13 +1634,14 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
       key: Key('procedure_session_${column}_summary_$entryId'),
       richMessage: TextSpan(
         children: [
-          TextSpan(text: '${tooltip.title}\n'),
+          TextSpan(
+            text: '${tooltip.title.text}\n',
+            style: AppTooltips.textStyle(tooltip.title),
+          ),
           for (final line in tooltip.lines)
             TextSpan(
               text: '${line.text}\n',
-              style: line.isCurrent
-                  ? const TextStyle(fontWeight: FontWeight.bold)
-                  : null,
+              style: AppTooltips.textStyle(line),
             ),
         ],
       ),

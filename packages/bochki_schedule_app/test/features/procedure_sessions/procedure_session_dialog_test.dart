@@ -66,7 +66,11 @@ void main() {
       procedureKinds: [kind],
       programSettings: ProgramSettings.defaults,
     );
-    expect(availability.title, 'Свободные интервалы для процедуры в Суббота');
+    expect(
+      availability.title.text,
+      'Свободные интервалы для процедуры в Суббота',
+    );
+    expect(availability.title.isBold, isTrue);
     expect(
       availability.lines.map((line) => line.text),
       ['08:00-10:00', '11:00-20:00'],
@@ -84,7 +88,10 @@ void main() {
       programSettings: ProgramSettings.defaults,
     );
     expect(participant.lines.first.text, '09:00-09:30 Группа — асс. Ася');
-    expect(participant.lines.first.tone, ProcedureSessionTooltipTone.companion);
+    expect(
+      participant.lines.first.category,
+      ProcedureSessionTooltipTextCategory.accent,
+    );
 
     final assistant = builder.personSchedule(
       humanId: 'assistant',
@@ -187,7 +194,8 @@ void main() {
       procedureKinds: [single, curated, grouped],
       assistants: assistants,
     );
-    expect(participant.title, 'Расписание Анна, Суббота:');
+    expect(participant.title.text, 'Расписание Анна, Суббота:');
+    expect(participant.title.isBold, isFalse);
     expect(
       participant.lines.map((line) => line.text),
       [
@@ -197,6 +205,7 @@ void main() {
       ],
     );
     expect(participant.lines[1].isCurrent, isTrue);
+    expect(participant.lines[1].isBold, isTrue);
 
     final assistant = builder.mainTablePersonSchedule(
       humanId: 'asya',

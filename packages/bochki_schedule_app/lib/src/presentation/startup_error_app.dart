@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'startup_diagnostics.dart';
+import 'app_tooltips.dart';
 
 enum StartupStatus { starting, ready, failed, continued }
 
@@ -28,6 +29,7 @@ class StartupErrorApp extends StatelessWidget {
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF406882)),
         scaffoldBackgroundColor: const Color(0xFFF6F7F9),
+        tooltipTheme: AppTooltips.theme,
       ),
       home: Scaffold(
         body: SafeArea(

@@ -20,6 +20,7 @@ import '../domain/schedule_gaps/build_schedule_gaps_use_case.dart';
 import '../domain/schedule_gaps/schedule_gap.dart';
 import '../domain/workdays/workday.dart';
 import '../app_services.dart';
+import 'app_tooltips.dart';
 import '../features/procedure_sessions/procedure_session_dialog.dart';
 import '../features/procedure_sessions/procedure_session_submit_result.dart';
 import '../features/procedure_sessions/procedure_sessions_view_model.dart';
@@ -1759,6 +1760,7 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
   @override
   Widget build(BuildContext context) => MaterialApp(
         debugShowCheckedModeBanner: false,
+        theme: ThemeData(tooltipTheme: AppTooltips.theme),
         home: Scaffold(
           body: AbsorbPointer(
               absorbing: _hasModalChild,
@@ -1873,6 +1875,7 @@ class _FreeTimeWindowState extends State<FreeTimeWindow> {
   @override
   Widget build(BuildContext context) => MaterialApp(
       debugShowCheckedModeBanner: false,
+      theme: ThemeData(tooltipTheme: AppTooltips.theme),
       home: Scaffold(
           body: AbsorbPointer(
               absorbing: _hasModalChild,
@@ -2138,6 +2141,7 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
     final settings = Map<String, dynamic>.from(snapshot['settings'] as Map);
     return MaterialApp(
         debugShowCheckedModeBanner: false,
+        theme: ThemeData(tooltipTheme: AppTooltips.theme),
         home: Scaffold(
             body: Center(
                 child: ProcedureSessionDialog(
@@ -2322,7 +2326,7 @@ class DirectoryChildWindowScaffold extends StatelessWidget {
         locale: const Locale('ru', 'RU'),
         supportedLocales: const [Locale('ru', 'RU')],
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
-        theme: ThemeData(useMaterial3: true),
+        theme: ThemeData(useMaterial3: true, tooltipTheme: AppTooltips.theme),
         home: Scaffold(
           appBar: AppBar(title: Text(title)),
           body: AbsorbPointer(

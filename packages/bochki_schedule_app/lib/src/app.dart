@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'app_services.dart';
+import 'presentation/app_tooltips.dart';
 import 'presentation/shell/bochki_shell.dart';
 
 class BochkiScheduleApp extends StatefulWidget {
@@ -72,6 +73,7 @@ class _BochkiScheduleAppState extends State<BochkiScheduleApp> {
           brightness: Brightness.light,
         ),
         scaffoldBackgroundColor: const Color(0xFFF6F7F9),
+        tooltipTheme: AppTooltips.theme,
       ),
       builder: (context, child) => MediaQuery(
         data: MediaQuery.of(context).copyWith(

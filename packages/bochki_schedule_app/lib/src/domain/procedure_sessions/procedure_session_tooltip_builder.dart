@@ -10,24 +10,35 @@ import 'procedure_session_rich.dart';
 import 'procedure_session_rich_factory.dart';
 import 'procedure_session_time.dart';
 
-enum ProcedureSessionTooltipTone { normal, conflict, companion }
+enum ProcedureSessionTooltipTextCategory { normal, conflict, accent }
 
-final class ProcedureSessionTooltipLine {
-  const ProcedureSessionTooltipLine(
+final class ProcedureSessionTooltipText {
+  const ProcedureSessionTooltipText(
     this.text, {
-    this.tone = ProcedureSessionTooltipTone.normal,
-    this.isCurrent = false,
+    this.category = ProcedureSessionTooltipTextCategory.normal,
+    this.isBold = false,
   });
 
   final String text;
-  final ProcedureSessionTooltipTone tone;
+  final ProcedureSessionTooltipTextCategory category;
+  final bool isBold;
+}
+
+final class ProcedureSessionTooltipLine extends ProcedureSessionTooltipText {
+  const ProcedureSessionTooltipLine(
+    super.text, {
+    super.category = ProcedureSessionTooltipTextCategory.normal,
+    super.isBold = false,
+    this.isCurrent = false,
+  });
+
   final bool isCurrent;
 }
 
 final class ProcedureSessionTooltipData {
   const ProcedureSessionTooltipData({required this.title, required this.lines});
 
-  final String title;
+  final ProcedureSessionTooltipText title;
   final List<ProcedureSessionTooltipLine> lines;
 }
 
@@ -81,7 +92,10 @@ final class ProcedureSessionTooltipBuilder {
         .firstOrNull;
     final title = 'Свободные интервалы для процедуры в ${day?.name ?? dayId}';
     if (kind == null) {
-      return ProcedureSessionTooltipData(title: title, lines: const []);
+      return ProcedureSessionTooltipData(
+        title: ProcedureSessionTooltipText(title, isBold: true),
+        lines: const [],
+      );
     }
     final start = programSettings.minimumTime.hour * 60 +
         programSettings.minimumTime.minute;
@@ -127,7 +141,7 @@ final class ProcedureSessionTooltipBuilder {
       }
     }
     return ProcedureSessionTooltipData(
-      title: title,
+      title: ProcedureSessionTooltipText(title, isBold: true),
       lines: free.isEmpty
           ? const [ProcedureSessionTooltipLine('Свободных интервалов нет')]
           : [
@@ -198,7 +212,10 @@ final class ProcedureSessionTooltipBuilder {
           .compareTo(right.participantNames.join(', '));
     });
     return ProcedureSessionTooltipData(
-      title: 'Расписание участника $humanName',
+      title: ProcedureSessionTooltipText(
+        'Расписание участника $humanName',
+        isBold: true,
+      ),
       lines: collapsed.isEmpty
           ? const [ProcedureSessionTooltipLine('Нет назначенных процедур')]
           : [for (final entry in collapsed) entry.toLine()],
@@ -251,7 +268,9 @@ final class ProcedureSessionTooltipBuilder {
     final collapsed = _collapseMainTableGrouped(entries);
     collapsed.sort(_compareMainTableEntries);
     return ProcedureSessionTooltipData(
-      title: 'Расписание ${humanName ?? 'имя не определено'}, $dayName:',
+      title: ProcedureSessionTooltipText(
+        'Расписание ${humanName ?? 'имя не определено'}, $dayName:',
+      ),
       lines: [for (final entry in collapsed) entry.toLine()],
     );
   }
@@ -373,6 +392,7 @@ final class _MainTablePersonScheduleEntry {
             : '';
     return ProcedureSessionTooltipLine(
       '${isCurrent ? 'ТЕКУЩИЙ ' : ''}${session.startTime}–$finish ${kind.name}$suffix',
+      isBold: isCurrent,
       isCurrent: isCurrent,
     );
   }
@@ -411,14 +431,14 @@ final class _PersonScheduleEntry {
                 'неизвестный участник'
           ] : participantNames).join(', ')}'
         : 'асс. ${session.assistant?.name ?? 'не назначен'}';
-    final tone = hasConflict
-        ? ProcedureSessionTooltipTone.conflict
+    final category = hasConflict
+        ? ProcedureSessionTooltipTextCategory.conflict
         : (!isAssistant && companion
-            ? ProcedureSessionTooltipTone.companion
-            : ProcedureSessionTooltipTone.normal);
+            ? ProcedureSessionTooltipTextCategory.accent
+            : ProcedureSessionTooltipTextCategory.normal);
     return ProcedureSessionTooltipLine(
       '${session.startTime}-$finish ${kind.shortName}${isAssistant ? '-АССИСТЕНТ' : ''} — $suffix',
-      tone: tone,
+      category: category,
     );
   }
 }
