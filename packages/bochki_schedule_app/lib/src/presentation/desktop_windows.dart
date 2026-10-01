@@ -1519,6 +1519,9 @@ final class DesktopWindowCoordinator {
 Future<void> configureChildWindow(DesktopWindowKind kind) async {
   await windowManager.ensureInitialized();
   await initializeDesktopWindowLifecycle();
+  final current = await WindowController.fromCurrentEngine();
+  final uiScale = windowDescriptorFromArguments(current.arguments).uiScale;
+  Size scaled(Size size) => Size(size.width * uiScale, size.height * uiScale);
   final isStatistics = kind == DesktopWindowKind.procedureStatistics;
   final isFreeTime = kind == DesktopWindowKind.freeTime;
   final title = switch (kind) {
@@ -1549,14 +1552,18 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
         ? const Size(1080, 514)
         : isDirectory
             ? const Size(920, 640)
-            : isEditor
-                ? const Size(650, 500)
-                : const Size(900, 680),
+            : kind == DesktopWindowKind.procedureKindEditor
+                ? scaled(const Size(720, 560))
+                : isEditor
+                    ? const Size(650, 500)
+                    : const Size(900, 680),
     minimumSize: isStatistics || isFreeTime
         ? const Size(1080, 420)
-        : isEditor
-            ? const Size(600, 420)
-            : const Size(700, 500),
+        : kind == DesktopWindowKind.procedureKindEditor
+            ? scaled(const Size(650, 480))
+            : isEditor
+                ? const Size(600, 420)
+                : const Size(700, 500),
     center: false,
   );
   final savedBounds = await _savedChildWindowBounds(kind);
@@ -1565,9 +1572,17 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
           windowBoundsFitAnyDisplay(bounds: savedBounds, displays: displays)
       ? savedBounds
       : null;
+  final minimumSize = options.minimumSize!;
   await windowManager.waitUntilReadyToShow(options, () async {
     if (restoredBounds != null) {
-      await windowManager.setSize(restoredBounds.size);
+      await windowManager.setSize(Size(
+        restoredBounds.size.width < minimumSize.width
+            ? minimumSize.width
+            : restoredBounds.size.width,
+        restoredBounds.size.height < minimumSize.height
+            ? minimumSize.height
+            : restoredBounds.size.height,
+      ));
       await windowManager.setPosition(restoredBounds.topLeft);
     } else {
       await windowManager.setPosition(
@@ -1577,7 +1592,6 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
     await windowManager.show();
     await windowManager.focus();
   });
-  final current = await WindowController.fromCurrentEngine();
   final descriptor = windowDescriptorFromArguments(current.arguments);
   try {
     await _mainChannel.invokeMethod<void>('childWindowVisibilityChanged', {
@@ -2324,6 +2338,7 @@ class DirectoryChildWindow extends StatefulWidget {
 class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
   DesktopWindowKind? _kind;
   String? _entryId;
+  int _procedureKindFormSession = 0;
   List<Map<String, dynamic>> _entries = const [];
   bool _loading = true;
   bool _saving = false;
@@ -2386,6 +2401,10 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
         case 'window_reopen':
           final values = Map<String, dynamic>.from(call.arguments as Map);
           _entryId = values['entryId'] as String?;
+          if (_kind == DesktopWindowKind.procedureKindEditor) {
+            _procedureKindFormSession += 1;
+            _procedureKindsViewModel?.clearFormError();
+          }
           await _load();
           return null;
         case 'child_visibility_changed':
@@ -2496,34 +2515,38 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
     return DirectoryChildWindowScaffold(
       title: _title,
       absorbing: _hasModalChild,
-      builder: (contentContext) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: _kind == DesktopWindowKind.procedureKinds
-            ? ProcedureKindsContent(
-                viewModel: _procedureKindsViewModel!,
-                onOpenCreate: () =>
-                    _openEditor(DesktopWindowKind.procedureKindEditor.name),
-                onOpenEdit: (procedureKind) => _openEditor(
-                  DesktopWindowKind.procedureKindEditor.name,
-                  procedureKind.id,
-                ),
-              )
-            : _kind == DesktopWindowKind.procedureKindEditor
-                ? ProcedureKindFormContent(
-                    viewModel: _procedureKindsViewModel!,
-                    procedureKinds: _procedureKindsViewModel!.procedureKinds,
-                    initialProcedureKind: _entryId == null
-                        ? null
-                        : _procedureKindsViewModel!.procedureKinds
-                            .where((entry) => entry.id == _entryId)
-                            .firstOrNull,
-                    onSaved: (_) => closeCurrentDesktopWindow(),
-                    onCancel: () => unawaited(closeCurrentDesktopWindow()),
-                  )
-                : _isEditor
-                    ? _editor(contentContext)
-                    : _directoryList(contentContext),
-      ),
+      builder: (contentContext) {
+        if (_kind == DesktopWindowKind.procedureKindEditor) {
+          return ProcedureKindFormContent(
+            viewModel: _procedureKindsViewModel!,
+            procedureKinds: _procedureKindsViewModel!.procedureKinds,
+            initialProcedureKind: _entryId == null
+                ? null
+                : _procedureKindsViewModel!.procedureKinds
+                    .where((entry) => entry.id == _entryId)
+                    .firstOrNull,
+            onSaved: (_) => closeCurrentDesktopWindow(),
+            onCancel: () => unawaited(closeCurrentDesktopWindow()),
+            formSession: _procedureKindFormSession,
+          );
+        }
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: _kind == DesktopWindowKind.procedureKinds
+              ? ProcedureKindsContent(
+                  viewModel: _procedureKindsViewModel!,
+                  onOpenCreate: () =>
+                      _openEditor(DesktopWindowKind.procedureKindEditor.name),
+                  onOpenEdit: (procedureKind) => _openEditor(
+                    DesktopWindowKind.procedureKindEditor.name,
+                    procedureKind.id,
+                  ),
+                )
+              : _isEditor
+                  ? _editor(contentContext)
+                  : _directoryList(contentContext),
+        );
+      },
     );
   }
 

@@ -12,6 +12,8 @@ class ProcedureKindDialog extends StatefulWidget {
     this.initialProcedureKind,
     this.onSaved,
     this.onCancel,
+    this.formSession = 0,
+    this.windowMode = false,
     super.key,
   });
 
@@ -21,6 +23,10 @@ class ProcedureKindDialog extends StatefulWidget {
   final Future<void> Function(ProcedureKind procedureKind)? onSaved;
   final VoidCallback? onCancel;
 
+  /// Changes only when the editor is opened again, not when its data refreshes.
+  final int formSession;
+  final bool windowMode;
+
   bool get isEditing => initialProcedureKind != null;
 
   @override
@@ -28,10 +34,7 @@ class ProcedureKindDialog extends StatefulWidget {
 }
 
 class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
-  static const double _dialogWidth = 640;
-  static const double _wideLayoutMinWidth = 520;
   static const double _labelColumnWidth = 172;
-  static const double _selectFieldWidth = 320;
   static const double _numericFieldWidth = 72;
 
   late final TextEditingController _nameController;
@@ -40,6 +43,7 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
   late final TextEditingController _participantBusyTimeController;
   late final TextEditingController _assistantBusyTimeController;
   late final TextEditingController _resourceBusyTimeController;
+  late final ScrollController _scrollController;
 
   late String _patternId;
 
@@ -48,32 +52,41 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
   @override
   void initState() {
     super.initState();
+    _nameController = TextEditingController();
+    _shortNameController = TextEditingController();
+    _capacityController = TextEditingController();
+    _participantBusyTimeController = TextEditingController();
+    _assistantBusyTimeController = TextEditingController();
+    _resourceBusyTimeController = TextEditingController();
+    _scrollController = ScrollController();
+    _initializeForm();
+  }
+
+  @override
+  void didUpdateWidget(covariant ProcedureKindDialog oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.formSession != oldWidget.formSession) {
+      _initializeForm();
+    }
+  }
+
+  void _initializeForm() {
     final initialProcedureKind = widget.initialProcedureKind;
     _patternId = initialProcedureKind?.patternId ??
         ProcedureKindPatterns.curated.patternId;
-    _nameController = TextEditingController(text: initialProcedureKind?.name);
-    _shortNameController = TextEditingController(
-      text: initialProcedureKind == null ||
-              initialProcedureKind.shortName == initialProcedureKind.name
-          ? ''
-          : initialProcedureKind.shortName,
-    );
-    _capacityController = TextEditingController(
-      text: initialProcedureKind == null
-          ? '1'
-          : '${initialProcedureKind.capacity}',
-    );
-    _participantBusyTimeController = TextEditingController(
-      text: initialProcedureKind == null
-          ? ''
-          : '${initialProcedureKind.participantBusyTime}',
-    );
-    _assistantBusyTimeController = TextEditingController(
-      text: initialProcedureKind?.assistantBusyTime?.toString() ?? '',
-    );
-    _resourceBusyTimeController = TextEditingController(
-      text: initialProcedureKind?.resourceBusyTime?.toString() ?? '',
-    );
+    _nameController.text = initialProcedureKind?.name ?? '';
+    _shortNameController.text = initialProcedureKind == null ||
+            initialProcedureKind.shortName == initialProcedureKind.name
+        ? ''
+        : initialProcedureKind.shortName;
+    _capacityController.text =
+        initialProcedureKind == null ? '1' : '${initialProcedureKind.capacity}';
+    _participantBusyTimeController.text =
+        initialProcedureKind?.participantBusyTime.toString() ?? '';
+    _assistantBusyTimeController.text =
+        initialProcedureKind?.assistantBusyTime?.toString() ?? '';
+    _resourceBusyTimeController.text =
+        initialProcedureKind?.resourceBusyTime?.toString() ?? '';
   }
 
   @override
@@ -84,6 +97,7 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
     _participantBusyTimeController.dispose();
     _assistantBusyTimeController.dispose();
     _resourceBusyTimeController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -191,10 +205,13 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
     return AnimatedBuilder(
       animation: widget.viewModel,
       builder: (context, _) {
-        final contentWidth = (MediaQuery.sizeOf(context).width - 128)
-            .clamp(0.0, _dialogWidth)
-            .toDouble();
-        final isNarrowLayout = contentWidth < _wideLayoutMinWidth;
+        final scale = MediaQuery.textScalerOf(context).scale(1);
+        final formGap = 12 * scale;
+        final contentWidth =
+            (MediaQuery.sizeOf(context).width - (widget.windowMode ? 16 : 128))
+                .clamp(0.0, double.infinity)
+                .toDouble();
+        final isNarrowLayout = !widget.windowMode && contentWidth < 520;
 
         return AlertDialog(
           key: Key(
@@ -202,186 +219,203 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
                 ? 'procedure_kind_edit_dialog'
                 : 'procedure_kind_create_dialog',
           ),
-          title: Text(
-            widget.isEditing ? 'Редактирование процедуры' : 'Новая процедура',
-          ),
+          title: widget.windowMode
+              ? null
+              : Text(
+                  widget.isEditing
+                      ? 'Редактирование процедуры'
+                      : 'Новая процедура',
+                ),
+          insetPadding: widget.windowMode ? EdgeInsets.zero : null,
+          alignment: widget.windowMode ? Alignment.topCenter : null,
+          contentPadding: widget.windowMode ? EdgeInsets.all(8 * scale) : null,
+          actionsPadding: widget.windowMode
+              ? EdgeInsets.fromLTRB(8 * scale, 0, 8 * scale, 8 * scale)
+              : null,
           content: SizedBox(
             width: contentWidth,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _FormRow(
-                    label: 'Тип процедуры',
-                    labelWidth: _labelColumnWidth,
-                    isNarrowLayout: isNarrowLayout,
-                    child: SizedBox(
-                      width: _selectFieldWidth,
-                      child: DropdownButtonFormField<String>(
-                        key: const Key('procedure_kind_pattern_field'),
-                        value: _patternId,
-                        isExpanded: true,
-                        items: [
-                          for (final pattern in ProcedureKindPatterns.values)
-                            DropdownMenuItem<String>(
-                              value: pattern.patternId,
-                              child: Text(pattern.longName),
-                            ),
-                        ],
-                        onChanged:
-                            widget.viewModel.isSaving ? null : _setPatternId,
+            child: Scrollbar(
+              controller: _scrollController,
+              thumbVisibility: true,
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _FormRow(
+                      label: 'Тип процедуры',
+                      labelWidth: _labelColumnWidth,
+                      isNarrowLayout: isNarrowLayout,
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: DropdownButtonFormField<String>(
+                          key: const Key('procedure_kind_pattern_field'),
+                          value: _patternId,
+                          isExpanded: true,
+                          items: [
+                            for (final pattern in ProcedureKindPatterns.values)
+                              DropdownMenuItem<String>(
+                                value: pattern.patternId,
+                                child: Text(pattern.longName),
+                              ),
+                          ],
+                          onChanged:
+                              widget.viewModel.isSaving ? null : _setPatternId,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  _FormRow(
-                    label: 'Название',
-                    labelWidth: _labelColumnWidth,
-                    isNarrowLayout: isNarrowLayout,
-                    child: TextField(
-                      key: const Key('procedure_kind_name_field'),
-                      controller: _nameController,
-                      enabled: !widget.viewModel.isSaving,
-                      onChanged: (_) => widget.viewModel.clearFormError(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _FormRow(
-                    label: 'Краткое название',
-                    labelWidth: _labelColumnWidth,
-                    isNarrowLayout: isNarrowLayout,
-                    child: TextField(
-                      key: const Key('procedure_kind_short_name_field'),
-                      controller: _shortNameController,
-                      enabled: !widget.viewModel.isSaving,
-                      onChanged: (_) => widget.viewModel.clearFormError(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _FormRow(
-                    label: 'Емкость',
-                    labelWidth: _labelColumnWidth,
-                    isNarrowLayout: isNarrowLayout,
-                    child: _NumericField(
-                      fieldKey: const Key('procedure_kind_capacity_field'),
-                      controller: _capacityController,
-                      enabled: !widget.viewModel.isSaving,
-                      fieldWidth: _numericFieldWidth,
-                      onChanged: () => widget.viewModel.clearFormError(),
-                      onIncrement: () => _adjustNumericField(
-                        _capacityController,
-                        1,
-                      ),
-                      onDecrement: () => _adjustNumericField(
-                        _capacityController,
-                        -1,
+                    SizedBox(height: formGap),
+                    _FormRow(
+                      label: 'Название',
+                      labelWidth: _labelColumnWidth,
+                      isNarrowLayout: isNarrowLayout,
+                      child: TextField(
+                        key: const Key('procedure_kind_name_field'),
+                        controller: _nameController,
+                        enabled: !widget.viewModel.isSaving,
+                        onChanged: (_) => widget.viewModel.clearFormError(),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  _FormRow(
-                    label: 'Время участника (мин)',
-                    labelWidth: _labelColumnWidth,
-                    isNarrowLayout: isNarrowLayout,
-                    child: _NumericField(
-                      fieldKey: const Key(
-                        'procedure_kind_participant_busy_time_field',
+                    SizedBox(height: formGap),
+                    _FormRow(
+                      label: 'Краткое название',
+                      labelWidth: _labelColumnWidth,
+                      isNarrowLayout: isNarrowLayout,
+                      child: TextField(
+                        key: const Key('procedure_kind_short_name_field'),
+                        controller: _shortNameController,
+                        enabled: !widget.viewModel.isSaving,
+                        onChanged: (_) => widget.viewModel.clearFormError(),
                       ),
-                      controller: _participantBusyTimeController,
-                      enabled: !widget.viewModel.isSaving,
-                      fieldWidth: _numericFieldWidth,
-                      onChanged: () => widget.viewModel.clearFormError(),
-                      onIncrement: () => _adjustNumericField(
-                        _participantBusyTimeController,
-                        1,
+                    ),
+                    SizedBox(height: formGap),
+                    _FormRow(
+                      label: 'Емкость',
+                      labelWidth: _labelColumnWidth,
+                      isNarrowLayout: isNarrowLayout,
+                      child: _NumericField(
+                        fieldKey: const Key('procedure_kind_capacity_field'),
+                        controller: _capacityController,
+                        enabled: !widget.viewModel.isSaving,
+                        fieldWidth: _numericFieldWidth,
+                        onChanged: () => widget.viewModel.clearFormError(),
+                        onIncrement: () => _adjustNumericField(
+                          _capacityController,
+                          1,
+                        ),
+                        onDecrement: () => _adjustNumericField(
+                          _capacityController,
+                          -1,
+                        ),
                       ),
-                      onDecrement: () => _adjustNumericField(
-                        _participantBusyTimeController,
-                        -1,
-                      ),
-                      onShowPopularValues: () => _showPopularValues(
+                    ),
+                    SizedBox(height: formGap),
+                    _FormRow(
+                      label: 'Время участника (мин)',
+                      labelWidth: _labelColumnWidth,
+                      isNarrowLayout: isNarrowLayout,
+                      child: _NumericField(
+                        fieldKey: const Key(
+                          'procedure_kind_participant_busy_time_field',
+                        ),
                         controller: _participantBusyTimeController,
-                        values: widget.procedureKinds.map(
-                          (procedureKind) => procedureKind.participantBusyTime,
-                        ),
-                        fieldName: 'participant_busy_time',
-                      ),
-                    ),
-                  ),
-                  if (_isCurated) ...[
-                    const SizedBox(height: 12),
-                    _FormRow(
-                      label: 'Время сопровождающего (мин)',
-                      labelWidth: _labelColumnWidth,
-                      isNarrowLayout: isNarrowLayout,
-                      child: _NumericField(
-                        fieldKey: const Key(
-                          'procedure_kind_assistant_busy_time_field',
-                        ),
-                        controller: _assistantBusyTimeController,
                         enabled: !widget.viewModel.isSaving,
                         fieldWidth: _numericFieldWidth,
                         onChanged: () => widget.viewModel.clearFormError(),
                         onIncrement: () => _adjustNumericField(
-                          _assistantBusyTimeController,
+                          _participantBusyTimeController,
                           1,
                         ),
                         onDecrement: () => _adjustNumericField(
-                          _assistantBusyTimeController,
+                          _participantBusyTimeController,
                           -1,
                         ),
                         onShowPopularValues: () => _showPopularValues(
+                          controller: _participantBusyTimeController,
+                          values: widget.procedureKinds.map(
+                            (procedureKind) =>
+                                procedureKind.participantBusyTime,
+                          ),
+                          fieldName: 'participant_busy_time',
+                        ),
+                      ),
+                    ),
+                    if (_isCurated) ...[
+                      SizedBox(height: formGap),
+                      _FormRow(
+                        label: 'Время сопровождающего (мин)',
+                        labelWidth: _labelColumnWidth,
+                        isNarrowLayout: isNarrowLayout,
+                        child: _NumericField(
+                          fieldKey: const Key(
+                            'procedure_kind_assistant_busy_time_field',
+                          ),
                           controller: _assistantBusyTimeController,
-                          values: widget.procedureKinds.map(
-                            (procedureKind) => procedureKind.assistantBusyTime,
+                          enabled: !widget.viewModel.isSaving,
+                          fieldWidth: _numericFieldWidth,
+                          onChanged: () => widget.viewModel.clearFormError(),
+                          onIncrement: () => _adjustNumericField(
+                            _assistantBusyTimeController,
+                            1,
                           ),
-                          fieldName: 'assistant_busy_time',
+                          onDecrement: () => _adjustNumericField(
+                            _assistantBusyTimeController,
+                            -1,
+                          ),
+                          onShowPopularValues: () => _showPopularValues(
+                            controller: _assistantBusyTimeController,
+                            values: widget.procedureKinds.map(
+                              (procedureKind) =>
+                                  procedureKind.assistantBusyTime,
+                            ),
+                            fieldName: 'assistant_busy_time',
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    _FormRow(
-                      label: 'Время ресурса (мин)',
-                      labelWidth: _labelColumnWidth,
-                      isNarrowLayout: isNarrowLayout,
-                      child: _NumericField(
-                        fieldKey: const Key(
-                          'procedure_kind_resource_busy_time_field',
-                        ),
-                        controller: _resourceBusyTimeController,
-                        enabled: !widget.viewModel.isSaving,
-                        fieldWidth: _numericFieldWidth,
-                        onChanged: () => widget.viewModel.clearFormError(),
-                        onIncrement: () => _adjustNumericField(
-                          _resourceBusyTimeController,
-                          1,
-                        ),
-                        onDecrement: () => _adjustNumericField(
-                          _resourceBusyTimeController,
-                          -1,
-                        ),
-                        onShowPopularValues: () => _showPopularValues(
+                      SizedBox(height: formGap),
+                      _FormRow(
+                        label: 'Время ресурса (мин)',
+                        labelWidth: _labelColumnWidth,
+                        isNarrowLayout: isNarrowLayout,
+                        child: _NumericField(
+                          fieldKey: const Key(
+                            'procedure_kind_resource_busy_time_field',
+                          ),
                           controller: _resourceBusyTimeController,
-                          values: widget.procedureKinds.map(
-                            (procedureKind) => procedureKind.resourceBusyTime,
+                          enabled: !widget.viewModel.isSaving,
+                          fieldWidth: _numericFieldWidth,
+                          onChanged: () => widget.viewModel.clearFormError(),
+                          onIncrement: () => _adjustNumericField(
+                            _resourceBusyTimeController,
+                            1,
                           ),
-                          fieldName: 'resource_busy_time',
+                          onDecrement: () => _adjustNumericField(
+                            _resourceBusyTimeController,
+                            -1,
+                          ),
+                          onShowPopularValues: () => _showPopularValues(
+                            controller: _resourceBusyTimeController,
+                            values: widget.procedureKinds.map(
+                              (procedureKind) => procedureKind.resourceBusyTime,
+                            ),
+                            fieldName: 'resource_busy_time',
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                  if (widget.viewModel.formErrorMessage
-                      case final message?) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      message,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
+                    ],
+                    if (widget.viewModel.formErrorMessage
+                        case final message?) ...[
+                      SizedBox(height: formGap),
+                      Text(
+                        message,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -424,25 +458,27 @@ class _FormRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scale = MediaQuery.textScalerOf(context).scale(1);
+
     if (isNarrowLayout) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label),
-          const SizedBox(height: 4),
+          SizedBox(height: 4 * scale),
           child,
         ],
       );
     }
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         SizedBox(
-          width: labelWidth,
+          width: labelWidth * scale,
           child: Padding(
-            padding: const EdgeInsets.only(top: 14, right: 16),
-            child: Text(label),
+            padding: EdgeInsets.only(right: 16 * scale),
+            child: Text(label, textAlign: TextAlign.right),
           ),
         ),
         Expanded(child: child),
@@ -474,11 +510,12 @@ class _NumericField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scale = MediaQuery.textScalerOf(context).scale(1);
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         SizedBox(
-          width: fieldWidth,
+          width: fieldWidth * scale,
           child: TextField(
             key: fieldKey,
             controller: controller,
@@ -495,22 +532,18 @@ class _NumericField extends StatelessWidget {
             onChanged: (_) => onChanged(),
           ),
         ),
-        const SizedBox(width: 8),
-        Column(
-          children: [
-            IconButton(
-              key: Key('${fieldKey}_increment'),
-              onPressed: enabled ? onIncrement : null,
-              icon: const Icon(Icons.add),
-              tooltip: 'Увеличить',
-            ),
-            IconButton(
-              key: Key('${fieldKey}_decrement'),
-              onPressed: enabled ? onDecrement : null,
-              icon: const Icon(Icons.remove),
-              tooltip: 'Уменьшить',
-            ),
-          ],
+        SizedBox(width: 8 * scale),
+        IconButton(
+          key: Key('${fieldKey}_decrement'),
+          onPressed: enabled ? onDecrement : null,
+          icon: const Icon(Icons.remove),
+          tooltip: 'Уменьшить',
+        ),
+        IconButton(
+          key: Key('${fieldKey}_increment'),
+          onPressed: enabled ? onIncrement : null,
+          icon: const Icon(Icons.add),
+          tooltip: 'Увеличить',
         ),
         if (onShowPopularValues case final callback?)
           IconButton(
