@@ -14,6 +14,10 @@ include: package:flutter_lints/flutter.yaml
 analyzer:
   exclude:
     - lib/src/presentation/macos_framework_windowing_probe.dart
+    - build/**
+    - windows/**
+    - macos/**
+    - linux/**
 
 linter:
   # The lint rules applied to this project can be customized in the
