@@ -1643,7 +1643,6 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
             ),
         ],
       ),
-      constraints: const BoxConstraints(maxWidth: 480),
       waitDuration: const Duration(milliseconds: 300),
       exitDuration: Duration.zero,
       child: cell,
