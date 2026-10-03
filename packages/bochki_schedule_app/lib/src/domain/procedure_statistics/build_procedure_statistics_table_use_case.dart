@@ -30,11 +30,23 @@ final class BuildProcedureStatisticsTableUseCase {
               ProcedureStatisticsPeopleFilter.participants => !h.isAssistant,
               ProcedureStatisticsPeopleFilter.assistants => h.isAssistant
             })
-        .toList();
+        .toList()
+      ..sort((left, right) {
+        final role = left.isAssistant == right.isAssistant
+            ? 0
+            : left.isAssistant
+                ? 1
+                : -1;
+        return role != 0
+            ? role
+            : left.name.toLowerCase().compareTo(right.name.toLowerCase());
+      });
     final kinds = (await _kinds.execute())
         .where((k) =>
             mode == ProcedureStatisticsMode.participation || k.usesAssistant)
-        .toList();
+        .toList()
+      ..sort((left, right) =>
+          left.name.toLowerCase().compareTo(right.name.toLowerCase()));
     final kindIds = kinds.map((k) => k.id).toSet();
     final counts = <String, int>{};
     for (final session in await _sessions.execute()) {

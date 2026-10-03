@@ -5,9 +5,7 @@ import '../../domain/procedure_kinds/procedure_kind.dart';
 import '../../domain/procedure_statistics/procedure_statistics_table.dart';
 import '../../domain/workdays/workday.dart';
 
-/// Shared statistics UI. Containers supply data and commands; this widget does
-/// not know whether it is rendered in a dialog or a desktop child window.
-class ProcedureStatisticsContent extends StatelessWidget {
+class ProcedureStatisticsContent extends StatefulWidget {
   const ProcedureStatisticsContent({
     required this.workdays,
     required this.people,
@@ -21,7 +19,7 @@ class ProcedureStatisticsContent extends StatelessWidget {
     required this.onDayChanged,
     required this.onPeopleChanged,
     required this.onModeChanged,
-    required this.onAdd,
+    this.onAdd,
     super.key,
   });
 
@@ -37,7 +35,22 @@ class ProcedureStatisticsContent extends StatelessWidget {
   final ValueChanged<String?> onDayChanged;
   final ValueChanged<ProcedureStatisticsPeopleFilter> onPeopleChanged;
   final ValueChanged<ProcedureStatisticsMode> onModeChanged;
-  final Future<void> Function() onAdd;
+  final Future<void> Function()? onAdd;
+
+  @override
+  State<ProcedureStatisticsContent> createState() =>
+      _ProcedureStatisticsContentState();
+}
+
+class _ProcedureStatisticsContentState
+    extends State<ProcedureStatisticsContent> {
+  final _horizontalScrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _horizontalScrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => Column(children: [
@@ -47,7 +60,7 @@ class ProcedureStatisticsContent extends StatelessWidget {
           color: const Color(0xFFE9EEF2),
           alignment: Alignment.centerLeft,
           child: FilledButton.tonal(
-            onPressed: onAdd,
+            onPressed: widget.onAdd == null ? null : () => widget.onAdd!.call(),
             child: const Text('Добавить запись'),
           ),
         ),
@@ -57,22 +70,20 @@ class ProcedureStatisticsContent extends StatelessWidget {
             Expanded(
               child: DropdownButtonFormField<String?>(
                 key: const Key('procedure_statistics_day'),
-                value: dayId,
+                value: widget.dayId,
                 decoration: const InputDecoration(labelText: 'День'),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('Все дни')),
-                  ...workdays.map(
-                    (day) =>
-                        DropdownMenuItem(value: day.id, child: Text(day.name)),
-                  ),
+                  ...widget.workdays.map((day) =>
+                      DropdownMenuItem(value: day.id, child: Text(day.name))),
                 ],
-                onChanged: onDayChanged,
+                onChanged: widget.onDayChanged,
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: DropdownButtonFormField(
-                value: peopleFilter,
+                value: widget.peopleFilter,
                 decoration: const InputDecoration(labelText: 'Участники'),
                 items: const [
                   DropdownMenuItem(
@@ -86,14 +97,14 @@ class ProcedureStatisticsContent extends StatelessWidget {
                       child: Text('Сопровождающие')),
                 ],
                 onChanged: (value) {
-                  if (value != null) onPeopleChanged(value);
+                  if (value != null) widget.onPeopleChanged(value);
                 },
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: DropdownButtonFormField(
-                value: mode,
+                value: widget.mode,
                 decoration: const InputDecoration(labelText: 'Режим'),
                 items: const [
                   DropdownMenuItem(
@@ -104,40 +115,81 @@ class ProcedureStatisticsContent extends StatelessWidget {
                       child: Text('Ассистирование')),
                 ],
                 onChanged: (value) {
-                  if (value != null) onModeChanged(value);
+                  if (value != null) widget.onModeChanged(value);
                 },
               ),
             ),
           ]),
         ),
         Expanded(
-          child: isLoading
+          child: widget.isLoading
               ? const Center(child: CircularProgressIndicator())
-              : error != null
-                  ? Center(child: Text(error!))
-                  : people.isEmpty
+              : widget.error != null
+                  ? Center(child: Text(widget.error!))
+                  : widget.people.isEmpty
                       ? const Center(
                           child: Text('Нет данных по выбранным фильтрам'))
-                      : SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: SingleChildScrollView(
-                            child: DataTable(
-                              columns: [
-                                const DataColumn(label: Text('Человек')),
-                                ...kinds.map((kind) =>
-                                    DataColumn(label: Text(kind.name))),
-                              ],
-                              rows: [
-                                for (final person in people)
-                                  DataRow(cells: [
-                                    DataCell(Text(person.shortName)),
-                                    ...kinds.map((kind) => DataCell(
-                                        Text('${countFor(person, kind)}'))),
-                                  ]),
-                              ],
+                      : Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Scrollbar(
+                            controller: _horizontalScrollController,
+                            thumbVisibility: true,
+                            child: SingleChildScrollView(
+                              controller: _horizontalScrollController,
+                              scrollDirection: Axis.horizontal,
+                              child: SingleChildScrollView(
+                                child: DataTable(
+                                  horizontalMargin: 0,
+                                  columnSpacing: 16,
+                                  columns: [
+                                    const DataColumn(
+                                      headingRowAlignment:
+                                          MainAxisAlignment.center,
+                                      label: Align(
+                                          alignment: Alignment.center,
+                                          child: Text('Человек')),
+                                    ),
+                                    ...widget.kinds.map((kind) {
+                                      final label = _shortKindName(kind.name);
+                                      return DataColumn(
+                                        headingRowAlignment:
+                                            MainAxisAlignment.center,
+                                        tooltip: label == kind.name
+                                            ? null
+                                            : kind.name,
+                                        label: Align(
+                                            alignment: Alignment.center,
+                                            child: SizedBox(
+                                                width: 72,
+                                                child: Text(label,
+                                                    textAlign: TextAlign.center,
+                                                    style: const TextStyle(
+                                                        fontSize: 9)))),
+                                      );
+                                    }),
+                                  ],
+                                  rows: [
+                                    for (final person in widget.people)
+                                      DataRow(cells: [
+                                        DataCell(Text(person.name)),
+                                        ...widget.kinds.map((kind) => DataCell(
+                                            SizedBox(
+                                                width: 72,
+                                                child: Align(
+                                                    alignment:
+                                                        Alignment.centerRight,
+                                                    child: Text(
+                                                        '${widget.countFor(person, kind)}'))))),
+                                      ]),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                         ),
         ),
       ]);
 }
+
+String _shortKindName(String value) =>
+    value.length <= 5 ? value : '${value.substring(0, 4)}...';

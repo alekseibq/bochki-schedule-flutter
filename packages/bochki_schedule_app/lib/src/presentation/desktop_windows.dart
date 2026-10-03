@@ -191,6 +191,7 @@ final class DesktopWindowContext {
     required this.kind,
     this.parentWindowId,
     this.ancestorWindowIds = const [],
+    this.ancestorWindowKinds = const [],
     this.entryId,
     this.uiScale = 1.1,
   });
@@ -198,6 +199,7 @@ final class DesktopWindowContext {
   final DesktopWindowKind kind;
   final String? parentWindowId;
   final List<String> ancestorWindowIds;
+  final List<DesktopWindowKind> ancestorWindowKinds;
   final String? entryId;
   final double uiScale;
 
@@ -205,6 +207,8 @@ final class DesktopWindowContext {
         'kind': kind.name,
         if (parentWindowId != null) 'parentWindowId': parentWindowId,
         'ancestorWindowIds': ancestorWindowIds,
+        'ancestorWindowKinds':
+            ancestorWindowKinds.map((kind) => kind.name).toList(),
         if (entryId != null) 'entryId': entryId,
         'uiScale': uiScale,
       };
@@ -221,6 +225,9 @@ DesktopWindowDescriptor windowDescriptorFromArguments(String value) {
       ancestorWindowIds: List<String>.from(
         values['ancestorWindowIds'] as List? ?? const [],
       ),
+      ancestorWindowKinds: (values['ancestorWindowKinds'] as List? ?? const [])
+          .map((value) => DesktopWindowKind.values.byName(value as String))
+          .toList(),
       entryId: values['entryId'] as String?,
       uiScale: (values['uiScale'] as num?)?.toDouble() ?? 1.1,
     );
@@ -228,6 +235,12 @@ DesktopWindowDescriptor windowDescriptorFromArguments(String value) {
     return const DesktopWindowContext(kind: DesktopWindowKind.main);
   }
 }
+
+bool hasWindowAncestor(
+  DesktopWindowContext descriptor,
+  DesktopWindowKind kind,
+) =>
+    descriptor.ancestorWindowKinds.contains(kind);
 
 /// The sole production gateway for creating child engines.
 final class DesktopWindowPlatform {
@@ -505,6 +518,13 @@ Future<void> openProcedureSessionFromCurrentWindow([
   });
 }
 
+Future<void> openProcedureStatisticsFromCurrentWindow() async {
+  final current = await WindowController.fromCurrentEngine();
+  await _mainChannel.invokeMethod<void>('openProcedureStatistics', {
+    'parentWindowId': current.windowId,
+  });
+}
+
 /// Coordinates native close events in one Flutter engine.  The window list and
 /// `parentWindowId` arguments are the shared source of truth across engines.
 final class DesktopWindowLifecycle with WindowListener {
@@ -578,6 +598,11 @@ final class DesktopWindowLifecycle with WindowListener {
       ancestorWindowIds: values.containsKey('ancestorWindowIds')
           ? List<String>.from(values['ancestorWindowIds'] as List)
           : current.ancestorWindowIds,
+      ancestorWindowKinds: values.containsKey('ancestorWindowKinds')
+          ? (values['ancestorWindowKinds'] as List)
+              .map((value) => DesktopWindowKind.values.byName(value as String))
+              .toList()
+          : current.ancestorWindowKinds,
       entryId: values.containsKey('entryId')
           ? values['entryId'] as String?
           : current.entryId,
@@ -950,9 +975,10 @@ final class DesktopWindowCoordinator {
     await _mainChannel.setMethodCallHandler(null);
   }
 
-  Future<void> openStatistics() async {
+  Future<void> openStatistics({String? parentWindowId}) async {
     await _sessions.load();
-    await _open(DesktopWindowKind.procedureStatistics);
+    await _open(DesktopWindowKind.procedureStatistics,
+        parentWindowId: parentWindowId);
   }
 
   Future<void> openSession({
@@ -1035,6 +1061,8 @@ final class DesktopWindowCoordinator {
         await existing.invokeMethod<void>('window_reopen', {
           'parentWindowId': context.parentWindowId,
           'ancestorWindowIds': context.ancestorWindowIds,
+          'ancestorWindowKinds':
+              context.ancestorWindowKinds.map((kind) => kind.name).toList(),
           if (entryId != null) 'entryId': entryId,
         });
         _setWindowState(kind, DesktopChildWindowState.visible);
@@ -1115,15 +1143,19 @@ final class DesktopWindowCoordinator {
         : (await _platform.all())
             .where((window) => window.windowId == parentWindowId)
             .firstOrNull;
-    final ancestors = parent == null
-        ? const <String>[]
-        : windowDescriptorFromArguments(parent.arguments).ancestorWindowIds;
+    final parentDescriptor =
+        parent == null ? null : windowDescriptorFromArguments(parent.arguments);
+    final ancestors = parentDescriptor?.ancestorWindowIds ?? const <String>[];
     return DesktopWindowContext(
       kind: kind,
       parentWindowId: parentWindowId,
       ancestorWindowIds: [
         if (parentWindowId != null) parentWindowId,
         ...ancestors,
+      ],
+      ancestorWindowKinds: [
+        if (parentDescriptor != null) parentDescriptor.kind,
+        ...?parentDescriptor?.ancestorWindowKinds,
       ],
       entryId: entryId,
       uiScale: _startupUiScale,
@@ -1232,6 +1264,11 @@ final class DesktopWindowCoordinator {
                     startTime: values['startTime'] as String,
                   ),
         );
+        return null;
+      case 'openProcedureStatistics':
+        final values = Map<String, dynamic>.from(call.arguments as Map);
+        await openStatistics(
+            parentWindowId: values['parentWindowId'] as String?);
         return null;
       case 'freeTime':
         final values = Map<String, dynamic>.from(call.arguments as Map);
@@ -1689,13 +1726,30 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
   List<ProcedureKind> _kinds = const [];
   Map<String, int> _counts = const {};
   bool _hasModalChild = false;
+  var _openedFromProcedureSession = false;
   DesktopWindowFeatureHandlerRegistration? _handlerRegistration;
 
   @override
   void initState() {
     super.initState();
     _listenForChanges();
+    _loadWindowContext();
     _load();
+  }
+
+  Future<void> _loadWindowContext() async {
+    final current = await WindowController.fromCurrentEngine();
+    if (!mounted) return;
+    setState(() => _openedFromProcedureSession = hasWindowAncestor(
+        windowDescriptorFromArguments(current.arguments),
+        DesktopWindowKind.procedureSession));
+  }
+
+  void _updateWindowContext(Map<dynamic, dynamic>? values) {
+    final kinds = values?['ancestorWindowKinds'] as List?;
+    if (kinds == null || !mounted) return;
+    setState(() => _openedFromProcedureSession =
+        kinds.contains(DesktopWindowKind.procedureSession.name));
   }
 
   Future<void> _listenForChanges() async {
@@ -1705,6 +1759,7 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
         case 'statistics_changed':
         case 'directory_changed':
         case 'window_reopen':
+          _updateWindowContext(call.arguments as Map?);
           await _load();
           return null;
         case 'child_visibility_changed':
@@ -1787,7 +1842,9 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
                   _mode = value;
                   _load();
                 },
-                onAdd: openProcedureSessionFromCurrentWindow,
+                onAdd: _openedFromProcedureSession
+                    ? null
+                    : openProcedureSessionFromCurrentWindow,
               )),
         ),
       );
@@ -2082,12 +2139,22 @@ class ProcedureSessionWindow extends StatefulWidget {
 class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
   Map<String, dynamic>? _snapshot;
   var _formVersion = 0;
+  var _openedFromProcedureStatistics = false;
   DesktopWindowFeatureHandlerRegistration? _handlerRegistration;
   @override
   void initState() {
     super.initState();
     _listen();
+    _loadWindowContext();
     _load();
+  }
+
+  Future<void> _loadWindowContext() async {
+    final current = await WindowController.fromCurrentEngine();
+    if (!mounted) return;
+    setState(() => _openedFromProcedureStatistics = hasWindowAncestor(
+        windowDescriptorFromArguments(current.arguments),
+        DesktopWindowKind.procedureStatistics));
   }
 
   Future<void> _listen() async {
@@ -2107,6 +2174,14 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
     }
     if (call.method == 'procedure_session_show' ||
         call.method == 'window_reopen') {
+      if (call.method == 'window_reopen') {
+        final values = call.arguments as Map?;
+        final kinds = values?['ancestorWindowKinds'] as List?;
+        if (kinds != null && mounted) {
+          setState(() => _openedFromProcedureStatistics =
+              kinds.contains(DesktopWindowKind.procedureStatistics.name));
+        }
+      }
       await _load();
       return null;
     }
@@ -2185,6 +2260,8 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
           onSavedAndRendered: (operationId) => _mainChannel.invokeMethod<void>(
               'procedureSessionRendered', operationId),
           onClose: closeCurrentDesktopWindow,
+          onOpenStatistics: openProcedureStatisticsFromCurrentWindow,
+          isStatisticsOpeningAllowed: !_openedFromProcedureStatistics,
         ))));
   }
 }
