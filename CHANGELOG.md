@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.17.0
+
+Release date: 2026-10-03
+
+### Highlights
+
+- Refined the procedure-statistics table and its navigation with assigned procedures.
+
+### Details
+
+- `feat(ui): refine procedure statistics (#217)`
+
 ## v0.16.1
 
 Release date: 2026-10-01
