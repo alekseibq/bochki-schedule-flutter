@@ -1254,14 +1254,19 @@ final class DesktopWindowCoordinator {
         return _statisticsMap(table);
       case 'openProcedureSession':
         final values = call.arguments as Map?;
+        final dayId = values?['dayId'];
+        final participantId = values?['participantId'];
+        final startTime = values?['startTime'];
+        final hasDraftValues =
+            dayId is String && participantId is String && startTime is String;
         await openSession(
           parentWindowId: values?['parentWindowId'] as String?,
-          initialValue: values == null
+          initialValue: !hasDraftValues
               ? null
               : _sessions.createDraft().copyWith(
-                    dayId: values['dayId'] as String,
-                    participantId: values['participantId'] as String,
-                    startTime: values['startTime'] as String,
+                    dayId: dayId,
+                    participantId: participantId,
+                    startTime: startTime,
                   ),
         );
         return null;
