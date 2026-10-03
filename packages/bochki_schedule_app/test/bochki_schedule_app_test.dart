@@ -987,7 +987,7 @@ void main() {
     expect(tester.getSize(secondHeader).width, 195);
   });
 
-  testWidgets('person summary tooltips use all assigned procedures', (
+  testWidgets('person summary tooltips use the shared assignment schedule', (
     tester,
   ) async {
     final context = _buildTestContext(
@@ -1071,9 +1071,9 @@ void main() {
 
     expect(
       participantTooltip.richMessage!.toPlainText(),
-      'Расписание Анна, Понедельник:\n'
-      'ТЕКУЩИЙ 09:00–09:30 Одиночная процедура\n'
-      '10:00–10:30 Одиночная процедура\n',
+      'Расписание Анна\n'
+      'ТЕКУЩИЙ 09:00-09:30 Одиночная процедура\n'
+      '10:00-10:30 Одиночная процедура\n',
     );
     final participantSpans =
         (participantTooltip.richMessage! as TextSpan).children!;
@@ -1085,9 +1085,9 @@ void main() {
     final assistantTooltip = tester.widget<Tooltip>(assistantSummary);
     expect(
       assistantTooltip.richMessage!.toPlainText(),
-      'Расписание Алексей, Вторник:\n'
-      '09:00–09:10 Парная процедура — АССИСТЕНТ — уч. Анна\n'
-      'ТЕКУЩИЙ 10:00–10:10 Парная процедура — АССИСТЕНТ — уч. Борис\n',
+      'Расписание Алексей\n'
+      '09:00-09:10 Парная процедура-АССИСТЕНТ - уч. Анна\n'
+      'ТЕКУЩИЙ 10:00-10:10 Парная процедура-АССИСТЕНТ - уч. Борис\n',
     );
     final assistantSpans =
         (assistantTooltip.richMessage! as TextSpan).children!;

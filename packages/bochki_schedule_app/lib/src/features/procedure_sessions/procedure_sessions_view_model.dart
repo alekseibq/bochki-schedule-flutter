@@ -128,18 +128,25 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
     required String? humanName,
     required String dayId,
     required String currentSessionId,
-  }) =>
-      _mainTableTooltipBuilder.mainTablePersonSchedule(
-        humanId: humanId,
-        humanName: humanName,
-        dayId: dayId,
-        currentSessionId: currentSessionId,
-        savedSessions: allProcedureSessions,
-        workdays: _workdays,
-        humans: _humans,
-        procedureKinds: _procedureKinds,
-        assistants: _assistants,
-      );
+  }) {
+    final currentSession = allProcedureSessions
+        .where((session) => session.id == currentSessionId)
+        .firstOrNull;
+    return _mainTableTooltipBuilder.personSchedule(
+      humanId: humanId,
+      humanName: humanName ?? 'имя не определено',
+      dayId: dayId,
+      currentSessionId: currentSessionId,
+      accentParticipantId: currentSession?.participantId,
+      accentAssistantId: currentSession?.assistantId,
+      savedSessions: allProcedureSessions,
+      workdays: _workdays,
+      humans: _humans,
+      procedureKinds: _procedureKinds,
+      assistants: _assistants,
+      programSettings: _programSettings,
+    );
+  }
 
   Future<void> load() async {
     _isLoading = true;
