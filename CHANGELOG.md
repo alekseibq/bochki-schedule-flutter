@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.17.1
+
+Release date: 2026-10-03
+
+### Highlights
+
+- Fixed opening a new assigned-procedure record from procedure statistics.
+
+### Details
+
+- `fix(statistics): open blank record draft (#220)`
+
 ## v0.17.0
 
 Release date: 2026-10-03
