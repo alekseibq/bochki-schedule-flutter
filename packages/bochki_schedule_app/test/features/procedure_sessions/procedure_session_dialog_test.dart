@@ -80,6 +80,9 @@ void main() {
       humanId: 'anna',
       humanName: 'Анна',
       dayId: day.id,
+      currentSessionId: null,
+      accentParticipantId: 'anna',
+      accentAssistantId: 'assistant',
       savedSessions: sessions,
       workdays: [day],
       humans: humans,
@@ -87,16 +90,19 @@ void main() {
       assistants: assistants,
       programSettings: ProgramSettings.defaults,
     );
-    expect(participant.lines.first.text, '09:00-09:30 Группа — асс. Ася');
+    expect(participant.lines.first.text, '09:00-09:30 Группа - асс. Ася');
     expect(
       participant.lines.first.category,
-      ProcedureSessionTooltipTextCategory.accent,
+      ProcedureSessionTooltipTextCategory.normal,
     );
 
     final assistant = builder.personSchedule(
       humanId: 'assistant',
       humanName: 'Ася',
       dayId: day.id,
+      currentSessionId: null,
+      accentParticipantId: 'anna',
+      accentAssistantId: 'assistant',
       savedSessions: sessions,
       workdays: [day],
       humans: humans,
@@ -107,8 +113,8 @@ void main() {
     expect(
       assistant.lines.map((line) => line.text),
       [
-        '09:00-09:30 Группа-АССИСТЕНТ — уч. Анна',
-        '10:00-10:30 Группа-АССИСТЕНТ — уч. Анна, Борис'
+        '09:00-09:30 Группа-АССИСТЕНТ - уч: Анна',
+        '10:00-10:30 Группа-АССИСТЕНТ - уч: Анна, Борис'
       ],
     );
   });
@@ -183,46 +189,56 @@ void main() {
     ];
     const builder = ProcedureSessionTooltipBuilder();
 
-    final participant = builder.mainTablePersonSchedule(
+    final participant = builder.personSchedule(
       humanId: 'anna',
       humanName: 'Анна',
       dayId: day.id,
       currentSessionId: 'curated',
+      accentParticipantId: 'anna',
+      accentAssistantId: 'asya',
       savedSessions: sessions,
       workdays: [day],
       humans: humans,
       procedureKinds: [single, curated, grouped],
       assistants: assistants,
+      programSettings: ProgramSettings.defaults,
     );
-    expect(participant.title.text, 'Расписание Анна, Суббота:');
-    expect(participant.title.isBold, isFalse);
+    expect(participant.title.text, 'Расписание Анна');
+    expect(participant.title.isBold, isTrue);
     expect(
       participant.lines.map((line) => line.text),
       [
-        '09:00–09:20 Одиночная',
-        'ТЕКУЩИЙ 10:00–10:30 Парная — асс. Ася',
-        '11:00–11:40 Медитация — асс. Ася',
+        '09:00-09:20 Одиночная',
+        'ТЕКУЩИЙ 10:00-10:30 Парная - асс. Ася',
+        '11:00-11:40 Медитация - асс. Ася',
       ],
     );
     expect(participant.lines[1].isCurrent, isTrue);
     expect(participant.lines[1].isBold, isTrue);
+    expect(
+      participant.lines[1].category,
+      ProcedureSessionTooltipTextCategory.accent,
+    );
 
-    final assistant = builder.mainTablePersonSchedule(
+    final assistant = builder.personSchedule(
       humanId: 'asya',
       humanName: 'Ася',
       dayId: day.id,
       currentSessionId: 'group-boris',
+      accentParticipantId: 'boris',
+      accentAssistantId: 'asya',
       savedSessions: sessions,
       workdays: [day],
       humans: humans,
       procedureKinds: [single, curated, grouped],
       assistants: assistants,
+      programSettings: ProgramSettings.defaults,
     );
     expect(
       assistant.lines.map((line) => line.text),
       [
-        '10:00–10:15 Парная — АССИСТЕНТ — уч. Анна',
-        'ТЕКУЩИЙ 11:00–11:25 Медитация — АССИСТЕНТ — уч. Анна, Борис',
+        '10:00-10:15 Парная-АССИСТЕНТ - уч. Анна',
+        'ТЕКУЩИЙ 11:00-11:25 Медитация-АССИСТЕНТ - уч: Анна, Борис',
       ],
     );
     expect(assistant.lines.last.isCurrent, isTrue);

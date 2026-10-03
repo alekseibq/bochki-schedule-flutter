@@ -26,6 +26,8 @@ class ProcedureSessionDialog extends StatefulWidget {
     this.procedureSessions = const [],
     required this.programSettings,
     required this.onSubmit,
+    this.onOpenStatistics,
+    this.isStatisticsOpeningAllowed = true,
     this.onSavedAndRendered,
     this.onClose,
     this.isSaving = false,
@@ -43,6 +45,8 @@ class ProcedureSessionDialog extends StatefulWidget {
     ProcedureSessionRaw procedureSession,
     bool allowConflicts,
   ) onSubmit;
+  final Future<void> Function()? onOpenStatistics;
+  final bool isStatisticsOpeningAllowed;
   final Future<void> Function(int operationId)? onSavedAndRendered;
   final FutureOr<void> Function()? onClose;
   final bool isSaving;
@@ -363,30 +367,15 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
       humanId: humanId,
       humanName: name,
       dayId: _dayId,
+      currentSessionId: widget.isEditing ? widget.initialValue.id : null,
+      accentParticipantId: _participantId,
+      accentAssistantId: _assistantId,
       savedSessions: widget.procedureSessions,
       workdays: widget.workdays,
       humans: widget.humans,
       procedureKinds: widget.procedureKinds,
       assistants: widget.assistants,
       programSettings: widget.programSettings,
-    );
-  }
-
-  Future<void> _openStatisticsPlaceholder() async {
-    await showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Статистика процедур'),
-          content: const Text('Заглушка. Здесь будет отдельная статистика.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Закрыть'),
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -502,7 +491,11 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
                 alignment: Alignment.centerLeft,
                 child: OutlinedButton(
                   key: const Key('procedure_statistics_button'),
-                  onPressed: _isBusy ? null : _openStatisticsPlaceholder,
+                  onPressed: _isBusy ||
+                          !widget.isStatisticsOpeningAllowed ||
+                          widget.onOpenStatistics == null
+                      ? null
+                      : () => widget.onOpenStatistics!.call(),
                   child: const Text('Открыть статистику процедур'),
                 ),
               ),

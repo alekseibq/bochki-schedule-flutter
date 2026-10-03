@@ -60,6 +60,18 @@ void main() {
       expect(descriptor.ancestorWindowIds, ['directory', 'main']);
     });
 
+    test('keeps ancestor window kinds for cycle prevention', () {
+      final descriptor = windowDescriptorFromArguments(
+        '{"kind":"procedureSession","ancestorWindowKinds":'
+        '["procedureStatistics","main"]}',
+      );
+
+      expect(
+        hasWindowAncestor(descriptor, DesktopWindowKind.procedureStatistics),
+        isTrue,
+      );
+    });
+
     test('reads the startup UI scale for a child window', () {
       final descriptor = windowDescriptorFromArguments(
         '{"kind":"participants","uiScale":1.5}',

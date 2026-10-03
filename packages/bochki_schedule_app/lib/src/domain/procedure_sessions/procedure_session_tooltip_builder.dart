@@ -156,6 +156,9 @@ final class ProcedureSessionTooltipBuilder {
     required String humanId,
     required String humanName,
     required String dayId,
+    required String? currentSessionId,
+    required String? accentParticipantId,
+    required String? accentAssistantId,
     required Iterable<ProcedureSessionRaw> savedSessions,
     required Iterable<Workday> workdays,
     required Iterable<Human> humans,
@@ -177,35 +180,39 @@ final class ProcedureSessionTooltipBuilder {
         .calculate(rich, programSettings: programSettings)
         .map((entry) => entry.procedureSessionId)
         .toSet();
-    final companion = humans
-            .where((entry) => entry.id == humanId)
-            .firstOrNull
-            ?.hasProcedureRole(ProcedureRole.companion) ??
-        false;
     final entries = <_PersonScheduleEntry>[];
     for (final session in rich) {
       if (session.dayId != dayId || session.procedureKind == null) {
         continue;
       }
       if (session.participantId == humanId) {
-        entries.add(_PersonScheduleEntry(session,
-            isAssistant: false,
-            hasConflict: conflictIds.contains(session.id),
-            companion: companion));
-      }
-      if (session.assistantId == humanId) {
-        entries.add(_PersonScheduleEntry(session,
-            isAssistant: true,
-            hasConflict: conflictIds.contains(session.id),
-            companion: false));
+        entries.add(_PersonScheduleEntry(
+          session,
+          isAssistant: false,
+          hasConflict: conflictIds.contains(session.id),
+          isCurrent: session.id == currentSessionId,
+          isAccent: session.procedureKind!.isCurated &&
+              session.participantId == accentParticipantId &&
+              session.assistantId == accentAssistantId,
+        ));
+      } else if (session.assistantId == humanId) {
+        entries.add(_PersonScheduleEntry(
+          session,
+          isAssistant: true,
+          hasConflict: conflictIds.contains(session.id),
+          isCurrent: session.id == currentSessionId,
+          isAccent: session.procedureKind!.isCurated &&
+              session.participantId == accentParticipantId &&
+              session.assistantId == accentAssistantId,
+        ));
       }
     }
     final collapsed = _collapseGrouped(entries);
     collapsed.sort((left, right) {
       final byTime = left.session.startTime.compareTo(right.session.startTime);
       if (byTime != 0) return byTime;
-      final byKind = left.session.procedureKind!.name
-          .compareTo(right.session.procedureKind!.name);
+      final byKind = left.session.procedureKind!.shortName
+          .compareTo(right.session.procedureKind!.shortName);
       if (byKind != 0) return byKind;
       return left.participantNames
           .join(', ')
@@ -213,107 +220,13 @@ final class ProcedureSessionTooltipBuilder {
     });
     return ProcedureSessionTooltipData(
       title: ProcedureSessionTooltipText(
-        'Расписание участника $humanName',
+        'Расписание $humanName',
         isBold: true,
       ),
       lines: collapsed.isEmpty
           ? const [ProcedureSessionTooltipLine('Нет назначенных процедур')]
           : [for (final entry in collapsed) entry.toLine()],
     );
-  }
-
-  /// Creates the day schedule displayed when a person is hovered in the main
-  /// assignments table.
-  ProcedureSessionTooltipData mainTablePersonSchedule({
-    required String humanId,
-    required String? humanName,
-    required String dayId,
-    required String currentSessionId,
-    required Iterable<ProcedureSessionRaw> savedSessions,
-    required Iterable<Workday> workdays,
-    required Iterable<Human> humans,
-    required Iterable<ProcedureKind> procedureKinds,
-    required Iterable<Assistant> assistants,
-  }) {
-    final rich = [
-      for (final raw in savedSessions)
-        richFactory.create(
-          raw: raw,
-          workdays: workdays,
-          humans: humans,
-          procedureKinds: procedureKinds,
-          assistants: assistants,
-        ),
-    ];
-    final dayName =
-        workdays.where((workday) => workday.id == dayId).firstOrNull?.name ??
-            'день не определён';
-    final entries = <_MainTablePersonScheduleEntry>[];
-    for (final session in rich) {
-      if (session.dayId != dayId || session.procedureKind == null) continue;
-      if (session.participantId == humanId) {
-        entries.add(_MainTablePersonScheduleEntry(
-          session,
-          isAssistant: false,
-          isCurrent: session.id == currentSessionId,
-        ));
-      } else if (session.assistantId == humanId) {
-        entries.add(_MainTablePersonScheduleEntry(
-          session,
-          isAssistant: true,
-          isCurrent: session.id == currentSessionId,
-        ));
-      }
-    }
-    final collapsed = _collapseMainTableGrouped(entries);
-    collapsed.sort(_compareMainTableEntries);
-    return ProcedureSessionTooltipData(
-      title: ProcedureSessionTooltipText(
-        'Расписание ${humanName ?? 'имя не определено'}, $dayName:',
-      ),
-      lines: [for (final entry in collapsed) entry.toLine()],
-    );
-  }
-
-  List<_MainTablePersonScheduleEntry> _collapseMainTableGrouped(
-      List<_MainTablePersonScheduleEntry> entries) {
-    final result = <_MainTablePersonScheduleEntry>[];
-    final grouped = <String, List<_MainTablePersonScheduleEntry>>{};
-    for (final entry in entries) {
-      final kind = entry.session.procedureKind!;
-      if (!entry.isAssistant || !kind.isGrouped) {
-        result.add(entry);
-        continue;
-      }
-      grouped
-          .putIfAbsent(
-              '${entry.session.dayId}|${entry.session.startTime}|${entry.session.assistantId}|${kind.id}',
-              () => [])
-          .add(entry);
-    }
-    for (final group in grouped.values) {
-      final first = group.first;
-      result.add(first.copyWith(
-        participantNames: [
-          for (final entry in group)
-            entry.session.participant?.name ?? 'имя не определено',
-        ]..sort(),
-        isCurrent: group.any((entry) => entry.isCurrent),
-      ));
-    }
-    return result;
-  }
-
-  int _compareMainTableEntries(
-      _MainTablePersonScheduleEntry left, _MainTablePersonScheduleEntry right) {
-    final byTime = left.session.startTime.compareTo(right.session.startTime);
-    if (byTime != 0) return byTime;
-    final byKind = left.session.procedureKind!.name
-        .compareTo(right.session.procedureKind!.name);
-    if (byKind != 0) return byKind;
-    return left.participantNamesOrFallback
-        .join(', ')
-        .compareTo(right.participantNamesOrFallback.join(', '));
   }
 
   List<_PersonScheduleEntry> _collapseGrouped(
@@ -342,59 +255,11 @@ final class ProcedureSessionTooltipBuilder {
                 'неизвестный участник'
         ]..sort(),
         hasConflict: group.any((entry) => entry.hasConflict),
+        isCurrent: group.any((entry) => entry.isCurrent),
+        isAccent: group.any((entry) => entry.isAccent),
       ));
     }
     return result;
-  }
-}
-
-final class _MainTablePersonScheduleEntry {
-  const _MainTablePersonScheduleEntry(
-    this.session, {
-    required this.isAssistant,
-    required this.isCurrent,
-    this.participantNames = const [],
-  });
-
-  final ProcedureSessionRich session;
-  final bool isAssistant;
-  final bool isCurrent;
-  final List<String> participantNames;
-
-  List<String> get participantNamesOrFallback => participantNames.isNotEmpty
-      ? participantNames
-      : [session.participant?.name ?? 'имя не определено'];
-
-  _MainTablePersonScheduleEntry copyWith({
-    List<String>? participantNames,
-    bool? isCurrent,
-  }) =>
-      _MainTablePersonScheduleEntry(
-        session,
-        isAssistant: isAssistant,
-        isCurrent: isCurrent ?? this.isCurrent,
-        participantNames: participantNames ?? this.participantNames,
-      );
-
-  ProcedureSessionTooltipLine toLine() {
-    final kind = session.procedureKind!;
-    final duration =
-        isAssistant ? kind.assistantBusyTime : kind.participantBusyTime;
-    final finish = duration == null
-        ? session.startTime
-        : ProcedureSessionTime.fromMinutes(
-            ProcedureSessionTime.toMinutes(session.startTime) + duration);
-    final people = participantNamesOrFallback.join(', ');
-    final suffix = isAssistant
-        ? ' — АССИСТЕНТ — уч. $people'
-        : kind.requiresAssistant
-            ? ' — асс. ${session.assistant?.name ?? 'имя не определено'}'
-            : '';
-    return ProcedureSessionTooltipLine(
-      '${isCurrent ? 'ТЕКУЩИЙ ' : ''}${session.startTime}–$finish ${kind.name}$suffix',
-      isBold: isCurrent,
-      isCurrent: isCurrent,
-    );
   }
 }
 
@@ -402,19 +267,25 @@ final class _PersonScheduleEntry {
   const _PersonScheduleEntry(this.session,
       {required this.isAssistant,
       required this.hasConflict,
-      required this.companion,
+      required this.isCurrent,
+      required this.isAccent,
       this.participantNames = const []});
   final ProcedureSessionRich session;
   final bool isAssistant;
   final bool hasConflict;
-  final bool companion;
+  final bool isCurrent;
+  final bool isAccent;
   final List<String> participantNames;
   _PersonScheduleEntry copyWith(
-          {List<String>? participantNames, bool? hasConflict}) =>
+          {List<String>? participantNames,
+          bool? hasConflict,
+          bool? isCurrent,
+          bool? isAccent}) =>
       _PersonScheduleEntry(session,
           isAssistant: isAssistant,
           hasConflict: hasConflict ?? this.hasConflict,
-          companion: companion,
+          isCurrent: isCurrent ?? this.isCurrent,
+          isAccent: isAccent ?? this.isAccent,
           participantNames: participantNames ?? this.participantNames);
   ProcedureSessionTooltipLine toLine() {
     final kind = session.procedureKind!;
@@ -424,21 +295,29 @@ final class _PersonScheduleEntry {
         ? session.startTime
         : ProcedureSessionTime.fromMinutes(
             ProcedureSessionTime.toMinutes(session.startTime) + duration);
+    final people = (participantNames.isEmpty
+            ? [
+                session.participant?.name ??
+                    session.participantId ??
+                    'неизвестный участник'
+              ]
+            : participantNames)
+        .join(', ');
     final suffix = isAssistant
-        ? 'уч. ${(participantNames.isEmpty ? [
-            session.participant?.name ??
-                session.participantId ??
-                'неизвестный участник'
-          ] : participantNames).join(', ')}'
-        : 'асс. ${session.assistant?.name ?? 'не назначен'}';
+        ? '-АССИСТЕНТ - ${kind.isGrouped ? 'уч:' : 'уч.'} $people'
+        : kind.requiresAssistant
+            ? ' - асс. ${session.assistant?.name ?? 'не назначен'}'
+            : '';
     final category = hasConflict
         ? ProcedureSessionTooltipTextCategory.conflict
-        : (!isAssistant && companion
+        : (isAccent
             ? ProcedureSessionTooltipTextCategory.accent
             : ProcedureSessionTooltipTextCategory.normal);
     return ProcedureSessionTooltipLine(
-      '${session.startTime}-$finish ${kind.shortName}${isAssistant ? '-АССИСТЕНТ' : ''} — $suffix',
+      '${isCurrent ? 'ТЕКУЩИЙ ' : ''}${session.startTime}-$finish ${kind.shortName}$suffix',
       category: category,
+      isBold: isCurrent,
+      isCurrent: isCurrent,
     );
   }
 }
