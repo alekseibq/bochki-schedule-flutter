@@ -41,10 +41,10 @@ class PeopleDirectoryTable extends StatefulWidget {
   final Future<void> Function() onChanged;
 
   @override
-  State<PeopleDirectoryTable> createState() => _PeopleDirectoryTableState();
+  State<PeopleDirectoryTable> createState() => PeopleDirectoryTableState();
 }
 
-class _PeopleDirectoryTableState extends State<PeopleDirectoryTable> {
+class PeopleDirectoryTableState extends State<PeopleDirectoryTable> {
   final _name = TextEditingController();
   final _shortName = TextEditingController();
   final _rowFocus = FocusNode();
@@ -105,8 +105,8 @@ class _PeopleDirectoryTableState extends State<PeopleDirectoryTable> {
     });
   }
 
-  Future<void> _submit() async {
-    if (!_isEditing || _saving) return;
+  Future<bool> _submit() async {
+    if (!_isEditing || _saving) return false;
     setState(() => _saving = true);
     final error = await widget.onMutate(
       _creating ? 'create' : 'update',
@@ -114,13 +114,14 @@ class _PeopleDirectoryTableState extends State<PeopleDirectoryTable> {
       name: _name.text,
       shortName: _hasShortName ? _shortName.text : null,
     );
-    if (!mounted) return;
+    if (!mounted) return false;
     if (error != null) {
       setState(() {
         _saving = false;
         _error = error;
       });
-      return;
+      _focusName();
+      return false;
     }
     setState(() {
       _saving = false;
@@ -129,6 +130,22 @@ class _PeopleDirectoryTableState extends State<PeopleDirectoryTable> {
       _error = null;
     });
     await widget.onChanged();
+    return true;
+  }
+
+  /// Resolves an ordinary window-close request.
+  ///
+  /// A blank new row is only a draft and is discarded. Every other inline
+  /// change must be saved before its owning native window can be hidden.
+  Future<bool> requestClose() async {
+    if (!_isEditing) return true;
+    if (_creating &&
+        _name.text.trim().isEmpty &&
+        (!_hasShortName || _shortName.text.trim().isEmpty)) {
+      _cancel();
+      return true;
+    }
+    return _submit();
   }
 
   Future<void> _delete(PeopleDirectoryEntry entry) async {
