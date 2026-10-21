@@ -21,8 +21,7 @@ final class AssistantsViewModel extends NamedDirectoryViewModel<Assistant> {
           }) {
             return updateAssistantUseCase.execute(
               assistantId: entryId,
-              rawName: fieldId == 'name' ? rawName : null,
-              rawShortName: fieldId == 'shortName' ? rawName : null,
+              rawName: rawName,
             );
           },
           deleteEntry: deleteAssistantUseCase.execute,

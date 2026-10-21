@@ -251,12 +251,12 @@ class _ProcedureKindsContentState extends State<ProcedureKindsContent> {
             child: const Row(
               children: [
                 SizedBox(width: 36, child: Text('')),
-                Expanded(flex: 2, child: Text('Тип')),
                 Expanded(flex: 3, child: Text('Название')),
+                Expanded(flex: 2, child: Text('Тип')),
                 Expanded(child: Text('емкость')),
                 Expanded(child: Text('t участн.')),
                 Expanded(child: Text('t ассист.')),
-                Expanded(child: Text('t ресуср.')),
+                Expanded(child: Text('t ресурс.')),
                 SizedBox(width: 72, child: Text('')),
                 SizedBox(width: 72, child: Text('')),
               ],
@@ -295,12 +295,15 @@ class _ProcedureKindsContentState extends State<ProcedureKindsContent> {
                           child: Text(isSelected ? '▶' : ''),
                         ),
                         Expanded(
-                          flex: 2,
-                          child: Text(procedureKind.pattern.shortName),
-                        ),
-                        Expanded(
                           flex: 3,
                           child: Text(procedureKind.name),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: _ProcedureKindPatternIcon(
+                            patternId: procedureKind.patternId,
+                            tooltip: procedureKind.pattern.shortName,
+                          ),
                         ),
                         Expanded(child: Text('${procedureKind.capacity}')),
                         Expanded(
@@ -351,6 +354,27 @@ class _ProcedureKindsContentState extends State<ProcedureKindsContent> {
         ],
       ),
     );
+  }
+}
+
+class _ProcedureKindPatternIcon extends StatelessWidget {
+  const _ProcedureKindPatternIcon({
+    required this.patternId,
+    required this.tooltip,
+  });
+
+  final String patternId;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = switch (patternId) {
+      'single' => Icons.person_outline,
+      'curated' => Icons.people_outline,
+      'grouped' => Icons.groups_outlined,
+      _ => Icons.cloud_outlined,
+    };
+    return Tooltip(message: tooltip, child: Icon(icon));
   }
 }
 

@@ -2,10 +2,10 @@ import 'package:bochki_schedule_app/bochki_schedule_app.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('updates a short name without requiring uniqueness', () async {
+  test('update synchronizes the short name with the name', () async {
     final repository = _InMemoryAssistantsRepository(
       assistants: [
-        Assistant(id: '1', name: 'Анна'),
+        Assistant(id: '1', name: 'Анна', shortName: 'Аня'),
         Assistant(id: '2', name: 'Борис', shortName: 'А'),
       ],
     );
@@ -13,11 +13,11 @@ void main() {
 
     final updated = await useCase.execute(
       assistantId: '1',
-      rawShortName: ' А ',
+      rawName: 'Анна Петрова',
     );
 
-    expect(updated.name, 'Анна');
-    expect(updated.shortName, 'А');
+    expect(updated.name, 'Анна Петрова');
+    expect(updated.shortName, 'Анна Петрова');
   });
 
   group('assistants use cases', () {
@@ -49,17 +49,14 @@ void main() {
       expect(repository.assistants.single.name, 'Иван Иванов');
     });
 
-    test('create preserves a supplied short name', () async {
+    test('create synchronizes the short name with the name', () async {
       final repository = _InMemoryAssistantsRepository();
       final useCase = CreateAssistantUseCase(repository);
 
-      final assistant = await useCase.execute(
-        'Иван Иванов',
-        rawShortName: 'Иван',
-      );
+      final assistant = await useCase.execute('Иван Иванов');
 
-      expect(assistant.shortName, 'Иван');
-      expect(repository.assistants.single.shortName, 'Иван');
+      expect(assistant.shortName, 'Иван Иванов');
+      expect(repository.assistants.single.shortName, 'Иван Иванов');
     });
 
     test('empty name does not pass validation', () async {

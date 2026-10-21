@@ -30,12 +30,6 @@ class AssistantsDialog extends NamedDirectoryDialog<Assistant> {
         label: 'Имя',
         cellText: _nameCellText,
       ),
-      DirectoryColumnSpec<Assistant>(
-        id: 'shortName',
-        label: 'Краткое имя',
-        cellText: _shortNameCellText,
-        editValue: _shortNameCellText,
-      ),
     ],
     showColumnHeaders: true,
     rowActions: [
@@ -57,12 +51,6 @@ class AssistantsDialog extends NamedDirectoryDialog<Assistant> {
   static String _sectionTitle(int count) => 'Сопровождающие ($count)';
 
   static String _nameCellText(Assistant assistant) => assistant.name;
-
-  static String _shortNameCellText(Assistant assistant) {
-    return assistant.shortName.trim() == assistant.name
-        ? ''
-        : assistant.shortName;
-  }
 
   static String _deleteConfirmationMessage(Assistant assistant) {
     return 'Сопровождающий "${assistant.name}" будет скрыт из списка.';
