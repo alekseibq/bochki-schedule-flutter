@@ -664,6 +664,7 @@ void main() {
     expect(find.text('Список сопровождающих'), findsOneWidget);
     expect(find.text('Сопровождающие (0)'), findsOneWidget);
     expect(find.byKey(const Key('assistants_table_divider')), findsOneWidget);
+    expect(find.text('Краткое имя'), findsNothing);
   });
 
   testWidgets('shell opens procedure kinds dialog from menu', (tester) async {
@@ -1537,6 +1538,20 @@ void main() {
           assistantBusyTime: 10,
           resourceBusyTime: 5,
         ),
+        ProcedureKind(
+          id: '2',
+          patternId: ProcedureKindPatterns.single.patternId,
+          name: 'Бег',
+          capacity: 1,
+          participantBusyTime: 30,
+        ),
+        ProcedureKind(
+          id: '3',
+          patternId: ProcedureKindPatterns.grouped.patternId,
+          name: 'Медитация',
+          capacity: 8,
+          participantBusyTime: 30,
+        ),
       ],
     );
 
@@ -1556,15 +1571,21 @@ void main() {
 
     expect(headerTexts, [
       '',
-      'Тип',
       'Название',
+      'Тип',
       'емкость',
       't участн.',
       't ассист.',
-      't ресуср.',
+      't ресурс.',
       '',
       '',
     ]);
+    expect(find.byIcon(Icons.people_outline), findsOneWidget);
+    expect(find.byIcon(Icons.person_outline), findsOneWidget);
+    expect(find.byIcon(Icons.groups_outlined), findsOneWidget);
+    expect(find.byTooltip('С сопровождением'), findsOneWidget);
+    expect(find.byTooltip('Одиночная'), findsOneWidget);
+    expect(find.byTooltip('Групповая'), findsOneWidget);
   });
 
   testWidgets('participants dialog supports create edit and delete', (

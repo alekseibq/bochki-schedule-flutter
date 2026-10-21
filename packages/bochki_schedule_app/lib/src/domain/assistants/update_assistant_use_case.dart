@@ -11,8 +11,7 @@ final class UpdateAssistantUseCase {
 
   Future<Assistant> execute({
     required String assistantId,
-    String? rawName,
-    String? rawShortName,
+    required String rawName,
   }) async {
     final normalizedId = Assistant.normalizeId(assistantId);
     if (normalizedId.isEmpty) {
@@ -28,7 +27,7 @@ final class UpdateAssistantUseCase {
       throw const AssistantsValidationException('Сопровождающий не найден.');
     }
 
-    final name = Assistant.normalizeName(rawName ?? current.name);
+    final name = Assistant.normalizeName(rawName);
     if (name.isEmpty) {
       throw const AssistantsValidationException('Введите имя сопровождающего.');
     }
@@ -40,12 +39,10 @@ final class UpdateAssistantUseCase {
           'Сопровождающий с таким именем уже есть.');
     }
 
-    final shortName = rawShortName ??
-        (current.shortName == current.name ? name : current.shortName);
     return _repository.update(Assistant(
       id: normalizedId,
       name: name,
-      shortName: shortName,
+      shortName: name,
     ));
   }
 }

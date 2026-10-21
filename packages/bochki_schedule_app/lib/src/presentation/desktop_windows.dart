@@ -1582,13 +1582,12 @@ final class DesktopWindowCoordinator {
           if (action == 'create')
             await _services.createAssistantUseCase.execute(
               entry['name'] as String,
-              rawShortName: entry['shortName'] as String?,
             );
           if (action == 'update')
             await _services.updateAssistantUseCase.execute(
-                assistantId: values['id'] as String,
-                rawName: entry['name'] as String,
-                rawShortName: entry['shortName'] as String?);
+              assistantId: values['id'] as String,
+              rawName: entry['name'] as String,
+            );
           break;
         case 'procedureKinds':
           await mutateProcedureKindDirectory(
