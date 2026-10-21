@@ -1,5 +1,6 @@
 import 'conflict_resource_type.dart';
 import 'schedule_conflict_type.dart';
+import 'schedule_conflict_target.dart';
 
 final class ScheduleConflict {
   const ScheduleConflict({
@@ -14,6 +15,7 @@ final class ScheduleConflict {
     this.message,
     this.humanId,
     this.itemId,
+    this.targets = const {},
   });
 
   final ScheduleConflictType type;
@@ -27,6 +29,7 @@ final class ScheduleConflict {
   final int? capacityAllowed;
   final int? capacityRegistered;
   final String? message;
+  final Set<ScheduleConflictTarget> targets;
 
   String get resourceId => humanId ?? itemId ?? '';
 
@@ -36,6 +39,7 @@ final class ScheduleConflict {
     int? capacityAllowed,
     int? capacityRegistered,
     String? message,
+    Set<ScheduleConflictTarget>? targets,
   }) {
     return ScheduleConflict(
       type: type,
@@ -49,6 +53,7 @@ final class ScheduleConflict {
       capacityAllowed: capacityAllowed ?? this.capacityAllowed,
       capacityRegistered: capacityRegistered ?? this.capacityRegistered,
       message: message ?? this.message,
+      targets: targets ?? this.targets,
     );
   }
 }

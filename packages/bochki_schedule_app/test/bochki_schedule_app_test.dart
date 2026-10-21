@@ -987,6 +987,73 @@ void main() {
     expect(tester.getSize(secondHeader).width, 195);
   });
 
+  testWidgets('procedure sessions mark the columns causing conflicts', (
+    tester,
+  ) async {
+    final context = _buildTestContext(
+      participants: [Participant(id: '1', name: 'Иван')],
+      procedureKinds: [
+        ProcedureKind(
+          id: '1',
+          patternId: ProcedureKindPatterns.single.patternId,
+          name: 'Бочка',
+          capacity: 1,
+          participantBusyTime: 30,
+          resourceBusyTime: 30,
+        ),
+      ],
+      workdays: [
+        Workday(
+          id: '1',
+          name: 'День А',
+          calendarDate: DateTime(2026, 7, 11),
+        ),
+      ],
+      procedureSessions: [
+        ProcedureSessionRaw(
+          id: '1',
+          dayId: '1',
+          participantId: '1',
+          startTime: '09:00',
+          procedureKindId: '1',
+        ),
+        ProcedureSessionRaw(
+          id: '2',
+          dayId: '1',
+          participantId: '1',
+          startTime: '09:10',
+          procedureKindId: '1',
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+
+    for (final id in ['1', '2']) {
+      expect(
+        find.byKey(Key('procedure_session_conflict_marker_${id}_participant')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(Key('procedure_session_conflict_marker_${id}_procedure')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(Key('procedure_session_conflict_marker_${id}_assistant')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(Key('procedure_session_conflict_marker_${id}_startTime')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(Key('procedure_session_conflict_marker_${id}_finishTime')),
+        findsNothing,
+      );
+    }
+  });
+
   testWidgets('person summary tooltips use the shared assignment schedule', (
     tester,
   ) async {

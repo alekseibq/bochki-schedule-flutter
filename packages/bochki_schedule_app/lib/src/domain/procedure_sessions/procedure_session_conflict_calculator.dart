@@ -6,6 +6,7 @@ import 'procedure_session_rich.dart';
 import 'procedure_session_time.dart';
 import 'schedule_conflict.dart';
 import 'schedule_conflict_type.dart';
+import 'schedule_conflict_target.dart';
 
 final class ProcedureSessionConflictCalculator {
   const ProcedureSessionConflictCalculator();
@@ -44,25 +45,27 @@ final class ProcedureSessionConflictCalculator {
     ProcedureSessionRich session,
   ) {
     final conflicts = <ScheduleConflict>[];
-    void add(String message) => conflicts.add(ScheduleConflict(
+    void add(String message, ScheduleConflictTarget target) =>
+        conflicts.add(ScheduleConflict(
           type: ScheduleConflictType.missingAssignment,
           workdayId: session.dayId,
           timeStart: session.startTime,
           timeFinish: session.startTime,
           procedureSessionId: session.id,
           message: message,
+          targets: {target},
         ));
 
     if (session.participantId == null) {
-      add('Не назначен участник.');
+      add('Не назначен участник.', ScheduleConflictTarget.participant);
     } else if (session.participant == null) {
-      add('Участник не найден.');
+      add('Участник не найден.', ScheduleConflictTarget.participant);
     }
     if (session.requiresAssistant) {
       if (session.assistantId == null) {
-        add('Не назначен сопровождающий.');
+        add('Не назначен сопровождающий.', ScheduleConflictTarget.assistant);
       } else if (session.assistant == null) {
-        add('Сопровождающий не найден.');
+        add('Сопровождающий не найден.', ScheduleConflictTarget.assistant);
       }
     }
     return conflicts;
@@ -87,6 +90,7 @@ final class ProcedureSessionConflictCalculator {
         procedureSessionId: session.id,
         message:
             'Процедура начинается раньше минимального времени ${_formatAbsoluteTime(minimum)}.',
+        targets: const {ScheduleConflictTarget.startTime},
       ));
     }
 
@@ -116,6 +120,7 @@ final class ProcedureSessionConflictCalculator {
         procedureSessionId: session.id,
         message:
             'Процедура выходит за максимальное время ${_formatAbsoluteTime(maximum)}: ${ends.join(', ')}.',
+        targets: const {ScheduleConflictTarget.finishTime},
       ));
     }
     return conflicts;
@@ -145,6 +150,7 @@ final class ProcedureSessionConflictCalculator {
           timeFinish: session.finishTime ?? session.startTime,
           procedureSessionId: session.id,
           capacityAllowed: 1,
+          target: ScheduleConflictTarget.participant,
         ),
       ProcedureSessionOccupancyRecord(
         resourceType: ConflictResourceType.item,
@@ -154,6 +160,7 @@ final class ProcedureSessionConflictCalculator {
         timeFinish: session.resourceFinishTime ?? session.startTime,
         procedureSessionId: session.id,
         capacityAllowed: procedureKind.capacity,
+        target: ScheduleConflictTarget.procedure,
       ),
     ];
 
@@ -169,6 +176,7 @@ final class ProcedureSessionConflictCalculator {
           timeFinish: assistantFinishTime,
           procedureSessionId: session.id,
           capacityAllowed: 1,
+          target: ScheduleConflictTarget.assistant,
           isGroupedLeader: procedureKind.isGrouped,
         ),
       );
@@ -226,6 +234,7 @@ final class ProcedureSessionConflictCalculator {
                 : null,
             capacityAllowed: capacityAllowed,
             capacityRegistered: capacityRegistered,
+            targets: {record.target},
           ),
         );
       }
@@ -301,6 +310,7 @@ final class ProcedureSessionConflictCalculator {
 
       merged[merged.length - 1] = previous.copyWith(
         timeFinish: conflict.timeFinish,
+        targets: {...previous.targets, ...conflict.targets},
       );
     }
 

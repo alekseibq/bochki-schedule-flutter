@@ -23,6 +23,7 @@ import '../../domain/procedure_sessions/procedure_session_tooltip_builder.dart';
 import '../../domain/procedure_sessions/procedure_session_with_conflicts.dart';
 import '../../domain/procedure_sessions/procedure_sessions_validation_exception.dart';
 import '../../domain/procedure_sessions/schedule_conflict.dart';
+import '../../domain/procedure_sessions/schedule_conflict_target.dart';
 import '../../domain/procedure_sessions/update_procedure_session_use_case.dart';
 import '../../domain/workdays/list_workdays_use_case.dart';
 import '../../domain/workdays/workday.dart';
@@ -147,6 +148,16 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
       programSettings: _programSettings,
     );
   }
+
+  List<String> conflictMessagesFor(
+    ProcedureSessionWithConflicts entry,
+    ScheduleConflictTarget target,
+  ) =>
+      _formatConflictMessages(
+        entry.conflicts
+            .where((conflict) => conflict.targets.contains(target))
+            .toList(growable: false),
+      );
 
   Future<void> load() async {
     _isLoading = true;
@@ -459,6 +470,7 @@ final class ProcedureSessionsViewModel extends ChangeNotifier {
           conflict,
           humans: _humans,
           procedureKinds: _procedureKinds,
+          assistants: _assistants,
         ),
     ];
   }
