@@ -57,15 +57,69 @@ void main() {
     expect(find.byType(TextField), findsNothing);
     expect(find.text('Анна'), findsOneWidget);
   });
+
+  testWidgets('close saves a nonempty draft and keeps validation errors open',
+      (tester) async {
+    final key = GlobalKey<PeopleDirectoryTableState>();
+    final mutations = <String>[];
+    await tester.pumpWidget(_table(
+      key: key,
+      type: PeopleDirectoryType.participants,
+      onMutate: (action, {id, name, shortName}) async {
+        mutations.add('$action:$id:$name');
+        return name!.trim().isEmpty ? 'Введите имя участника.' : null;
+      },
+    ));
+
+    await tester.tap(find.byKey(const Key('people_directory_row_1')));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), '');
+
+    expect(await key.currentState!.requestClose(), isFalse);
+    await tester.pump();
+    expect(find.text('Введите имя участника.'), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'Анна Петрова');
+    expect(await key.currentState!.requestClose(), isTrue);
+    await tester.pump();
+    expect(mutations, ['update:1:', 'update:1:Анна Петрова']);
+    expect(find.byType(TextField), findsNothing);
+  });
+
+  testWidgets('close discards a blank new row without mutation',
+      (tester) async {
+    final key = GlobalKey<PeopleDirectoryTableState>();
+    final mutations = <String>[];
+    await tester.pumpWidget(_table(
+      key: key,
+      type: PeopleDirectoryType.participants,
+      onMutate: (action, {id, name, shortName}) async {
+        mutations.add(action);
+        return null;
+      },
+    ));
+
+    await tester.tap(find.byKey(const Key('people_directory_add_row')));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), '   ');
+
+    expect(await key.currentState!.requestClose(), isTrue);
+    await tester.pump();
+    expect(mutations, isEmpty);
+    expect(find.byType(TextField), findsNothing);
+  });
 }
 
 Widget _table({
+  Key? key,
   required PeopleDirectoryType type,
   required PeopleDirectoryMutation onMutate,
 }) =>
     MaterialApp(
       home: Scaffold(
         body: PeopleDirectoryTable(
+          key: key,
           type: type,
           entries: const [
             PeopleDirectoryEntry(id: '1', name: 'Анна', shortName: 'Анна'),

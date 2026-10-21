@@ -48,6 +48,7 @@ typedef DirectoryChangedCallback = Future<void> Function(String directory);
 typedef DesktopWindowFeatureMethodHandler = Future<dynamic> Function(
   MethodCall call,
 );
+typedef DesktopWindowCloseRequestHandler = Future<bool> Function();
 typedef CascadeCloseTimeoutHandler = Future<void> Function();
 typedef MainWindowClosingHandler = void Function();
 
@@ -430,6 +431,26 @@ final class DesktopWindowFeatureHandlerRegistration {
   }
 }
 
+/// A scoped registration that can postpone an ordinary native-window close.
+///
+/// Returning `false` keeps the reusable child window visible. This is used by
+/// inline editors to save (or report validation errors) before the window is
+/// hidden.
+final class DesktopWindowCloseRequestHandlerRegistration {
+  DesktopWindowCloseRequestHandlerRegistration._(
+      this._lifecycle, this._handler);
+
+  final DesktopWindowLifecycle _lifecycle;
+  final DesktopWindowCloseRequestHandler _handler;
+  bool _isDisposed = false;
+
+  void dispose() {
+    if (_isDisposed) return;
+    _isDisposed = true;
+    _lifecycle._unregisterCloseRequestHandler(_handler);
+  }
+}
+
 /// Routes feature-specific calls without allowing them to replace the native
 /// window method handler installed by [DesktopWindowLifecycle].
 final class DesktopWindowFeatureMethodDispatcher {
@@ -485,6 +506,17 @@ DesktopWindowFeatureHandlerRegistration
   return lifecycle.registerFeatureMethodHandler(handler);
 }
 
+DesktopWindowCloseRequestHandlerRegistration
+    registerCurrentDesktopWindowCloseRequestHandler(
+  DesktopWindowCloseRequestHandler handler,
+) {
+  final lifecycle = _windowLifecycle;
+  if (lifecycle == null) {
+    throw StateError('Desktop window lifecycle has not been initialized.');
+  }
+  return lifecycle.registerCloseRequestHandler(handler);
+}
+
 /// Hides a reusable child window without destroying its Flutter engine.
 Future<void> hideCurrentDesktopWindow() async {
   final current = await WindowController.fromCurrentEngine();
@@ -534,6 +566,7 @@ final class DesktopWindowLifecycle with WindowListener {
   bool _closing = false;
   bool _savingGeometry = false;
   bool _geometrySavePending = false;
+  DesktopWindowCloseRequestHandler? _closeRequestHandler;
   final _visibleDirectChildWindowIds = <String>{};
   final _featureMethodDispatcher = DesktopWindowFeatureMethodDispatcher();
 
@@ -615,6 +648,27 @@ final class DesktopWindowLifecycle with WindowListener {
   ) =>
       _featureMethodDispatcher.register(handler);
 
+  DesktopWindowCloseRequestHandlerRegistration registerCloseRequestHandler(
+    DesktopWindowCloseRequestHandler handler,
+  ) {
+    final existing = _closeRequestHandler;
+    if (existing != null && !identical(existing, handler)) {
+      throw StateError(
+        'A close request handler is already registered for this window.',
+      );
+    }
+    _closeRequestHandler = handler;
+    return DesktopWindowCloseRequestHandlerRegistration._(this, handler);
+  }
+
+  void _unregisterCloseRequestHandler(
+    DesktopWindowCloseRequestHandler handler,
+  ) {
+    if (identical(_closeRequestHandler, handler)) {
+      _closeRequestHandler = null;
+    }
+  }
+
   Future<dynamic> _handleFeatureCall(MethodCall call) async {
     try {
       return await _featureMethodDispatcher.dispatch(call);
@@ -685,6 +739,10 @@ final class DesktopWindowLifecycle with WindowListener {
       final descriptor = current == null ? null : _descriptor;
       if (descriptor != null &&
           shouldHideOnOrdinaryClose(kind: descriptor.kind, cascade: cascade)) {
+        if (!await _canCloseOrdinaryWindow()) {
+          _closing = false;
+          return;
+        }
         await _hide(activateParent: true);
         _closing = false;
         return;
@@ -730,6 +788,23 @@ final class DesktopWindowLifecycle with WindowListener {
     } catch (_) {
       _closing = false;
       rethrow;
+    }
+  }
+
+  Future<bool> _canCloseOrdinaryWindow() async {
+    final handler = _closeRequestHandler;
+    if (handler == null) return true;
+    try {
+      return await handler();
+    } catch (error, stackTrace) {
+      developer.log(
+        'Close request handler failed; keeping window open.',
+        name: 'bochki_schedule.desktop_windows',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+      return false;
     }
   }
 
@@ -2440,6 +2515,8 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
   final _date = TextEditingController();
   ProcedureKindsViewModel? _procedureKindsViewModel;
   DesktopWindowFeatureHandlerRegistration? _handlerRegistration;
+  DesktopWindowCloseRequestHandlerRegistration? _closeRequestRegistration;
+  final _peopleDirectoryTableKey = GlobalKey<PeopleDirectoryTableState>();
 
   bool get _isEditor =>
       _kind == DesktopWindowKind.procedureKindEditor ||
@@ -2514,6 +2591,12 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
       return;
     }
     _handlerRegistration = registration;
+    if (_isPeopleDirectory) {
+      _closeRequestRegistration =
+          registerCurrentDesktopWindowCloseRequestHandler(
+        _requestPeopleDirectoryClose,
+      );
+    }
     await _load();
   }
 
@@ -2546,11 +2629,20 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
   @override
   void dispose() {
     _handlerRegistration?.dispose();
+    _closeRequestRegistration?.dispose();
     _name.dispose();
     _shortName.dispose();
     _date.dispose();
     _procedureKindsViewModel?.dispose();
     super.dispose();
+  }
+
+  Future<bool> _requestPeopleDirectoryClose() async {
+    return _peopleDirectoryTableKey.currentState?.requestClose() ?? true;
+  }
+
+  Future<void> _closePeopleDirectory() async {
+    await closeCurrentDesktopWindow();
   }
 
   void _fillEditor(Map<String, dynamic>? entry) {
@@ -2655,25 +2747,51 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
 
   Widget _directoryList(BuildContext contentContext) {
     if (_isPeopleDirectory) {
-      return PeopleDirectoryTable(
-        type: _kind == DesktopWindowKind.participants
-            ? PeopleDirectoryType.participants
-            : PeopleDirectoryType.assistants,
-        entries: _entries
-            .map(
-              (entry) => PeopleDirectoryEntry(
-                id: entry['id'] as String,
-                name: entry['name'] as String,
-                shortName: entry['shortName'] as String?,
+      return Column(
+        children: [
+          Expanded(
+            child: PeopleDirectoryTable(
+              key: _peopleDirectoryTableKey,
+              type: _kind == DesktopWindowKind.participants
+                  ? PeopleDirectoryType.participants
+                  : PeopleDirectoryType.assistants,
+              entries: _entries
+                  .map(
+                    (entry) => PeopleDirectoryEntry(
+                      id: entry['id'] as String,
+                      name: entry['name'] as String,
+                      shortName: entry['shortName'] as String?,
+                    ),
+                  )
+                  .toList(growable: false),
+              onMutate: _mutatePeople,
+              onCountReferences: (id) => _mainChannel.invokeMethod<int>(
+                'directoryReferences',
+                {'directory': _directory, 'id': id},
+              ).then((value) => value ?? 0),
+              onChanged: _load,
+            ),
+          ),
+          DecoratedBox(
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: Color(0xFFD0D7DE))),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton(
+                  onPressed:
+                      _saving ? null : () => unawaited(_closePeopleDirectory()),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24),
+                    child: Text('ОК'),
+                  ),
+                ),
               ),
-            )
-            .toList(growable: false),
-        onMutate: _mutatePeople,
-        onCountReferences: (id) => _mainChannel.invokeMethod<int>(
-          'directoryReferences',
-          {'directory': _directory, 'id': id},
-        ).then((value) => value ?? 0),
-        onChanged: _load,
+            ),
+          ),
+        ],
       );
     }
     if (_isWorkdaysDirectory) return _workdaysList(contentContext);
