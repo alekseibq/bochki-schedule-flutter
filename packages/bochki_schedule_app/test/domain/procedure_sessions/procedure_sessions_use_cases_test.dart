@@ -309,6 +309,28 @@ void main() {
             (conflict) => conflict.resourceType == ConflictResourceType.item),
         hasLength(2),
       );
+      expect(
+        conflicts
+            .where(
+              (conflict) => conflict.resourceType == ConflictResourceType.human,
+            )
+            .every(
+              (conflict) =>
+                  conflict.targets.contains(ScheduleConflictTarget.participant),
+            ),
+        isTrue,
+      );
+      expect(
+        conflicts
+            .where(
+              (conflict) => conflict.resourceType == ConflictResourceType.item,
+            )
+            .every(
+              (conflict) =>
+                  conflict.targets.contains(ScheduleConflictTarget.procedure),
+            ),
+        isTrue,
+      );
       expect(conflicts.first.timeStart, '10:10');
       expect(conflicts.first.timeFinish, '10:30');
     });
@@ -467,6 +489,24 @@ void main() {
             .map((conflict) => conflict.message),
         containsAll(['Не назначен участник.', 'Не назначен сопровождающий.']),
       );
+      expect(
+        conflicts
+            .where(
+              (conflict) => conflict.message == 'Не назначен участник.',
+            )
+            .single
+            .targets,
+        {ScheduleConflictTarget.participant},
+      );
+      expect(
+        conflicts
+            .where(
+              (conflict) => conflict.message == 'Не назначен сопровождающий.',
+            )
+            .single
+            .targets,
+        {ScheduleConflictTarget.assistant},
+      );
     });
 
     test('conflict calculator reports exact time-boundary violations', () {
@@ -501,6 +541,20 @@ void main() {
       expect(
         conflicts.map((item) => item.message),
         contains(contains('раньше минимального времени 08:15')),
+      );
+      expect(
+        conflicts
+            .where((item) => item.message!.contains('раньше минимального'))
+            .single
+            .targets,
+        {ScheduleConflictTarget.startTime},
+      );
+      expect(
+        conflicts
+            .where((item) => item.message!.contains('выходит за максимальное'))
+            .single
+            .targets,
+        {ScheduleConflictTarget.finishTime},
       );
       expect(
         conflicts.map((item) => item.message),

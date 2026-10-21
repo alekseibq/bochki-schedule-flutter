@@ -1,4 +1,5 @@
 import 'conflict_resource_type.dart';
+import 'schedule_conflict_target.dart';
 
 final class ProcedureSessionOccupancyRecord {
   const ProcedureSessionOccupancyRecord({
@@ -9,6 +10,7 @@ final class ProcedureSessionOccupancyRecord {
     required this.timeFinish,
     required this.procedureSessionId,
     required this.capacityAllowed,
+    required this.target,
     this.isGroupedLeader = false,
   });
 
@@ -19,5 +21,6 @@ final class ProcedureSessionOccupancyRecord {
   final String timeFinish;
   final String procedureSessionId;
   final int capacityAllowed;
+  final ScheduleConflictTarget target;
   final bool isGroupedLeader;
 }

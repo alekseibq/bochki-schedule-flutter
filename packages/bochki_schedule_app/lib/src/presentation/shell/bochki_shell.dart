@@ -11,6 +11,7 @@ import '../../features/print_presets/print_preset_params_dialog.dart';
 import '../../features/print_presets/print_preset_params_view_model.dart';
 import '../../features/procedure_sessions/procedure_session_dialog.dart';
 import '../../features/procedure_sessions/procedure_sessions_view_model.dart';
+import '../../domain/procedure_sessions/schedule_conflict_target.dart';
 import '../app_tooltips.dart';
 import '../../features/procedure_kinds/procedure_kinds_dialog.dart';
 import '../../features/procedure_kinds/procedure_kinds_operations.dart';
@@ -1504,6 +1505,8 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
                     textStyle: _rowTextStyle(hasConflicts)),
                 _buildPersonSummaryCell(
                   width: _dataColumnWidths[1],
+                  entry: entry,
+                  target: ScheduleConflictTarget.participant,
                   entryId: entry.id,
                   dayId: entry.dayId,
                   column: 'participant',
@@ -1511,17 +1514,28 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
                   humanName: entry.participant?.name,
                   fallbackText: _participantText(entry),
                 ),
-                _TableCell(width: _dataColumnWidths[2], text: entry.startTime),
-                _TableCell(
+                _buildConflictMarkedCell(
+                  width: _dataColumnWidths[2],
+                  entry: entry,
+                  target: ScheduleConflictTarget.startTime,
+                  text: entry.startTime,
+                ),
+                _buildConflictMarkedCell(
                   width: _dataColumnWidths[3],
+                  entry: entry,
+                  target: ScheduleConflictTarget.finishTime,
                   text: entry.finishTime ?? '',
                 ),
-                _TableCell(
+                _buildConflictMarkedCell(
                   width: _dataColumnWidths[4],
+                  entry: entry,
+                  target: ScheduleConflictTarget.procedure,
                   text: _procedureText(entry),
                 ),
                 _buildPersonSummaryCell(
                   width: _dataColumnWidths[5],
+                  entry: entry,
+                  target: ScheduleConflictTarget.assistant,
                   entryId: entry.id,
                   dayId: entry.dayId,
                   column: 'assistant',
@@ -1611,6 +1625,8 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
 
   Widget _buildPersonSummaryCell({
     required double width,
+    required dynamic entry,
+    required ScheduleConflictTarget target,
     required String entryId,
     required String dayId,
     required String column,
@@ -1618,7 +1634,12 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
     required String? humanName,
     required String fallbackText,
   }) {
-    final cell = _TableCell(width: width, text: fallbackText);
+    final cell = _buildConflictMarkedCell(
+      width: width,
+      entry: entry,
+      target: target,
+      text: fallbackText,
+    );
     if (humanId == null) {
       return cell;
     }
@@ -1648,6 +1669,45 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
       waitDuration: const Duration(milliseconds: 300),
       exitDuration: Duration.zero,
       child: cell,
+    );
+  }
+
+  Widget _buildConflictMarkedCell({
+    required double width,
+    required dynamic entry,
+    required ScheduleConflictTarget target,
+    required String text,
+  }) {
+    final messages = widget.viewModel.conflictMessagesFor(entry, target);
+    if (messages.isEmpty) {
+      return _TableCell(width: width, text: text);
+    }
+    return _TableCell(
+      width: width,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Tooltip(
+            key: Key(
+                'procedure_session_conflict_marker_${entry.id}_${target.name}'),
+            message: messages.join('\n'),
+            child: const Padding(
+              padding: EdgeInsets.only(left: 4),
+              child: Icon(
+                Icons.circle,
+                color: Color(0xFFB42318),
+                size: 8,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

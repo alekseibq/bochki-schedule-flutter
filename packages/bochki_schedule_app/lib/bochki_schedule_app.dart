@@ -55,6 +55,7 @@ export 'src/domain/procedure_sessions/procedure_session_time.dart';
 export 'src/domain/procedure_sessions/procedure_session_tooltip_builder.dart';
 export 'src/domain/procedure_sessions/procedure_session_with_conflicts.dart';
 export 'src/domain/procedure_sessions/schedule_conflict.dart';
+export 'src/domain/procedure_sessions/schedule_conflict_target.dart';
 export 'src/domain/procedure_sessions/schedule_conflict_type.dart';
 export 'src/domain/procedure_sessions/procedure_sessions_repository.dart';
 export 'src/domain/procedure_sessions/procedure_sessions_validation_exception.dart';

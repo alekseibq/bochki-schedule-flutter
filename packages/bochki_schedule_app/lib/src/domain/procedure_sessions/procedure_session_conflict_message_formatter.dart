@@ -1,3 +1,4 @@
+import '../assistants/assistant.dart';
 import '../humans/human.dart';
 import '../procedure_kinds/procedure_kind.dart';
 
@@ -12,13 +13,14 @@ final class ProcedureSessionConflictMessageFormatter {
     ScheduleConflict conflict, {
     required Iterable<Human> humans,
     required Iterable<ProcedureKind> procedureKinds,
+    Iterable<Assistant> assistants = const [],
   }) {
     if (conflict.type != ScheduleConflictType.resourceOverload) {
       return conflict.message ?? 'Нарушены границы времени программы.';
     }
     switch (conflict.resourceType!) {
       case ConflictResourceType.human:
-        final humanName = _findHumanName(humans, conflict.humanId);
+        final humanName = _findHumanName(humans, assistants, conflict.humanId);
         return 'Участник/сопровождающий $humanName занят с '
             '${conflict.timeStart} до ${conflict.timeFinish} '
             '(${conflict.capacityRegistered} из ${conflict.capacityAllowed}).';
@@ -31,13 +33,22 @@ final class ProcedureSessionConflictMessageFormatter {
     }
   }
 
-  String _findHumanName(Iterable<Human> humans, String? humanId) {
+  String _findHumanName(
+    Iterable<Human> humans,
+    Iterable<Assistant> assistants,
+    String? humanId,
+  ) {
     if (humanId == null) {
       return 'неизвестный ресурс';
     }
     for (final human in humans) {
       if (human.id == humanId) {
         return human.name;
+      }
+    }
+    for (final assistant in assistants) {
+      if (assistant.id == humanId) {
+        return assistant.name;
       }
     }
     return 'id=$humanId';
