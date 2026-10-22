@@ -55,7 +55,6 @@ void main() {
     expect(document.toJson()['programSettings'], <String, Object?>{
       'minimumTime': <String, Object?>{'hour': 8, 'minute': 0},
       'maximumTime': <String, Object?>{'hour': 18, 'minute': 0},
-      'uiScale': 1.1,
     });
   });
 

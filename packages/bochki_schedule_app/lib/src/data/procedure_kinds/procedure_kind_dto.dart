@@ -11,7 +11,9 @@ final class ProcedureKindDto {
     required this.assistantBusyTime,
     required this.resourceBusyTime,
     required this.useCapacityRestriction,
+    required this.useForPairCount,
     required this.hasCapacityRestrictionFlag,
+    required this.hasPairCountFlag,
     required this.deleted,
   });
 
@@ -32,7 +34,9 @@ final class ProcedureKindDto {
       resourceBusyTime: (json['resourceBusyTime'] as num?)?.toInt(),
       useCapacityRestriction: json['useCapacityRestriction'] as bool? ??
           ((json['capacity'] as num?)?.toInt() ?? 0) > 0,
+      useForPairCount: json['useForPairCount'] as bool? ?? true,
       hasCapacityRestrictionFlag: json.containsKey('useCapacityRestriction'),
+      hasPairCountFlag: json.containsKey('useForPairCount'),
       deleted: json['deleted'] as bool? ?? false,
     );
   }
@@ -52,7 +56,9 @@ final class ProcedureKindDto {
       assistantBusyTime: persistedProcedureKind.assistantBusyTime,
       resourceBusyTime: persistedProcedureKind.resourceBusyTime,
       useCapacityRestriction: persistedProcedureKind.useCapacityRestriction,
+      useForPairCount: persistedProcedureKind.useForPairCount,
       hasCapacityRestrictionFlag: true,
+      hasPairCountFlag: true,
       deleted: deleted,
     );
   }
@@ -66,7 +72,9 @@ final class ProcedureKindDto {
   final int? assistantBusyTime;
   final int? resourceBusyTime;
   final bool useCapacityRestriction;
+  final bool useForPairCount;
   final bool hasCapacityRestrictionFlag;
+  final bool hasPairCountFlag;
   final bool deleted;
 
   ProcedureKind toDomain() {
@@ -80,6 +88,7 @@ final class ProcedureKindDto {
       assistantBusyTime: assistantBusyTime,
       resourceBusyTime: resourceBusyTime,
       useCapacityRestriction: useCapacityRestriction,
+      useForPairCount: useForPairCount,
     ).sanitizedForPersistence();
   }
 
@@ -90,6 +99,7 @@ final class ProcedureKindDto {
     String? shortName,
     int? capacity,
     bool? useCapacityRestriction,
+    bool? useForPairCount,
     int? participantBusyTime,
     int? assistantBusyTime,
     bool clearAssistantBusyTime = false,
@@ -105,7 +115,9 @@ final class ProcedureKindDto {
       capacity: capacity ?? this.capacity,
       useCapacityRestriction:
           useCapacityRestriction ?? this.useCapacityRestriction,
+      useForPairCount: useForPairCount ?? this.useForPairCount,
       hasCapacityRestrictionFlag: hasCapacityRestrictionFlag,
+      hasPairCountFlag: hasPairCountFlag,
       participantBusyTime: participantBusyTime ?? this.participantBusyTime,
       assistantBusyTime: clearAssistantBusyTime
           ? null
@@ -126,6 +138,7 @@ final class ProcedureKindDto {
       'clientBusyTime': participantBusyTime,
       'deleted': deleted,
       'useCapacityRestriction': useCapacityRestriction,
+      'useForPairCount': useForPairCount,
     };
     if (capacity != null) json['capacity'] = capacity;
     if (assistantBusyTime != null) {

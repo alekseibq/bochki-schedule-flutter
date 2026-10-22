@@ -14,6 +14,7 @@ final class ProcedureKind {
     this.assistantBusyTime,
     this.resourceBusyTime,
     this.useCapacityRestriction = true,
+    this.useForPairCount = true,
   })  : id = NamedDirectoryEntry.normalizeId(id),
         patternId = patternId.trim(),
         name = NamedDirectoryEntry.normalizeName(name),
@@ -44,6 +45,7 @@ final class ProcedureKind {
   final int? assistantBusyTime;
   final int? resourceBusyTime;
   final bool useCapacityRestriction;
+  final bool useForPairCount;
 
   ProcedureKindPattern get pattern => ProcedureKindPatterns.tryById(patternId)!;
 
@@ -91,6 +93,7 @@ final class ProcedureKind {
     String? shortName,
     int? capacity,
     bool? useCapacityRestriction,
+    bool? useForPairCount,
     int? participantBusyTime,
     int? assistantBusyTime,
     bool clearAssistantBusyTime = false,
@@ -105,6 +108,7 @@ final class ProcedureKind {
       capacity: capacity ?? this.capacity,
       useCapacityRestriction:
           useCapacityRestriction ?? this.useCapacityRestriction,
+      useForPairCount: useForPairCount ?? this.useForPairCount,
       participantBusyTime: participantBusyTime ?? this.participantBusyTime,
       assistantBusyTime: clearAssistantBusyTime
           ? null

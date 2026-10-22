@@ -18,6 +18,7 @@ import 'data/procedure_sessions/project_document_procedure_sessions_repository.d
 import 'data/procedure_kinds/project_document_procedure_kinds_repository.dart';
 import 'data/program_settings/project_document_program_settings_repository.dart';
 import 'data/assistants/project_document_assistants_repository.dart';
+import 'data/ui_settings/ui_settings_repository.dart';
 import 'data/workdays/project_document_workdays_repository.dart';
 import 'domain/humans/list_humans_use_case.dart';
 import 'domain/participants/create_participant_use_case.dart';
@@ -87,6 +88,16 @@ final class AppBootstrap {
       safeFileWriter: const AtomicFileWriter(),
     );
     final initialDocument = await projectDocumentRepository.load();
+    final uiSettingsRepository = UiSettingsRepository(
+      file: File(p.join(resolvedAppDataDirectory.path, 'ui_settings.json')),
+      writer: const AtomicFileWriter(),
+    );
+    final didMigrateUiSettings = await uiSettingsRepository.load(
+      legacyUiScale: initialDocument.programSettings.uiScale,
+    );
+    if (didMigrateUiSettings) {
+      await projectDocumentRepository.save(initialDocument);
+    }
     diagnostics?.info('Данные проекта', 'Файл данных успешно прочитан.');
     final syncCoordinator = ProjectDocumentSyncCoordinator(
       repository: projectDocumentRepository,
@@ -337,6 +348,7 @@ final class AppBootstrap {
 
     return AppServices(
       appDataDirectory: resolvedAppDataDirectory,
+      uiSettingsRepository: uiSettingsRepository,
       logger: logger,
       listHumansUseCase: listHumansUseCase,
       listParticipantsUseCase: listParticipantsUseCase,

@@ -37,10 +37,12 @@ import 'domain/procedure_statistics/open_procedure_statistics_file_use_case.dart
 import 'domain/procedure_statistics/build_procedure_statistics_table_use_case.dart';
 import 'domain/schedule_gaps/build_schedule_gaps_use_case.dart';
 import 'domain/templates/template_service.dart';
+import 'data/ui_settings/ui_settings_repository.dart';
 
 final class AppServices {
   const AppServices({
     required this.appDataDirectory,
+    required this.uiSettingsRepository,
     required this.logger,
     required this.listHumansUseCase,
     required this.listParticipantsUseCase,
@@ -82,6 +84,7 @@ final class AppServices {
   });
 
   final Directory appDataDirectory;
+  final UiSettingsRepository uiSettingsRepository;
   final AppLogger logger;
   final ListHumansUseCase listHumansUseCase;
   final ListParticipantsUseCase listParticipantsUseCase;

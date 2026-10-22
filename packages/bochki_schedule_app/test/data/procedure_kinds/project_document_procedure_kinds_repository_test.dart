@@ -58,6 +58,7 @@ void main() {
         'clientBusyTime': 20,
         'deleted': true,
         'useCapacityRestriction': true,
+        'useForPairCount': true,
       },
       <String, Object?>{
         'id': 1,
@@ -69,6 +70,7 @@ void main() {
         'companionBusyTime': 10,
         'deleted': false,
         'useCapacityRestriction': true,
+        'useForPairCount': true,
       },
     ]);
     expect(changeNotifications, 0);
@@ -138,6 +140,7 @@ void main() {
         'clientBusyTime': 20,
         'deleted': false,
         'useCapacityRestriction': true,
+        'useForPairCount': true,
       },
       <String, Object?>{
         'id': 1,
@@ -149,6 +152,7 @@ void main() {
         'companionBusyTime': 10,
         'deleted': true,
         'useCapacityRestriction': true,
+        'useForPairCount': true,
       },
     ]);
     expect(changeNotifications, 4);

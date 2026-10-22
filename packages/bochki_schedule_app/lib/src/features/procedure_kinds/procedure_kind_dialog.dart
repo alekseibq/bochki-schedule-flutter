@@ -47,6 +47,7 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
 
   late String _patternId;
   late bool _useCapacityRestriction;
+  late bool _useForPairCount;
 
   bool get _isCurated => _patternId == ProcedureKindPatterns.curated.patternId;
 
@@ -77,6 +78,7 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
         ProcedureKindPatterns.curated.patternId;
     _useCapacityRestriction =
         initialProcedureKind?.useCapacityRestriction ?? false;
+    _useForPairCount = initialProcedureKind?.useForPairCount ?? true;
     _nameController.text = initialProcedureKind?.name ?? '';
     _shortNameController.text = initialProcedureKind == null ||
             initialProcedureKind.shortName == initialProcedureKind.name
@@ -175,6 +177,7 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
             rawShortName: _shortNameController.text,
             rawCapacity: _capacityController.text,
             useCapacityRestriction: _useCapacityRestriction,
+            useForPairCount: _useForPairCount,
             rawParticipantBusyTime: _participantBusyTimeController.text,
             rawAssistantBusyTime:
                 _isCurated ? _assistantBusyTimeController.text : null,
@@ -186,6 +189,7 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
             rawShortName: _shortNameController.text,
             rawCapacity: _capacityController.text,
             useCapacityRestriction: _useCapacityRestriction,
+            useForPairCount: _useForPairCount,
             rawParticipantBusyTime: _participantBusyTimeController.text,
             rawAssistantBusyTime:
                 _isCurated ? _assistantBusyTimeController.text : null,
@@ -331,6 +335,24 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
                         fieldName: 'resource_busy_time',
                       ),
                     ),
+                    if (_isCurated) ...[
+                      SizedBox(height: formGap),
+                      _FormRow(
+                        label: 'Учитывать в количестве сопровождений',
+                        labelWidth: _labelColumnWidth,
+                        isNarrowLayout: isNarrowLayout,
+                        child: Checkbox(
+                          key: const Key('procedure_kind_use_for_pair_count'),
+                          value: _useForPairCount,
+                          onChanged: widget.viewModel.isSaving
+                              ? null
+                              : (value) => setState(() {
+                                    _useForPairCount = value ?? false;
+                                    widget.viewModel.clearFormError();
+                                  }),
+                        ),
+                      ),
+                    ],
                     SizedBox(height: formGap),
                     _FormRow(
                       label: 'Время участника (мин)',

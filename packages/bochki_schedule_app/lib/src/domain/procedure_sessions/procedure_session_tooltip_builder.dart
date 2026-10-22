@@ -65,7 +65,8 @@ final class ProcedureSessionTooltipBuilder {
   }) {
     if (participantId == null) return 0;
     final curatedKindIds = procedureKinds
-        .where((procedureKind) => procedureKind.isCurated)
+        .where((procedureKind) =>
+            procedureKind.isCurated && procedureKind.useForPairCount)
         .map((procedureKind) => procedureKind.id)
         .toSet();
     return savedSessions

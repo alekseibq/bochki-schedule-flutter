@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:bochki_schedule_app/bochki_schedule_app.dart';
+import 'package:bochki_schedule_app/src/data/ui_settings/ui_settings_repository.dart';
 import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
 import 'package:flutter/gestures.dart';
@@ -2529,6 +2530,10 @@ _TestContext _buildTestContext({
   return _TestContext(
     services: AppServices(
       appDataDirectory: appDataDirectory,
+      uiSettingsRepository: UiSettingsRepository(
+        file: File('${appDataDirectory.path}/ui_settings.json'),
+        writer: const AtomicFileWriter(),
+      ),
       logger: const _NoopLogger(),
       listHumansUseCase: ListHumansUseCase(humansRepository),
       listParticipantsUseCase: ListParticipantsUseCase(participantsRepository),

@@ -1030,8 +1030,7 @@ final class DesktopWindowCoordinator {
   bool get hasBlockingChildWindow => _windowStates.hasBlockingWindow;
 
   Future<void> start() async {
-    _startupUiScale =
-        (await _services.getProgramSettingsUseCase.execute()).uiScale;
+    _startupUiScale = _services.uiSettingsRepository.settings.uiScale;
     _mainWindowId = (await _platform.current()).windowId;
     await _mainChannel.setMethodCallHandler(_handleCall);
     final closingHandler = _handleMainWindowClosing;
@@ -1391,8 +1390,17 @@ final class DesktopWindowCoordinator {
       case 'childWindowGeometry':
         final kind = DesktopWindowKind.values.byName(call.arguments as String);
         final bounds = _childWindowGeometry[kind];
+        final storedSize =
+            _services.uiSettingsRepository.settings.windowSizes[kind.name];
         return bounds == null
-            ? null
+            ? storedSize == null
+                ? null
+                : {
+                    'left': 0.0,
+                    'top': 0.0,
+                    'width': storedSize['width'],
+                    'height': storedSize['height'],
+                  }
             : {
                 'left': bounds.left,
                 'top': bounds.top,
@@ -1405,6 +1413,18 @@ final class DesktopWindowCoordinator {
           DesktopWindowKind.values.byName(values['kind'] as String),
           windowBoundsFromMap(values['bounds'] as Map),
         );
+        final kind = values['kind'] as String;
+        final bounds = values['bounds'] as Map;
+        final sizes = Map<String, Map<String, double>>.from(
+          _services.uiSettingsRepository.settings.windowSizes,
+        );
+        sizes[kind] = {
+          'width': (bounds['width'] as num).toDouble(),
+          'height': (bounds['height'] as num).toDouble(),
+        };
+        unawaited(_services.uiSettingsRepository.update(
+          _services.uiSettingsRepository.settings.copyWith(windowSizes: sizes),
+        ));
         return null;
       case 'submitProcedureSession':
         final values = Map<String, dynamic>.from(call.arguments as Map);
@@ -1687,10 +1707,9 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
   );
   final savedBounds = await _savedChildWindowBounds(kind);
   final displays = await screenRetriever.getAllDisplays();
-  final restoredBounds = savedBounds != null &&
-          windowBoundsFitAnyDisplay(bounds: savedBounds, displays: displays)
-      ? savedBounds
-      : null;
+  final restoredBounds = savedBounds;
+  final canRestorePosition = savedBounds != null &&
+      windowBoundsFitAnyDisplay(bounds: savedBounds, displays: displays);
   final minimumSize = options.minimumSize!;
   await windowManager.waitUntilReadyToShow(options, () async {
     if (restoredBounds != null) {
@@ -1702,7 +1721,13 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
             ? minimumSize.height
             : restoredBounds.size.height,
       ));
-      await windowManager.setPosition(restoredBounds.topLeft);
+      if (canRestorePosition) {
+        await windowManager.setPosition(restoredBounds.topLeft);
+      } else {
+        await windowManager.setPosition(
+          await childWindowPositionOnParentDisplay(options.size!),
+        );
+      }
     } else {
       await windowManager.setPosition(
         await childWindowPositionOnParentDisplay(options.size!),

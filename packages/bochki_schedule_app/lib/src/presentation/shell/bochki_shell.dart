@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
 
 import '../../app_services.dart';
+import '../../data/ui_settings/ui_settings_repository.dart';
 import '../../features/participants/participants_dialog.dart';
 import '../../features/participants/participants_view_model.dart';
 import '../../features/print_presets/print_preset_params_dialog.dart';
@@ -415,7 +416,10 @@ class _BochkiShellState extends State<BochkiShell> {
         context: context,
         barrierDismissible: false,
         builder: (context) {
-          return ProgramSettingsDialog(viewModel: viewModel);
+          return ProgramSettingsDialog(
+            viewModel: viewModel,
+            uiSettingsRepository: widget.services.uiSettingsRepository,
+          );
         },
       );
     } finally {
@@ -1105,6 +1109,7 @@ class _BochkiShellState extends State<BochkiShell> {
                 padding: const EdgeInsets.all(24),
                 child: _ProcedureSessionsHome(
                   viewModel: _procedureSessionsViewModel,
+                  uiSettingsRepository: widget.services.uiSettingsRepository,
                   onEdit: (entryId) {
                     unawaited(
                       _openProcedureSessionDialog(
@@ -1131,11 +1136,13 @@ class _ProcedureSessionsHome extends StatelessWidget {
 
   const _ProcedureSessionsHome({
     required this.viewModel,
+    required this.uiSettingsRepository,
     required this.onEdit,
     required this.onDelete,
   });
 
   final ProcedureSessionsViewModel viewModel;
+  final UiSettingsRepository uiSettingsRepository;
   final void Function(String entryId) onEdit;
   final void Function(String entryId) onDelete;
 
@@ -1172,6 +1179,7 @@ class _ProcedureSessionsHome extends StatelessWidget {
                           ? Center(child: Text(viewModel.loadErrorMessage!))
                           : _ProcedureSessionsTable(
                               viewModel: viewModel,
+                              uiSettingsRepository: uiSettingsRepository,
                               onEdit: onEdit,
                               onDelete: onDelete,
                             ),
@@ -1351,11 +1359,13 @@ class _FilterField extends StatelessWidget {
 class _ProcedureSessionsTable extends StatefulWidget {
   const _ProcedureSessionsTable({
     required this.viewModel,
+    required this.uiSettingsRepository,
     required this.onEdit,
     required this.onDelete,
   });
 
   final ProcedureSessionsViewModel viewModel;
+  final UiSettingsRepository uiSettingsRepository;
   final void Function(String entryId) onEdit;
   final void Function(String entryId) onDelete;
 
@@ -1367,24 +1377,33 @@ class _ProcedureSessionsTable extends StatefulWidget {
 class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
   static const double _headerHeight = 32;
   static const double _rowHeight = 30;
-  static const double _conflictColumnWidth = 40;
-  static const double _actionColumnWidth = 48;
   static const Color _dividerColor = Color(0xFFD7DFE8);
 
-  late List<double> _dataColumnWidths;
+  late List<double> _columnWidths;
 
   @override
   void initState() {
     super.initState();
-    _dataColumnWidths =
-        _dataColumns.map((column) => column.initialWidth).toList();
+    final saved =
+        widget.uiSettingsRepository.settings.procedureSessionsColumnWidths;
+    _columnWidths = saved.length == _allColumns.length
+        ? List<double>.from(saved)
+        : _allColumns.map((column) => column.initialWidth).toList();
   }
 
   void _resizeColumns(int leftColumnIndex, double delta) {
-    final leftColumn = _dataColumns[leftColumnIndex];
-    final rightColumn = _dataColumns[leftColumnIndex + 1];
-    final leftWidth = _dataColumnWidths[leftColumnIndex];
-    final rightWidth = _dataColumnWidths[leftColumnIndex + 1];
+    final leftColumn = _allColumns[leftColumnIndex];
+    final leftWidth = _columnWidths[leftColumnIndex];
+    if (leftColumnIndex == _allColumns.length - 1) {
+      final actualDelta =
+          delta.clamp(leftColumn.minimumWidth - leftWidth, double.infinity);
+      if (actualDelta == 0) return;
+      setState(() => _columnWidths[leftColumnIndex] = leftWidth + actualDelta);
+      _saveColumnWidths();
+      return;
+    }
+    final rightColumn = _allColumns[leftColumnIndex + 1];
+    final rightWidth = _columnWidths[leftColumnIndex + 1];
     final actualDelta = delta.clamp(
       leftColumn.minimumWidth - leftWidth,
       rightWidth - rightColumn.minimumWidth,
@@ -1394,10 +1413,17 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
       return;
     }
     setState(() {
-      _dataColumnWidths[leftColumnIndex] = leftWidth + actualDelta;
-      _dataColumnWidths[leftColumnIndex + 1] = rightWidth - actualDelta;
+      _columnWidths[leftColumnIndex] = leftWidth + actualDelta;
+      _columnWidths[leftColumnIndex + 1] = rightWidth - actualDelta;
     });
+    _saveColumnWidths();
   }
+
+  void _saveColumnWidths() => unawaited(widget.uiSettingsRepository.update(
+        widget.uiSettingsRepository.settings.copyWith(
+          procedureSessionsColumnWidths: _columnWidths,
+        ),
+      ));
 
   void _handleRowPointerDown(String entryId, PointerDownEvent event) {
     if (event.buttons != kPrimaryMouseButton) {
@@ -1450,9 +1476,7 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
   }
 
   double get _tableWidth =>
-      _dataColumnWidths.fold<double>(0, (sum, width) => sum + width) +
-      _conflictColumnWidth +
-      (_actionColumnWidth * 2);
+      _columnWidths.fold<double>(0, (sum, width) => sum + width);
 
   Widget _buildHeader() {
     return Container(
@@ -1461,18 +1485,15 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
       color: const Color(0xFFF2F5F8),
       child: Row(
         children: [
-          for (var index = 0; index < _dataColumns.length; index++)
+          for (var index = 0; index < _allColumns.length; index++)
             _ResizableHeaderCell(
               key: Key('procedure_sessions_column_header_$index'),
-              width: _dataColumnWidths[index],
-              text: _dataColumns[index].label,
-              showResizeHandle: index < _dataColumns.length - 1,
+              width: _columnWidths[index],
+              text: _allColumns[index].label,
+              showResizeHandle: true,
               onResize: (delta) => _resizeColumns(index, delta),
               resizeHandleKey: Key('procedure_sessions_column_resizer_$index'),
             ),
-          const _TableCell(width: _conflictColumnWidth),
-          const _TableCell(width: _actionColumnWidth),
-          const _TableCell(width: _actionColumnWidth, showRightDivider: false),
         ],
       ),
     );
@@ -1500,11 +1521,11 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
             child: Row(
               children: [
                 _TableCell(
-                    width: _dataColumnWidths[0],
+                    width: _columnWidths[0],
                     text: _dayText(entry),
                     textStyle: _rowTextStyle(hasConflicts)),
                 _buildPersonSummaryCell(
-                  width: _dataColumnWidths[1],
+                  width: _columnWidths[1],
                   entry: entry,
                   target: ScheduleConflictTarget.participant,
                   entryId: entry.id,
@@ -1515,25 +1536,25 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
                   fallbackText: _participantText(entry),
                 ),
                 _buildConflictMarkedCell(
-                  width: _dataColumnWidths[2],
+                  width: _columnWidths[2],
                   entry: entry,
                   target: ScheduleConflictTarget.startTime,
                   text: entry.startTime,
                 ),
                 _buildConflictMarkedCell(
-                  width: _dataColumnWidths[3],
+                  width: _columnWidths[3],
                   entry: entry,
                   target: ScheduleConflictTarget.finishTime,
                   text: entry.finishTime ?? '',
                 ),
                 _buildConflictMarkedCell(
-                  width: _dataColumnWidths[4],
+                  width: _columnWidths[4],
                   entry: entry,
                   target: ScheduleConflictTarget.procedure,
                   text: _procedureText(entry),
                 ),
                 _buildPersonSummaryCell(
-                  width: _dataColumnWidths[5],
+                  width: _columnWidths[5],
                   entry: entry,
                   target: ScheduleConflictTarget.assistant,
                   entryId: entry.id,
@@ -1547,7 +1568,7 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
                   fallbackText: _assistantText(entry),
                 ),
                 _TableCell(
-                  width: _conflictColumnWidth,
+                  width: _columnWidths[6],
                   alignment: Alignment.center,
                   child: hasConflicts
                       ? const Tooltip(
@@ -1561,7 +1582,7 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
                       : null,
                 ),
                 _TableCell(
-                  width: _actionColumnWidth,
+                  width: _columnWidths[7],
                   alignment: Alignment.center,
                   child: TextButton(
                     key: Key('procedure_session_edit_${entry.id}'),
@@ -1571,7 +1592,7 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
                   ),
                 ),
                 _TableCell(
-                  width: _actionColumnWidth,
+                  width: _columnWidths[8],
                   alignment: Alignment.center,
                   showRightDivider: false,
                   child: TextButton(
@@ -1712,13 +1733,16 @@ class _ProcedureSessionsTableState extends State<_ProcedureSessionsTable> {
   }
 }
 
-const List<_ProcedureSessionsDataColumn> _dataColumns = [
+const List<_ProcedureSessionsDataColumn> _allColumns = [
   _ProcedureSessionsDataColumn('День', 75, 60),
   _ProcedureSessionsDataColumn('Участник', 180, 110),
   _ProcedureSessionsDataColumn('Начало', 75, 60),
   _ProcedureSessionsDataColumn('Конец', 75, 60),
   _ProcedureSessionsDataColumn('Процедура', 220, 130),
   _ProcedureSessionsDataColumn('Сопровождающий', 180, 120),
+  _ProcedureSessionsDataColumn('Конфликты', 48, 48),
+  _ProcedureSessionsDataColumn('Изм.', 52, 52),
+  _ProcedureSessionsDataColumn('Удл.', 52, 52),
 ];
 
 class _ProcedureSessionsDataColumn {

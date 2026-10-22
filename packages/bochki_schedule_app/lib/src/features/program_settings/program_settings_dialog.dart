@@ -1,15 +1,20 @@
 import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:flutter/material.dart';
+import 'dart:async';
+
+import '../../data/ui_settings/ui_settings_repository.dart';
 
 import 'program_settings_view_model.dart';
 
 class ProgramSettingsDialog extends StatefulWidget {
   const ProgramSettingsDialog({
     required this.viewModel,
+    required this.uiSettingsRepository,
     super.key,
   });
 
   final ProgramSettingsViewModel viewModel;
+  final UiSettingsRepository uiSettingsRepository;
 
   @override
   State<ProgramSettingsDialog> createState() => _ProgramSettingsDialogState();
@@ -21,6 +26,7 @@ class _ProgramSettingsDialogState extends State<ProgramSettingsDialog> {
   late int _maximumHour;
   late int _maximumMinute;
   late double _uiScale;
+  bool _resetUiOnStart = false;
 
   @override
   void initState() {
@@ -41,7 +47,7 @@ class _ProgramSettingsDialogState extends State<ProgramSettingsDialog> {
     _minimumMinute = settings.minimumTime.minute;
     _maximumHour = settings.maximumTime.hour;
     _maximumMinute = settings.maximumTime.minute;
-    _uiScale = settings.uiScale;
+    _uiScale = widget.uiSettingsRepository.settings.uiScale;
   }
 
   void _showActionErrorIfNeeded() {
@@ -71,6 +77,8 @@ class _ProgramSettingsDialogState extends State<ProgramSettingsDialog> {
         hour: _maximumHour,
         minute: _maximumMinute,
       ),
+      // Kept in memory for legacy validation only; it is persisted in
+      // ui_settings.json by the repository below.
       uiScale: _uiScale,
     );
 
@@ -78,6 +86,12 @@ class _ProgramSettingsDialogState extends State<ProgramSettingsDialog> {
     if (!mounted || !isSuccess) {
       return;
     }
+    unawaited(widget.uiSettingsRepository.update(
+      widget.uiSettingsRepository.settings.copyWith(
+        uiScale: _uiScale,
+        shouldResetUiDimensionsOnStart: _resetUiOnStart,
+      ),
+    ));
 
     Navigator.of(context).pop(settings);
   }
@@ -190,6 +204,14 @@ class _ProgramSettingsDialogState extends State<ProgramSettingsDialog> {
                   onChanged: (value) {
                     if (value != null) _updateField(() => _uiScale = value);
                   },
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton(
+                  key: const Key('program_settings_reset_ui_button'),
+                  onPressed: widget.viewModel.isSaving
+                      ? null
+                      : () => setState(() => _resetUiOnStart = true),
+                  child: const Text('Сбросить настройки экранов'),
                 ),
                 if (widget.viewModel.formErrorMessage case final message?) ...[
                   const SizedBox(height: 16),

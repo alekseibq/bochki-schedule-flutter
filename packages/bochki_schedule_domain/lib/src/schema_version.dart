@@ -1,3 +1,3 @@
 abstract final class SchemaVersion {
-  static const int current = 3;
+  static const int current = 4;
 }
