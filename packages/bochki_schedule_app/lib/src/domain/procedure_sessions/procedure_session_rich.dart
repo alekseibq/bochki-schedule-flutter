@@ -55,6 +55,7 @@ final class ProcedureSessionRich {
 
   String? get resourceFinishTime {
     final kind = procedureKind;
+    if (kind?.useCapacityRestriction != true) return null;
     final resourceBusyTime = kind?.resourceBusyTime;
     if (resourceBusyTime == null) {
       return null;

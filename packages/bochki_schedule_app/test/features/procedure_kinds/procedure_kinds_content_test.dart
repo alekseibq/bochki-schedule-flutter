@@ -52,6 +52,12 @@ void main() {
     expect(find.byKey(const Key('procedure_kind_assistant_busy_time_field')),
         findsOneWidget);
     expect(find.byKey(const Key('procedure_kind_resource_busy_time_field')),
+        findsNothing);
+    await tester.tap(
+      find.byKey(const Key('procedure_kind_use_capacity_restriction_field')),
+    );
+    await tester.pump();
+    expect(find.byKey(const Key('procedure_kind_resource_busy_time_field')),
         findsOneWidget);
   });
 }

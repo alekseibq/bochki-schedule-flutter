@@ -56,7 +56,6 @@ final class ProgramSettings {
     return <String, Object?>{
       'minimumTime': minimumTime.toJson(),
       'maximumTime': maximumTime.toJson(),
-      'uiScale': uiScale,
     };
   }
 

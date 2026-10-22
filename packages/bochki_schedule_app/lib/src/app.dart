@@ -32,9 +32,12 @@ class _BochkiScheduleAppState extends State<BochkiScheduleApp> {
     _lifecycleListener = AppLifecycleListener(
       onExitRequested: _handleExitRequested,
     );
-    widget.services.getProgramSettingsUseCase.execute().then((settings) {
-      if (mounted) setState(() => _uiScale = settings.uiScale);
-    });
+    _uiScale = widget.services.uiSettingsRepository.settings.uiScale;
+    if (!widget.services.uiSettingsRepository.isLoaded) {
+      widget.services.getProgramSettingsUseCase.execute().then((settings) {
+        if (mounted) setState(() => _uiScale = settings.uiScale);
+      });
+    }
   }
 
   @override

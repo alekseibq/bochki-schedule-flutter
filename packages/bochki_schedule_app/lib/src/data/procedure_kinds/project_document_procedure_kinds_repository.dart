@@ -36,8 +36,9 @@ final class ProjectDocumentProcedureKindsRepository
 
     for (var index = 0; index < _entries.length; index++) {
       final entry = _entries[index];
+      final migrated = _migrateCapacityRestriction(entry);
       final normalized = ProcedureKindDto.fromDomain(
-        entry.toDomain(),
+        migrated.toDomain(),
         deleted: entry.deleted,
       );
       final currentJson = entry.toJson();
@@ -58,6 +59,24 @@ final class ProjectDocumentProcedureKindsRepository
     }
 
     return changed;
+  }
+
+  ProcedureKindDto _migrateCapacityRestriction(ProcedureKindDto entry) {
+    if (entry.hasCapacityRestrictionFlag) return entry;
+    final capacity = entry.capacity;
+    if (capacity == null || capacity <= 0) {
+      return entry.copyWith(useCapacityRestriction: false);
+    }
+    final resourceBusyTime = entry.resourceBusyTime;
+    if (resourceBusyTime != null && resourceBusyTime > 0) {
+      return entry.copyWith(useCapacityRestriction: true);
+    }
+    final replacement =
+        entry.participantBusyTime > 0 ? entry.participantBusyTime : 1;
+    return entry.copyWith(
+      useCapacityRestriction: true,
+      resourceBusyTime: replacement,
+    );
   }
 
   @override

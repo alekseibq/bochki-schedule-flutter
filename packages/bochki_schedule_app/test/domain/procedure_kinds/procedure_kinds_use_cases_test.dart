@@ -50,28 +50,26 @@ void main() {
       );
 
       expect(createdProcedureKind.assistantBusyTime, isNull);
-      expect(createdProcedureKind.resourceBusyTime, 20);
+      expect(createdProcedureKind.resourceBusyTime, 5);
     });
 
-    test('create accepts zero values for a complete curated procedure',
-        () async {
+    test('create rejects zero resource restriction values', () async {
       final repository = _InMemoryProcedureKindsRepository();
 
-      final createdProcedureKind =
-          await CreateProcedureKindUseCase(repository).execute(
-        ProcedureKind(
-          id: 'draft',
-          patternId: ProcedureKindPatterns.curated.patternId,
-          name: 'Парение',
-          capacity: 0,
-          participantBusyTime: 0,
-          assistantBusyTime: 0,
-          resourceBusyTime: 0,
+      expect(
+        () => CreateProcedureKindUseCase(repository).execute(
+          ProcedureKind(
+            id: 'draft',
+            patternId: ProcedureKindPatterns.curated.patternId,
+            name: 'Парение',
+            capacity: 0,
+            participantBusyTime: 0,
+            assistantBusyTime: 0,
+            resourceBusyTime: 0,
+          ),
         ),
+        throwsA(isA<ProcedureKindsValidationException>()),
       );
-
-      expect(createdProcedureKind.capacity, 0);
-      expect(createdProcedureKind.resourceBusyTime, 0);
     });
 
     test('create requires curated companion and resource times', () async {

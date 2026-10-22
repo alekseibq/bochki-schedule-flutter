@@ -28,24 +28,30 @@ abstract final class ProcedureKindValidator {
     }
 
     _validateRequiredRange(
-      value: procedureKind.capacity,
-      rangeMessage: 'Емкость должна быть от 0 до 999.',
-    );
-    _validateRequiredRange(
       value: procedureKind.participantBusyTime,
       rangeMessage: 'Время участника должно быть от 0 до 999 минут.',
     );
+
+    if (procedureKind.useCapacityRestriction) {
+      _validateRequiredNullableRange(
+        value: procedureKind.capacity,
+        emptyMessage: 'Укажите емкость.',
+        rangeMessage: 'Емкость должна быть от 1 до 999.',
+        minimum: 1,
+      );
+      _validateRequiredNullableRange(
+        value: procedureKind.resourceBusyTime,
+        emptyMessage: 'Укажите время ресурса.',
+        rangeMessage: 'Время ресурса должно быть от 1 до 999 минут.',
+        minimum: 1,
+      );
+    }
 
     if (procedureKind.patternId == ProcedureKindPatterns.curated.patternId) {
       _validateRequiredNullableRange(
         value: procedureKind.assistantBusyTime,
         emptyMessage: 'Укажите время сопровождающего.',
         rangeMessage: 'Время сопровождающего должно быть от 0 до 999 минут.',
-      );
-      _validateRequiredNullableRange(
-        value: procedureKind.resourceBusyTime,
-        emptyMessage: 'Укажите время ресурса.',
-        rangeMessage: 'Время ресурса должно быть от 0 до 999 минут.',
       );
       return procedureKind.copyWith(name: normalizedName);
     }
@@ -76,11 +82,12 @@ abstract final class ProcedureKindValidator {
     required int? value,
     required String emptyMessage,
     required String rangeMessage,
+    int minimum = 0,
   }) {
     if (value == null) {
       throw ProcedureKindsValidationException(emptyMessage);
     }
-    if (value < 0 || value > 999) {
+    if (value < minimum || value > 999) {
       throw ProcedureKindsValidationException(rangeMessage);
     }
   }

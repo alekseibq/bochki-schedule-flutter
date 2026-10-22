@@ -305,7 +305,11 @@ class _ProcedureKindsContentState extends State<ProcedureKindsContent> {
                             tooltip: procedureKind.pattern.shortName,
                           ),
                         ),
-                        Expanded(child: Text('${procedureKind.capacity}')),
+                        Expanded(
+                          child: Text(procedureKind.useCapacityRestriction
+                              ? '${procedureKind.capacity ?? '—'}'
+                              : '—'),
+                        ),
                         Expanded(
                           child: Text('${procedureKind.participantBusyTime}'),
                         ),
@@ -316,7 +320,10 @@ class _ProcedureKindsContentState extends State<ProcedureKindsContent> {
                         ),
                         Expanded(
                           child: Text(
-                            procedureKind.resourceBusyTime?.toString() ?? '',
+                            procedureKind.useCapacityRestriction
+                                ? procedureKind.resourceBusyTime?.toString() ??
+                                    '—'
+                                : '—',
                           ),
                         ),
                         SizedBox(

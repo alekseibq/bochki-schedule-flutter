@@ -81,7 +81,7 @@ void main() {
 
       expect(createdProcedureKind, isNotNull);
       expect(createdProcedureKind!.assistantBusyTime, 40);
-      expect(createdProcedureKind.resourceBusyTime, 40);
+      expect(createdProcedureKind.resourceBusyTime, 18);
     });
 
     test('empty short name follows a renamed full name on update', () async {
@@ -93,6 +93,7 @@ void main() {
         rawName: 'Бег с препятствиями',
         rawShortName: '   ',
         rawCapacity: '2',
+        useCapacityRestriction: false,
         rawParticipantBusyTime: '20',
       );
 
@@ -107,6 +108,7 @@ void main() {
         rawName: 'Бег с препятствиями',
         rawShortName: 'Бег',
         rawCapacity: '2',
+        useCapacityRestriction: false,
         rawParticipantBusyTime: '20',
       );
 

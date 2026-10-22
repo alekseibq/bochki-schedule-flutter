@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:bochki_schedule_app/bochki_schedule_app.dart';
+import 'package:bochki_schedule_app/src/data/ui_settings/ui_settings_repository.dart';
 import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
 import 'package:flutter/gestures.dart';
@@ -1730,6 +1731,10 @@ void main() {
           .text,
       isEmpty,
     );
+    await tester.tap(
+      find.byKey(const Key('procedure_kind_use_capacity_restriction_field')),
+    );
+    await tester.pump();
 
     await tester.enterText(
       find.byKey(const Key('procedure_kind_name_field')),
@@ -1870,9 +1875,14 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.descendant(of: dialog, matching: find.text('Емкость')),
-      findsOneWidget,
+        find.byKey(const Key('procedure_kind_use_capacity_restriction_field')),
+        findsOneWidget);
+    await tester.tap(
+      find.byKey(const Key('procedure_kind_use_capacity_restriction_field')),
     );
+    await tester.pump();
+    expect(find.descendant(of: dialog, matching: find.text('Емкость')),
+        findsOneWidget);
     expect(
       find.descendant(
         of: dialog,
@@ -1888,7 +1898,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.descendant(of: dialog, matching: find.text('Время ресурса (мин)')),
+      find.descendant(of: dialog, matching: find.text('на время')),
       findsOneWidget,
     );
 
@@ -1925,12 +1935,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.descendant(
-        of: find.byKey(const Key('procedure_kind_capacity_field')),
-        matching: find.text('1'),
-      ),
-      findsOneWidget,
+        find.byKey(const Key('procedure_kind_capacity_field')), findsNothing);
+    await tester.tap(
+      find.byKey(const Key('procedure_kind_use_capacity_restriction_field')),
     );
+    await tester.pump();
     for (final key in const [
       Key('procedure_kind_participant_busy_time_field'),
       Key('procedure_kind_assistant_busy_time_field'),
@@ -1967,6 +1976,11 @@ void main() {
     await _openProcedureKindsDialog(tester);
     await tester.tap(find.byKey(const Key('procedure_kind_add_button')));
     await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const Key('procedure_kind_use_capacity_restriction_field')),
+    );
+    await tester.pump();
 
     final capacity = find.byKey(const Key('procedure_kind_capacity_field'));
     await tester.enterText(capacity, '1abc');
@@ -2516,6 +2530,10 @@ _TestContext _buildTestContext({
   return _TestContext(
     services: AppServices(
       appDataDirectory: appDataDirectory,
+      uiSettingsRepository: UiSettingsRepository(
+        file: File('${appDataDirectory.path}/ui_settings.json'),
+        writer: const AtomicFileWriter(),
+      ),
       logger: const _NoopLogger(),
       listHumansUseCase: ListHumansUseCase(humansRepository),
       listParticipantsUseCase: ListParticipantsUseCase(participantsRepository),
