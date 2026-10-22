@@ -270,7 +270,16 @@ class _BochkiShellState extends State<BochkiShell> {
         context: context,
         barrierDismissible: false,
         builder: (context) {
-          return ProcedureKindsDialog(viewModel: viewModel);
+          return ProcedureKindsDialog(
+            viewModel: viewModel,
+            columnWidths: widget.services.uiSettingsRepository.settings
+                .procedureKindsColumnWidths,
+            onColumnWidthsChanged: (widths) => widget
+                .services.uiSettingsRepository
+                .update(widget.services.uiSettingsRepository.settings.copyWith(
+              procedureKindsColumnWidths: widths,
+            )),
+          );
         },
       );
     } finally {
