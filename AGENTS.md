@@ -1,5 +1,13 @@
 # Command approvals
 
+## Project implementation guide
+
+Перед проектированием или изменением функциональности прочитай
+[`docs/implementation-playbook.md`](docs/implementation-playbook.md), найди
+ближайший типовой образец и придерживайся зафиксированных в нём границ,
+инвариантов и терминологии. Не вводи новый паттерн, если существующий образец
+покрывает задачу.
+
 Do not request `require_escalated` or separate confirmation for commands that
 are already allowed by a `prefix_rule` in `~/.codex/rules/default.rules` when
 the action is explicitly within the user's requested task.

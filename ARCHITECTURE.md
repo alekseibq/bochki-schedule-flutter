@@ -1,16 +1,44 @@
 # Architecture
 
-Проект использует простую слоистую структуру для vertical slice `participants`:
+Проект — Flutter desktop-приложение в Melos-монорепо с простой слоистой
+архитектурой и vertical slices. Практические правила, рабочие рецепты и ссылки
+на образцы находятся в [Implementation playbook](docs/implementation-playbook.md).
 
-- `UI/View`: Flutter widgets только отображают состояние и вызывают команды ViewModel.
-- `ViewModel`: `ChangeNotifier` хранит состояние экрана участников, вызывает use cases и преобразует ошибки в UI-friendly сообщения.
-- `Domain/UseCases`: entity `Participant`, интерфейс `ParticipantsRepository` и use cases для list/create/update/delete. Бизнес-правила и validation живут здесь.
-- `Repository`: data-слой реализует `ParticipantsRepository` и скрывает текущий способ хранения.
-- `Data layer`: adapter поверх `ProjectDocumentRepository` читает и сохраняет участников в текущий JSON `ProjectDocument`.
+```text
+Flutter Widget
+  -> ChangeNotifier ViewModel
+  -> feature UseCase / Validator
+  -> repository port
+  -> data adapter
+  -> ProjectDocumentSyncCoordinator
+  -> ProjectDocument -> project.json
+```
 
-Правила:
+## Границы пакетов
 
-- widgets не работают напрямую с persistence, JSON, файлами или storage;
-- business rules не живут в widgets;
-- domain layer не зависит от Flutter UI;
-- новый функционал лучше добавлять vertical slice-ами с явными границами UI -> ViewModel -> UseCases -> Repository -> Storage.
+- `bochki_schedule_domain` — независимые от Flutter модели project document,
+  schema version, ID и базовые контракты.
+- `bochki_schedule_infra` — файловая инфраструктура, JSON repository,
+  атомарная запись, пути и логирование; может зависеть от `domain`.
+- `bochki_schedule_app` — feature domain/use cases, data adapters, Flutter UI,
+  bootstrap и desktop presentation.
+
+В `app` новый предметный функционал добавляется vertical slice-ом:
+`domain/<feature>`, `data/<feature>`, `features/<feature>` и тесты рядом с
+соответствующим слоем. `AppBootstrap` — единственный composition root,
+`AppServices` передаёт собранные зависимости в presentation.
+
+## Основные правила
+
+- Widgets не обращаются напрямую к JSON, файлам и persistence; бизнес-правила
+  не размещаются в widgets.
+- Репозитории меняют in-memory document через sync parts, а сохранение
+  координирует `ProjectDocumentSyncCoordinator`; прямой save из feature не
+  допускается.
+- Данные проекта хранятся в `project.json`; UI-настройки — в отдельном
+  соседнем `ui_settings.json`.
+- Дочерние production-окна создаёт и переоткрывает
+  `DesktopWindowCoordinator`; их детальный контракт описан в
+  [desktop-window-lifecycle.md](docs/desktop-window-lifecycle.md).
+
+Архитектурные мотивы и долгосрочные решения фиксируются в [ADR](docs/adr).
