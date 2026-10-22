@@ -97,6 +97,14 @@ final class ProcedureSessionTooltipBuilder {
         lines: const [],
       );
     }
+    if (!kind.useCapacityRestriction ||
+        kind.capacity == null ||
+        kind.resourceBusyTime == null) {
+      return ProcedureSessionTooltipData(
+        title: ProcedureSessionTooltipText(title, isBold: true),
+        lines: const [],
+      );
+    }
     final start = programSettings.minimumTime.hour * 60 +
         programSettings.minimumTime.minute;
     final finish = programSettings.maximumTime.hour * 60 +
@@ -108,10 +116,8 @@ final class ProcedureSessionTooltipBuilder {
           session.procedureKindId != procedureKindId) {
         continue;
       }
-      final sessionFinish = kind.resourceBusyTime == null
-          ? ProcedureSessionTime.toMinutes(session.startTime)
-          : ProcedureSessionTime.toMinutes(session.startTime) +
-              kind.resourceBusyTime!;
+      final sessionFinish = ProcedureSessionTime.toMinutes(session.startTime) +
+          kind.resourceBusyTime!;
       intervals.add((
         start: ProcedureSessionTime.toMinutes(session.startTime),
         finish: sessionFinish
@@ -131,7 +137,7 @@ final class ProcedureSessionTooltipBuilder {
           .where((entry) =>
               entry.start < segmentFinish && entry.finish > segmentStart)
           .length;
-      if (occupied < kind.capacity) {
+      if (occupied < kind.capacity!) {
         if (free.isNotEmpty && free.last.finish == segmentStart) {
           free[free.length - 1] =
               (start: free.last.start, finish: segmentFinish);

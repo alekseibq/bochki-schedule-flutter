@@ -57,7 +57,7 @@ void main() {
         'capacity': 2,
         'clientBusyTime': 20,
         'deleted': true,
-        'resourceBusyTime': 20,
+        'useCapacityRestriction': true,
       },
       <String, Object?>{
         'id': 1,
@@ -68,6 +68,7 @@ void main() {
         'clientBusyTime': 30,
         'companionBusyTime': 10,
         'deleted': false,
+        'useCapacityRestriction': true,
       },
     ]);
     expect(changeNotifications, 0);
@@ -122,7 +123,7 @@ void main() {
         repository.applyToDocument(const ProjectDocument(nextId: 3));
 
     expect(createdProcedureKind.assistantBusyTime, isNull);
-    expect(createdProcedureKind.resourceBusyTime, 20);
+    expect(createdProcedureKind.resourceBusyTime, isNull);
     expect(
       procedureKinds.map((procedureKind) => procedureKind.name),
       ['Бег дорожка'],
@@ -136,7 +137,7 @@ void main() {
         'capacity': 2,
         'clientBusyTime': 20,
         'deleted': false,
-        'resourceBusyTime': 20,
+        'useCapacityRestriction': true,
       },
       <String, Object?>{
         'id': 1,
@@ -147,6 +148,7 @@ void main() {
         'clientBusyTime': 30,
         'companionBusyTime': 10,
         'deleted': true,
+        'useCapacityRestriction': true,
       },
     ]);
     expect(changeNotifications, 4);

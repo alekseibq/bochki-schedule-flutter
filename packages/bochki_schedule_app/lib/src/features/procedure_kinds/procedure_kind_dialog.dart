@@ -46,6 +46,7 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
   late final ScrollController _scrollController;
 
   late String _patternId;
+  late bool _useCapacityRestriction;
 
   bool get _isCurated => _patternId == ProcedureKindPatterns.curated.patternId;
 
@@ -74,6 +75,8 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
     final initialProcedureKind = widget.initialProcedureKind;
     _patternId = initialProcedureKind?.patternId ??
         ProcedureKindPatterns.curated.patternId;
+    _useCapacityRestriction =
+        initialProcedureKind?.useCapacityRestriction ?? false;
     _nameController.text = initialProcedureKind?.name ?? '';
     _shortNameController.text = initialProcedureKind == null ||
             initialProcedureKind.shortName == initialProcedureKind.name
@@ -110,7 +113,6 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
       _patternId = nextPatternId;
       if (!_isCurated) {
         _assistantBusyTimeController.clear();
-        _resourceBusyTimeController.clear();
       }
     });
     widget.viewModel.clearFormError();
@@ -172,22 +174,22 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
             rawName: _nameController.text,
             rawShortName: _shortNameController.text,
             rawCapacity: _capacityController.text,
+            useCapacityRestriction: _useCapacityRestriction,
             rawParticipantBusyTime: _participantBusyTimeController.text,
             rawAssistantBusyTime:
                 _isCurated ? _assistantBusyTimeController.text : null,
-            rawResourceBusyTime:
-                _isCurated ? _resourceBusyTimeController.text : null,
+            rawResourceBusyTime: _resourceBusyTimeController.text,
           )
         : await widget.viewModel.createProcedureKind(
             patternId: _patternId,
             rawName: _nameController.text,
             rawShortName: _shortNameController.text,
             rawCapacity: _capacityController.text,
+            useCapacityRestriction: _useCapacityRestriction,
             rawParticipantBusyTime: _participantBusyTimeController.text,
             rawAssistantBusyTime:
                 _isCurated ? _assistantBusyTimeController.text : null,
-            rawResourceBusyTime:
-                _isCurated ? _resourceBusyTimeController.text : null,
+            rawResourceBusyTime: _resourceBusyTimeController.text,
           );
     if (!mounted || savedProcedureKind == null) {
       return;
@@ -290,24 +292,43 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
                       ),
                     ),
                     SizedBox(height: formGap),
-                    _FormRow(
-                      label: 'Емкость',
+                    _CapacityRestrictionRow(
                       labelWidth: _labelColumnWidth,
-                      isNarrowLayout: isNarrowLayout,
-                      child: _NumericField(
-                        fieldKey: const Key('procedure_kind_capacity_field'),
-                        controller: _capacityController,
-                        enabled: !widget.viewModel.isSaving,
-                        fieldWidth: _numericFieldWidth,
-                        onChanged: () => widget.viewModel.clearFormError(),
-                        onIncrement: () => _adjustNumericField(
-                          _capacityController,
-                          1,
+                      enabled: !widget.viewModel.isSaving,
+                      useCapacityRestriction: _useCapacityRestriction,
+                      onChanged: (value) {
+                        setState(() => _useCapacityRestriction = value);
+                        widget.viewModel.clearFormError();
+                      },
+                      capacityController: _capacityController,
+                      resourceBusyTimeController: _resourceBusyTimeController,
+                      capacityFieldWidth: _numericFieldWidth,
+                      onCapacityChanged: () =>
+                          widget.viewModel.clearFormError(),
+                      onCapacityIncrement: () => _adjustNumericField(
+                        _capacityController,
+                        1,
+                      ),
+                      onCapacityDecrement: () => _adjustNumericField(
+                        _capacityController,
+                        -1,
+                      ),
+                      onResourceBusyTimeChanged: () =>
+                          widget.viewModel.clearFormError(),
+                      onResourceBusyTimeIncrement: () => _adjustNumericField(
+                        _resourceBusyTimeController,
+                        1,
+                      ),
+                      onResourceBusyTimeDecrement: () => _adjustNumericField(
+                        _resourceBusyTimeController,
+                        -1,
+                      ),
+                      onShowResourcePopularValues: () => _showPopularValues(
+                        controller: _resourceBusyTimeController,
+                        values: widget.procedureKinds.map(
+                          (procedureKind) => procedureKind.resourceBusyTime,
                         ),
-                        onDecrement: () => _adjustNumericField(
-                          _capacityController,
-                          -1,
-                        ),
+                        fieldName: 'resource_busy_time',
                       ),
                     ),
                     SizedBox(height: formGap),
@@ -373,36 +394,6 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
                           ),
                         ),
                       ),
-                      SizedBox(height: formGap),
-                      _FormRow(
-                        label: 'Время ресурса (мин)',
-                        labelWidth: _labelColumnWidth,
-                        isNarrowLayout: isNarrowLayout,
-                        child: _NumericField(
-                          fieldKey: const Key(
-                            'procedure_kind_resource_busy_time_field',
-                          ),
-                          controller: _resourceBusyTimeController,
-                          enabled: !widget.viewModel.isSaving,
-                          fieldWidth: _numericFieldWidth,
-                          onChanged: () => widget.viewModel.clearFormError(),
-                          onIncrement: () => _adjustNumericField(
-                            _resourceBusyTimeController,
-                            1,
-                          ),
-                          onDecrement: () => _adjustNumericField(
-                            _resourceBusyTimeController,
-                            -1,
-                          ),
-                          onShowPopularValues: () => _showPopularValues(
-                            controller: _resourceBusyTimeController,
-                            values: widget.procedureKinds.map(
-                              (procedureKind) => procedureKind.resourceBusyTime,
-                            ),
-                            fieldName: 'resource_busy_time',
-                          ),
-                        ),
-                      ),
                     ],
                     if (widget.viewModel.formErrorMessage
                         case final message?) ...[
@@ -439,6 +430,92 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
           ],
         );
       },
+    );
+  }
+}
+
+class _CapacityRestrictionRow extends StatelessWidget {
+  const _CapacityRestrictionRow({
+    required this.labelWidth,
+    required this.enabled,
+    required this.useCapacityRestriction,
+    required this.onChanged,
+    required this.capacityController,
+    required this.resourceBusyTimeController,
+    required this.capacityFieldWidth,
+    required this.onCapacityChanged,
+    required this.onCapacityIncrement,
+    required this.onCapacityDecrement,
+    required this.onResourceBusyTimeChanged,
+    required this.onResourceBusyTimeIncrement,
+    required this.onResourceBusyTimeDecrement,
+    required this.onShowResourcePopularValues,
+  });
+
+  final double labelWidth;
+  final bool enabled;
+  final bool useCapacityRestriction;
+  final ValueChanged<bool> onChanged;
+  final TextEditingController capacityController;
+  final TextEditingController resourceBusyTimeController;
+  final double capacityFieldWidth;
+  final VoidCallback onCapacityChanged;
+  final VoidCallback onCapacityIncrement;
+  final VoidCallback onCapacityDecrement;
+  final VoidCallback onResourceBusyTimeChanged;
+  final VoidCallback onResourceBusyTimeIncrement;
+  final VoidCallback onResourceBusyTimeDecrement;
+  final VoidCallback onShowResourcePopularValues;
+
+  @override
+  Widget build(BuildContext context) {
+    final scale = MediaQuery.textScalerOf(context).scale(1);
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: labelWidth * scale,
+            child: Padding(
+              padding: EdgeInsets.only(right: 16 * scale),
+              child:
+                  const Text('ограничить емкость', textAlign: TextAlign.right),
+            ),
+          ),
+          Checkbox(
+            key: const Key('procedure_kind_use_capacity_restriction_field'),
+            value: useCapacityRestriction,
+            onChanged: enabled ? (value) => onChanged(value ?? false) : null,
+          ),
+          if (useCapacityRestriction) ...[
+            const Text('Емкость'),
+            const SizedBox(width: 8),
+            _NumericField(
+              fieldKey: const Key('procedure_kind_capacity_field'),
+              controller: capacityController,
+              enabled: enabled,
+              fieldWidth: capacityFieldWidth,
+              onChanged: onCapacityChanged,
+              onIncrement: onCapacityIncrement,
+              onDecrement: onCapacityDecrement,
+            ),
+            const SizedBox(width: 12),
+            const Text('на время'),
+            const SizedBox(width: 8),
+            _NumericField(
+              fieldKey: const Key('procedure_kind_resource_busy_time_field'),
+              controller: resourceBusyTimeController,
+              enabled: enabled,
+              fieldWidth: capacityFieldWidth,
+              onChanged: onResourceBusyTimeChanged,
+              onIncrement: onResourceBusyTimeIncrement,
+              onDecrement: onResourceBusyTimeDecrement,
+              onShowPopularValues: onShowResourcePopularValues,
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

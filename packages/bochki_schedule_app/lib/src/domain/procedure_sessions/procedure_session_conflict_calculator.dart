@@ -109,7 +109,7 @@ final class ProcedureSessionConflictCalculator {
     if (session.assistantId != null) {
       addEnd('сопровождающий', kind.assistantBusyTime);
     }
-    addEnd('ресурс', kind.resourceBusyTime);
+    if (kind.useCapacityRestriction) addEnd('ресурс', kind.resourceBusyTime);
     if (ends.isNotEmpty) {
       conflicts.add(ScheduleConflict(
         type: ScheduleConflictType.timeBoundary,
@@ -152,16 +152,18 @@ final class ProcedureSessionConflictCalculator {
           capacityAllowed: 1,
           target: ScheduleConflictTarget.participant,
         ),
-      ProcedureSessionOccupancyRecord(
-        resourceType: ConflictResourceType.item,
-        resourceId: session.procedureKindId,
-        workdayId: session.dayId,
-        timeStart: session.startTime,
-        timeFinish: session.resourceFinishTime ?? session.startTime,
-        procedureSessionId: session.id,
-        capacityAllowed: procedureKind.capacity,
-        target: ScheduleConflictTarget.procedure,
-      ),
+      if (procedureKind.useCapacityRestriction &&
+          procedureKind.capacity != null)
+        ProcedureSessionOccupancyRecord(
+          resourceType: ConflictResourceType.item,
+          resourceId: session.procedureKindId,
+          workdayId: session.dayId,
+          timeStart: session.startTime,
+          timeFinish: session.resourceFinishTime ?? session.startTime,
+          procedureSessionId: session.id,
+          capacityAllowed: procedureKind.capacity!,
+          target: ScheduleConflictTarget.procedure,
+        ),
     ];
 
     final assistantFinishTime = session.assistantFinishTime;

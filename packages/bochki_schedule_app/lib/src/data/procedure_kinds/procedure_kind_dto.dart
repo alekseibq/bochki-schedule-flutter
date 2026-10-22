@@ -10,6 +10,8 @@ final class ProcedureKindDto {
     required this.participantBusyTime,
     required this.assistantBusyTime,
     required this.resourceBusyTime,
+    required this.useCapacityRestriction,
+    required this.hasCapacityRestrictionFlag,
     required this.deleted,
   });
 
@@ -19,7 +21,7 @@ final class ProcedureKindDto {
       patternId: (json['patternId'] as String?) ?? '',
       name: (json['name'] as String?) ?? '',
       shortName: (json['shortName'] as String?) ?? '',
-      capacity: (json['capacity'] as num?)?.toInt() ?? 0,
+      capacity: (json['capacity'] as num?)?.toInt(),
       participantBusyTime:
           ((json['clientBusyTime'] ?? json['participantBusyTime']) as num?)
                   ?.toInt() ??
@@ -28,6 +30,9 @@ final class ProcedureKindDto {
           ((json['companionBusyTime'] ?? json['assistantBusyTime']) as num?)
               ?.toInt(),
       resourceBusyTime: (json['resourceBusyTime'] as num?)?.toInt(),
+      useCapacityRestriction: json['useCapacityRestriction'] as bool? ??
+          ((json['capacity'] as num?)?.toInt() ?? 0) > 0,
+      hasCapacityRestrictionFlag: json.containsKey('useCapacityRestriction'),
       deleted: json['deleted'] as bool? ?? false,
     );
   }
@@ -46,6 +51,8 @@ final class ProcedureKindDto {
       participantBusyTime: persistedProcedureKind.participantBusyTime,
       assistantBusyTime: persistedProcedureKind.assistantBusyTime,
       resourceBusyTime: persistedProcedureKind.resourceBusyTime,
+      useCapacityRestriction: persistedProcedureKind.useCapacityRestriction,
+      hasCapacityRestrictionFlag: true,
       deleted: deleted,
     );
   }
@@ -54,10 +61,12 @@ final class ProcedureKindDto {
   final String patternId;
   final String name;
   final String shortName;
-  final int capacity;
+  final int? capacity;
   final int participantBusyTime;
   final int? assistantBusyTime;
   final int? resourceBusyTime;
+  final bool useCapacityRestriction;
+  final bool hasCapacityRestrictionFlag;
   final bool deleted;
 
   ProcedureKind toDomain() {
@@ -70,6 +79,7 @@ final class ProcedureKindDto {
       participantBusyTime: participantBusyTime,
       assistantBusyTime: assistantBusyTime,
       resourceBusyTime: resourceBusyTime,
+      useCapacityRestriction: useCapacityRestriction,
     ).sanitizedForPersistence();
   }
 
@@ -79,6 +89,7 @@ final class ProcedureKindDto {
     String? name,
     String? shortName,
     int? capacity,
+    bool? useCapacityRestriction,
     int? participantBusyTime,
     int? assistantBusyTime,
     bool clearAssistantBusyTime = false,
@@ -92,6 +103,9 @@ final class ProcedureKindDto {
       name: name ?? this.name,
       shortName: shortName ?? this.shortName,
       capacity: capacity ?? this.capacity,
+      useCapacityRestriction:
+          useCapacityRestriction ?? this.useCapacityRestriction,
+      hasCapacityRestrictionFlag: hasCapacityRestrictionFlag,
       participantBusyTime: participantBusyTime ?? this.participantBusyTime,
       assistantBusyTime: clearAssistantBusyTime
           ? null
@@ -109,10 +123,11 @@ final class ProcedureKindDto {
       'patternId': patternId,
       'name': name,
       'shortName': shortName,
-      'capacity': capacity,
       'clientBusyTime': participantBusyTime,
       'deleted': deleted,
+      'useCapacityRestriction': useCapacityRestriction,
     };
+    if (capacity != null) json['capacity'] = capacity;
     if (assistantBusyTime != null) {
       json['companionBusyTime'] = assistantBusyTime;
     }

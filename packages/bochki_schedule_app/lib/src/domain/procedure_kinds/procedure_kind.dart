@@ -9,10 +9,11 @@ final class ProcedureKind {
     required String patternId,
     required String name,
     String? shortName,
-    required this.capacity,
+    this.capacity,
     required this.participantBusyTime,
     this.assistantBusyTime,
     this.resourceBusyTime,
+    this.useCapacityRestriction = true,
   })  : id = NamedDirectoryEntry.normalizeId(id),
         patternId = patternId.trim(),
         name = NamedDirectoryEntry.normalizeName(name),
@@ -38,10 +39,11 @@ final class ProcedureKind {
   final String patternId;
   final String name;
   final String shortName;
-  final int capacity;
+  final int? capacity;
   final int participantBusyTime;
   final int? assistantBusyTime;
   final int? resourceBusyTime;
+  final bool useCapacityRestriction;
 
   ProcedureKindPattern get pattern => ProcedureKindPatterns.tryById(patternId)!;
 
@@ -74,12 +76,10 @@ final class ProcedureKind {
     if (isGrouped) {
       return copyWith(
         assistantBusyTime: participantBusyTime,
-        resourceBusyTime: participantBusyTime,
       );
     }
 
     return copyWith(
-      resourceBusyTime: participantBusyTime,
       clearAssistantBusyTime: true,
     );
   }
@@ -90,6 +90,7 @@ final class ProcedureKind {
     String? name,
     String? shortName,
     int? capacity,
+    bool? useCapacityRestriction,
     int? participantBusyTime,
     int? assistantBusyTime,
     bool clearAssistantBusyTime = false,
@@ -102,6 +103,8 @@ final class ProcedureKind {
       name: name ?? this.name,
       shortName: shortName ?? this.shortName,
       capacity: capacity ?? this.capacity,
+      useCapacityRestriction:
+          useCapacityRestriction ?? this.useCapacityRestriction,
       participantBusyTime: participantBusyTime ?? this.participantBusyTime,
       assistantBusyTime: clearAssistantBusyTime
           ? null

@@ -1672,14 +1672,14 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
         : isDirectory
             ? const Size(920, 640)
             : kind == DesktopWindowKind.procedureKindEditor
-                ? scaled(const Size(720, 560))
+                ? scaled(const Size(820, 560))
                 : isEditor
                     ? const Size(650, 500)
                     : const Size(900, 680),
     minimumSize: isStatistics || isFreeTime
         ? const Size(1080, 420)
         : kind == DesktopWindowKind.procedureKindEditor
-            ? scaled(const Size(650, 480))
+            ? scaled(const Size(760, 480))
             : isEditor
                 ? const Size(600, 420)
                 : const Size(700, 500),
@@ -2395,6 +2395,7 @@ Map<String, dynamic> _kindMap(ProcedureKind k) => {
       'name': k.name,
       'shortName': k.shortName,
       'capacity': k.capacity,
+      'useCapacityRestriction': k.useCapacityRestriction,
       'participantBusyTime': k.participantBusyTime,
       'assistantBusyTime': k.assistantBusyTime,
       'resourceBusyTime': k.resourceBusyTime
@@ -2404,7 +2405,8 @@ ProcedureKind _kindFromMap(Map<String, dynamic> m) => ProcedureKind(
     patternId: m['patternId'] as String,
     name: m['name'] as String,
     shortName: m['shortName'] as String,
-    capacity: m['capacity'] as int,
+    capacity: m['capacity'] as int?,
+    useCapacityRestriction: m['useCapacityRestriction'] as bool? ?? true,
     participantBusyTime: m['participantBusyTime'] as int,
     assistantBusyTime: m['assistantBusyTime'] as int?,
     resourceBusyTime: m['resourceBusyTime'] as int?);
