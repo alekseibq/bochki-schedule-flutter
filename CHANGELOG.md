@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.18.0
+
+Release date: 2026-10-22
+
+### Highlights
+
+- Added persistent interface settings and pair-count options.
+- Made procedure capacity restrictions optional.
+- Improved procedure and assistant directories, including safer saving of inline edits.
+- Added conflict markers to procedure-session columns.
+
+### Details
+
+- `feat: persist UI settings and pair-count options`
+- `feat: make procedure capacity restriction optional`
+- `feat(directories): refine procedure and assistant lists`
+- `fix(directory): save inline edits before closing`
+- `feat(procedure-sessions): mark conflict columns (#198)`
+
 ## v0.17.1
 
 Release date: 2026-10-03
