@@ -9,18 +9,21 @@ final class UiSettings {
     this.shouldResetUiDimensionsOnStart = false,
     this.windowSizes = const {},
     this.procedureSessionsColumnWidths = const [],
+    this.procedureKindsColumnWidths = const [],
   });
 
   final double uiScale;
   final bool shouldResetUiDimensionsOnStart;
   final Map<String, Map<String, double>> windowSizes;
   final List<double> procedureSessionsColumnWidths;
+  final List<double> procedureKindsColumnWidths;
 
   UiSettings copyWith({
     double? uiScale,
     bool? shouldResetUiDimensionsOnStart,
     Map<String, Map<String, double>>? windowSizes,
     List<double>? procedureSessionsColumnWidths,
+    List<double>? procedureKindsColumnWidths,
   }) =>
       UiSettings(
         uiScale: uiScale ?? this.uiScale,
@@ -29,6 +32,8 @@ final class UiSettings {
         windowSizes: windowSizes ?? this.windowSizes,
         procedureSessionsColumnWidths:
             procedureSessionsColumnWidths ?? this.procedureSessionsColumnWidths,
+        procedureKindsColumnWidths:
+            procedureKindsColumnWidths ?? this.procedureKindsColumnWidths,
       );
 
   Map<String, Object?> toJson() => {
@@ -37,6 +42,7 @@ final class UiSettings {
         'shouldResetUiDimensionsOnStart': shouldResetUiDimensionsOnStart,
         'windowSizes': windowSizes,
         'procedureSessionsColumnWidths': procedureSessionsColumnWidths,
+        'procedureKindsColumnWidths': procedureKindsColumnWidths,
       };
 
   factory UiSettings.fromJson(Object? value) {
@@ -61,12 +67,18 @@ final class UiSettings {
         .whereType<num>()
         .map((width) => width.toDouble())
         .toList(growable: false);
+    final procedureKindsWidths =
+        (value['procedureKindsColumnWidths'] as List? ?? const [])
+            .whereType<num>()
+            .map((width) => width.toDouble())
+            .toList(growable: false);
     return UiSettings(
       uiScale: scale,
       shouldResetUiDimensionsOnStart:
           value['shouldResetUiDimensionsOnStart'] as bool? ?? false,
       windowSizes: sizes,
       procedureSessionsColumnWidths: widths,
+      procedureKindsColumnWidths: procedureKindsWidths,
     );
   }
 }

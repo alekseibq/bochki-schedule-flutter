@@ -1367,6 +1367,17 @@ final class DesktopWindowCoordinator {
         return _sessionSnapshot();
       case 'directorySnapshot':
         return _directorySnapshot(call.arguments as String);
+      case 'updateProcedureKindsColumnWidths':
+        final widths = (call.arguments as List)
+            .whereType<num>()
+            .map((width) => width.toDouble())
+            .toList(growable: false);
+        await _services.uiSettingsRepository.update(
+          _services.uiSettingsRepository.settings.copyWith(
+            procedureKindsColumnWidths: widths,
+          ),
+        );
+        return null;
       case 'directoryMutate':
         return _directoryMutate(
             Map<String, dynamic>.from(call.arguments as Map));
@@ -1551,7 +1562,9 @@ final class DesktopWindowCoordinator {
         return {
           'entries': (await _services.listProcedureKindsUseCase.execute())
               .map(_kindMap)
-              .toList()
+              .toList(),
+          'procedureKindsColumnWidths': _services
+              .uiSettingsRepository.settings.procedureKindsColumnWidths,
         };
       case 'workdays':
         return {
@@ -2532,6 +2545,7 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
   String? _entryId;
   int _procedureKindFormSession = 0;
   List<Map<String, dynamic>> _entries = const [];
+  List<double> _procedureKindsColumnWidths = const [];
   bool _loading = true;
   bool _saving = false;
   bool _hasModalChild = false;
@@ -2636,6 +2650,11 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
       final result = Map<String, dynamic>.from(await _mainChannel.invokeMethod(
           'directorySnapshot', _directory) as Map);
       _entries = _maps(result['entries']);
+      _procedureKindsColumnWidths =
+          (result['procedureKindsColumnWidths'] as List? ?? const [])
+              .whereType<num>()
+              .map((width) => width.toDouble())
+              .toList(growable: false);
       if (_procedureKindsViewModel case final viewModel?) {
         await viewModel.loadProcedureKinds();
       }
@@ -2650,6 +2669,14 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _saveProcedureKindsColumnWidths(List<double> widths) {
+    _procedureKindsColumnWidths = widths;
+    return _mainChannel.invokeMethod<void>(
+      'updateProcedureKindsColumnWidths',
+      widths,
+    );
   }
 
   @override
@@ -2744,6 +2771,8 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
           child: _kind == DesktopWindowKind.procedureKinds
               ? ProcedureKindsContent(
                   viewModel: _procedureKindsViewModel!,
+                  columnWidths: _procedureKindsColumnWidths,
+                  onColumnWidthsChanged: _saveProcedureKindsColumnWidths,
                   onOpenCreate: () =>
                       _openEditor(DesktopWindowKind.procedureKindEditor.name),
                   onOpenEdit: (procedureKind) => _openEditor(

@@ -335,24 +335,6 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
                         fieldName: 'resource_busy_time',
                       ),
                     ),
-                    if (_isCurated) ...[
-                      SizedBox(height: formGap),
-                      _FormRow(
-                        label: 'Учитывать в количестве сопровождений',
-                        labelWidth: _labelColumnWidth,
-                        isNarrowLayout: isNarrowLayout,
-                        child: Checkbox(
-                          key: const Key('procedure_kind_use_for_pair_count'),
-                          value: _useForPairCount,
-                          onChanged: widget.viewModel.isSaving
-                              ? null
-                              : (value) => setState(() {
-                                    _useForPairCount = value ?? false;
-                                    widget.viewModel.clearFormError();
-                                  }),
-                        ),
-                      ),
-                    ],
                     SizedBox(height: formGap),
                     _FormRow(
                       label: 'Время участника (мин)',
@@ -413,6 +395,27 @@ class _ProcedureKindDialogState extends State<ProcedureKindDialog> {
                                   procedureKind.assistantBusyTime,
                             ),
                             fieldName: 'assistant_busy_time',
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: formGap),
+                      _FormRow(
+                        label: 'Учитывать в количестве сопровождений',
+                        labelWidth: _labelColumnWidth,
+                        isNarrowLayout: isNarrowLayout,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Checkbox(
+                            key: const Key(
+                              'procedure_kind_use_for_pair_count',
+                            ),
+                            value: _useForPairCount,
+                            onChanged: widget.viewModel.isSaving
+                                ? null
+                                : (value) => setState(() {
+                                      _useForPairCount = value ?? false;
+                                      widget.viewModel.clearFormError();
+                                    }),
                           ),
                         ),
                       ),

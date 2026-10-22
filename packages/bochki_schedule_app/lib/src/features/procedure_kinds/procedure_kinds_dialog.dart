@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../domain/procedure_kinds/procedure_kind.dart';
@@ -9,12 +10,16 @@ import 'procedure_kinds_view_model.dart';
 class ProcedureKindsContent extends StatefulWidget {
   const ProcedureKindsContent({
     required this.viewModel,
+    this.columnWidths = const [],
+    this.onColumnWidthsChanged,
     this.onOpenCreate,
     this.onOpenEdit,
     super.key,
   });
 
   final ProcedureKindsViewModel viewModel;
+  final List<double> columnWidths;
+  final Future<void> Function(List<double> widths)? onColumnWidthsChanged;
   final Future<void> Function()? onOpenCreate;
   final Future<void> Function(ProcedureKind procedureKind)? onOpenEdit;
 
@@ -35,12 +40,60 @@ class ProcedureKindsContent extends StatefulWidget {
 }
 
 class _ProcedureKindsContentState extends State<ProcedureKindsContent> {
+  static const List<_ProcedureKindsTableColumn> _columns = [
+    _ProcedureKindsTableColumn('', 36, 36),
+    _ProcedureKindsTableColumn('Название', 140, 100),
+    _ProcedureKindsTableColumn('Тип', 80, 65),
+    _ProcedureKindsTableColumn('емкость', 50, 50),
+    _ProcedureKindsTableColumn('t участн.', 50, 50),
+    _ProcedureKindsTableColumn('t ассист.', 50, 50),
+    _ProcedureKindsTableColumn('t ресурс.', 50, 50),
+    _ProcedureKindsTableColumn('', 60, 52),
+    _ProcedureKindsTableColumn('', 60, 52),
+  ];
+
   String? _selectedProcedureKindId;
+  late List<double> _columnWidths;
 
   @override
   void initState() {
     super.initState();
+    final saved = widget.columnWidths;
+    _columnWidths = saved.length == _columns.length
+        ? List<double>.from(saved)
+        : _columns.map((column) => column.initialWidth).toList();
     widget.viewModel.addListener(_showActionErrorIfNeeded);
+  }
+
+  void _resizeColumns(int leftColumnIndex, double delta) {
+    final leftColumn = _columns[leftColumnIndex];
+    final leftWidth = _columnWidths[leftColumnIndex];
+    if (leftColumnIndex == _columns.length - 1) {
+      final actualDelta =
+          delta.clamp(leftColumn.minimumWidth - leftWidth, double.infinity);
+      if (actualDelta == 0) return;
+      setState(() => _columnWidths[leftColumnIndex] = leftWidth + actualDelta);
+      _saveColumnWidths();
+      return;
+    }
+    final rightColumn = _columns[leftColumnIndex + 1];
+    final rightWidth = _columnWidths[leftColumnIndex + 1];
+    final actualDelta = delta.clamp(
+      leftColumn.minimumWidth - leftWidth,
+      rightWidth - rightColumn.minimumWidth,
+    );
+    if (actualDelta == 0) return;
+    setState(() {
+      _columnWidths[leftColumnIndex] = leftWidth + actualDelta;
+      _columnWidths[leftColumnIndex + 1] = rightWidth - actualDelta;
+    });
+    _saveColumnWidths();
+  }
+
+  void _saveColumnWidths() {
+    if (widget.onColumnWidthsChanged case final callback?) {
+      unawaited(callback(List<double>.from(_columnWidths)));
+    }
   }
 
   @override
@@ -237,131 +290,211 @@ class _ProcedureKindsContentState extends State<ProcedureKindsContent> {
         borderRadius: BorderRadius.circular(12),
         color: Colors.white,
       ),
-      child: Column(
-        children: [
-          Container(
-            key: const Key('procedure_kinds_table_header'),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: const BoxDecoration(
-              color: Color(0xFFF4F6F8),
-              border: Border(
-                bottom: BorderSide(color: Color(0xFFD0D7DE)),
-              ),
-            ),
-            child: const Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: _tableWidth < constraints.maxWidth
+                ? constraints.maxWidth
+                : _tableWidth,
+            child: Column(
               children: [
-                SizedBox(width: 36, child: Text('')),
-                Expanded(flex: 3, child: Text('Название')),
-                Expanded(flex: 2, child: Text('Тип')),
-                Expanded(child: Text('емкость')),
-                Expanded(child: Text('t участн.')),
-                Expanded(child: Text('t ассист.')),
-                Expanded(child: Text('t ресурс.')),
-                SizedBox(width: 72, child: Text('')),
-                SizedBox(width: 72, child: Text('')),
+                Container(
+                  key: const Key('procedure_kinds_table_header'),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF4F6F8),
+                    border: Border(
+                      bottom: BorderSide(color: Color(0xFFD0D7DE)),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      for (var index = 0; index < _columns.length; index++)
+                        _ProcedureKindsResizableHeaderCell(
+                          key: Key('procedure_kinds_column_header_$index'),
+                          width: _columnWidths[index],
+                          text: _columns[index].label,
+                          onResize: (delta) => _resizeColumns(index, delta),
+                          resizeHandleKey:
+                              Key('procedure_kinds_column_resizer_$index'),
+                        ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: widget.viewModel.procedureKinds.length,
+                    itemBuilder: (context, index) {
+                      final procedureKind =
+                          widget.viewModel.procedureKinds[index];
+                      final isSelected =
+                          _selectedProcedureKindId == procedureKind.id;
+                      return InkWell(
+                        key: Key('procedure_kind_row_${procedureKind.id}'),
+                        onTap: () {
+                          setState(() {
+                            _selectedProcedureKindId = procedureKind.id;
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? const Color(0xFFF0F6FF)
+                                : Colors.transparent,
+                            border: const Border(
+                              bottom: BorderSide(color: Color(0xFFE5E9EF)),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: _columnWidths[0],
+                                child: Text(isSelected ? '▶' : ''),
+                              ),
+                              SizedBox(
+                                width: _columnWidths[1],
+                                child: Text(procedureKind.name),
+                              ),
+                              SizedBox(
+                                width: _columnWidths[2],
+                                child: _ProcedureKindPatternIcon(
+                                  patternId: procedureKind.patternId,
+                                  tooltip: procedureKind.pattern.shortName,
+                                ),
+                              ),
+                              SizedBox(
+                                width: _columnWidths[3],
+                                child: Text(procedureKind.useCapacityRestriction
+                                    ? '${procedureKind.capacity ?? '—'}'
+                                    : '—'),
+                              ),
+                              SizedBox(
+                                width: _columnWidths[4],
+                                child: Text(
+                                    '${procedureKind.participantBusyTime}'),
+                              ),
+                              SizedBox(
+                                width: _columnWidths[5],
+                                child: Text(
+                                  procedureKind.assistantBusyTime?.toString() ??
+                                      '',
+                                ),
+                              ),
+                              SizedBox(
+                                width: _columnWidths[6],
+                                child: Text(
+                                  procedureKind.useCapacityRestriction
+                                      ? procedureKind.resourceBusyTime
+                                              ?.toString() ??
+                                          '—'
+                                      : '—',
+                                ),
+                              ),
+                              SizedBox(
+                                width: _columnWidths[7],
+                                child: TextButton(
+                                  key: Key(
+                                      'procedure_kind_edit_${procedureKind.id}'),
+                                  onPressed: widget.viewModel.isSaving
+                                      ? null
+                                      : () => unawaited(
+                                            _openEditDialog(procedureKind),
+                                          ),
+                                  child: const Text('Изм.'),
+                                ),
+                              ),
+                              SizedBox(
+                                width: _columnWidths[8],
+                                child: TextButton(
+                                  key: Key(
+                                      'procedure_kind_delete_${procedureKind.id}'),
+                                  onPressed: widget.viewModel.isSaving
+                                      ? null
+                                      : () => unawaited(
+                                            _deleteProcedureKind(procedureKind),
+                                          ),
+                                  child: const Text('Удл.'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ],
             ),
           ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: widget.viewModel.procedureKinds.length,
-              itemBuilder: (context, index) {
-                final procedureKind = widget.viewModel.procedureKinds[index];
-                final isSelected = _selectedProcedureKindId == procedureKind.id;
-                return InkWell(
-                  key: Key('procedure_kind_row_${procedureKind.id}'),
-                  onTap: () {
-                    setState(() {
-                      _selectedProcedureKindId = procedureKind.id;
-                    });
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? const Color(0xFFF0F6FF)
-                          : Colors.transparent,
-                      border: const Border(
-                        bottom: BorderSide(color: Color(0xFFE5E9EF)),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        SizedBox(
-                          width: 36,
-                          child: Text(isSelected ? '▶' : ''),
-                        ),
-                        Expanded(
-                          flex: 3,
-                          child: Text(procedureKind.name),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: _ProcedureKindPatternIcon(
-                            patternId: procedureKind.patternId,
-                            tooltip: procedureKind.pattern.shortName,
-                          ),
-                        ),
-                        Expanded(
-                          child: Text(procedureKind.useCapacityRestriction
-                              ? '${procedureKind.capacity ?? '—'}'
-                              : '—'),
-                        ),
-                        Expanded(
-                          child: Text('${procedureKind.participantBusyTime}'),
-                        ),
-                        Expanded(
-                          child: Text(
-                            procedureKind.assistantBusyTime?.toString() ?? '',
-                          ),
-                        ),
-                        Expanded(
-                          child: Text(
-                            procedureKind.useCapacityRestriction
-                                ? procedureKind.resourceBusyTime?.toString() ??
-                                    '—'
-                                : '—',
-                          ),
-                        ),
-                        SizedBox(
-                          width: 72,
-                          child: TextButton(
-                            key: Key('procedure_kind_edit_${procedureKind.id}'),
-                            onPressed: widget.viewModel.isSaving
-                                ? null
-                                : () => unawaited(
-                                      _openEditDialog(procedureKind),
-                                    ),
-                            child: const Text('Изм.'),
-                          ),
-                        ),
-                        SizedBox(
-                          width: 72,
-                          child: TextButton(
-                            key: Key(
-                                'procedure_kind_delete_${procedureKind.id}'),
-                            onPressed: widget.viewModel.isSaving
-                                ? null
-                                : () => unawaited(
-                                      _deleteProcedureKind(procedureKind),
-                                    ),
-                            child: const Text('Удл.'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
+
+  double get _tableWidth =>
+      _columnWidths.fold<double>(0, (sum, width) => sum + width);
+}
+
+class _ProcedureKindsTableColumn {
+  const _ProcedureKindsTableColumn(
+    this.label,
+    this.initialWidth,
+    this.minimumWidth,
+  );
+
+  final String label;
+  final double initialWidth;
+  final double minimumWidth;
+}
+
+class _ProcedureKindsResizableHeaderCell extends StatelessWidget {
+  const _ProcedureKindsResizableHeaderCell({
+    required this.width,
+    required this.text,
+    required this.onResize,
+    required this.resizeHandleKey,
+    super.key,
+  });
+
+  final double width;
+  final String text;
+  final ValueChanged<double> onResize;
+  final Key resizeHandleKey;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: width,
+        height: 42,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+              child: Text(text),
+            ),
+            Positioned(
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: 8,
+              child: MouseRegion(
+                cursor: SystemMouseCursors.resizeLeftRight,
+                child: Listener(
+                  key: resizeHandleKey,
+                  behavior: HitTestBehavior.translucent,
+                  onPointerMove: (event) {
+                    if (event.buttons == kPrimaryMouseButton) {
+                      onResize(event.delta.dx);
+                    }
+                  },
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
 }
 
 class _ProcedureKindPatternIcon extends StatelessWidget {
@@ -386,9 +519,16 @@ class _ProcedureKindPatternIcon extends StatelessWidget {
 }
 
 class ProcedureKindsDialog extends StatelessWidget {
-  const ProcedureKindsDialog({required this.viewModel, super.key});
+  const ProcedureKindsDialog({
+    required this.viewModel,
+    required this.columnWidths,
+    required this.onColumnWidthsChanged,
+    super.key,
+  });
 
   final ProcedureKindsViewModel viewModel;
+  final List<double> columnWidths;
+  final Future<void> Function(List<double> widths) onColumnWidthsChanged;
 
   static String assignedProcedureWord(int count) =>
       ProcedureKindsContent.assignedProcedureWord(count);
@@ -400,7 +540,11 @@ class ProcedureKindsDialog extends StatelessWidget {
         content: SizedBox(
           width: 980,
           height: 520,
-          child: ProcedureKindsContent(viewModel: viewModel),
+          child: ProcedureKindsContent(
+            viewModel: viewModel,
+            columnWidths: columnWidths,
+            onColumnWidthsChanged: onColumnWidthsChanged,
+          ),
         ),
         actions: [
           TextButton(
