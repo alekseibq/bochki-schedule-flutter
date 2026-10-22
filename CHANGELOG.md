@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.18.1
+
+Release date: 2026-10-22
+
+### Highlights
+
+- Refined the procedure directory interface for a clearer, safer editing flow.
+
+### Details
+
+- `fix(ui): refine procedure directory (#236-#239)`
+
 ## v0.18.0
 
 Release date: 2026-10-22
