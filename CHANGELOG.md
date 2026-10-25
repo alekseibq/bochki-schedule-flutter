@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.18.3
+
+Release date: 2026-10-25
+
+### Highlights
+
+- Prevented a closed reusable child window from immediately reopening when its
+  parent receives focus on Windows.
+
+### Details
+
+- `fix(desktop): avoid reopening child windows on close (#242)`
+
 ## v0.18.2
 
 Release date: 2026-10-25
