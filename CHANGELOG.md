@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.18.2
+
+Release date: 2026-10-25
+
+### Highlights
+
+- Completed the participants and assistants directory refinements in native
+  child windows.
+- Kept focus on the deepest visible window in a nested desktop window chain.
+
+### Details
+
+- `fix(directories): complete assistant and close button UI (#226, #235)`
+- `fix(desktop): focus deepest visible child window (#242)`
+
 ## v0.18.1
 
 Release date: 2026-10-22
