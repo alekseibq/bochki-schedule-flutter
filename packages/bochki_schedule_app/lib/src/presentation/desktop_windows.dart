@@ -2533,6 +2533,39 @@ class DirectoryChildWindowScaffold extends StatelessWidget {
       );
 }
 
+class PeopleDirectoryFooter extends StatelessWidget {
+  const PeopleDirectoryFooter({
+    required this.isSaving,
+    required this.onClose,
+    super.key,
+  });
+
+  final bool isSaving;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: Color(0xFFD0D7DE))),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Align(
+            key: const Key('people_directory_footer'),
+            alignment: Alignment.center,
+            child: FilledButton(
+              key: const Key('people_directory_ok_button'),
+              onPressed: isSaving ? null : onClose,
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24),
+                child: Text('ОК'),
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
 class DirectoryChildWindow extends StatefulWidget {
   const DirectoryChildWindow({super.key});
 
@@ -2815,7 +2848,6 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
                     (entry) => PeopleDirectoryEntry(
                       id: entry['id'] as String,
                       name: entry['name'] as String,
-                      shortName: entry['shortName'] as String?,
                     ),
                   )
                   .toList(growable: false),
@@ -2827,24 +2859,9 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
               onChanged: _load,
             ),
           ),
-          DecoratedBox(
-            decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: Color(0xFFD0D7DE))),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: FilledButton(
-                  onPressed:
-                      _saving ? null : () => unawaited(_closePeopleDirectory()),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24),
-                    child: Text('ОК'),
-                  ),
-                ),
-              ),
-            ),
+          PeopleDirectoryFooter(
+            isSaving: _saving,
+            onClose: () => unawaited(_closePeopleDirectory()),
           ),
         ],
       );
@@ -3043,7 +3060,6 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
     String action, {
     String? id,
     String? name,
-    String? shortName,
   }) async {
     try {
       final result = Map<String, dynamic>.from(
@@ -3053,7 +3069,6 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
           if (id != null) 'id': id,
           'entry': {
             if (name != null) 'name': name,
-            if (shortName != null) 'shortName': shortName,
           },
         }) as Map,
       );

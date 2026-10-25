@@ -987,16 +987,15 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
                           top: BorderSide(color: Color(0xFFD0D7DE)),
                         ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          FilledButton(
-                            onPressed: viewModel.isSaving
-                                ? null
-                                : () => unawaited(_saveAndClose()),
-                            child: Text(_config.okButtonText),
-                          ),
-                        ],
+                      child: Align(
+                        key: const Key('named_directory_dialog_footer'),
+                        alignment: Alignment.center,
+                        child: FilledButton(
+                          onPressed: viewModel.isSaving
+                              ? null
+                              : () => unawaited(_saveAndClose()),
+                          child: Text(_config.okButtonText),
+                        ),
                       ),
                     ),
                   ),

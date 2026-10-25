@@ -4,44 +4,43 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('assistant table edits and creates rows inline', (tester) async {
+  testWidgets('assistant table edits and creates rows without short name UI',
+      (tester) async {
     final mutations = <String>[];
     await tester.pumpWidget(_table(
       type: PeopleDirectoryType.assistants,
-      onMutate: (action, {id, name, shortName}) async {
-        mutations.add('$action:$id:$name:$shortName');
+      onMutate: (action, {id, name}) async {
+        mutations.add('$action:$id:$name');
         return null;
       },
     ));
 
     expect(find.text('Имя'), findsOneWidget);
-    expect(find.text('Краткое имя'), findsOneWidget);
+    expect(find.text('Краткое имя'), findsNothing);
     expect(find.text('изм.'), findsOneWidget);
     expect(find.text('удл.'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('people_directory_row_1')));
     await tester.pump();
-    expect(find.byType(TextField), findsNWidgets(2));
-    await tester.enterText(find.byType(TextField).first, 'Анна Петрова');
+    expect(find.byType(TextField), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'Анна Петрова');
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();
-    expect(mutations, ['update:1:Анна Петрова:Анна']);
+    expect(mutations, ['update:1:Анна Петрова']);
 
     await tester.tap(find.byKey(const Key('people_directory_add_row')));
     await tester.pump();
-    await tester.enterText(find.byType(TextField).first, 'Борис');
-    await tester.enterText(find.byType(TextField).last, 'Б');
+    await tester.enterText(find.byType(TextField), 'Борис');
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();
-    expect(mutations.last, 'create:null:Борис:Б');
+    expect(mutations.last, 'create:null:Борис');
   });
 
   testWidgets('escape cancels an inline edit and errors preserve it',
       (tester) async {
     await tester.pumpWidget(_table(
       type: PeopleDirectoryType.participants,
-      onMutate: (action, {id, name, shortName}) async =>
-          'Введите имя участника.',
+      onMutate: (action, {id, name}) async => 'Введите имя участника.',
     ));
 
     await tester.tap(find.byKey(const Key('people_directory_row_1')));
@@ -65,7 +64,7 @@ void main() {
     await tester.pumpWidget(_table(
       key: key,
       type: PeopleDirectoryType.participants,
-      onMutate: (action, {id, name, shortName}) async {
+      onMutate: (action, {id, name}) async {
         mutations.add('$action:$id:$name');
         return name!.trim().isEmpty ? 'Введите имя участника.' : null;
       },
@@ -94,7 +93,7 @@ void main() {
     await tester.pumpWidget(_table(
       key: key,
       type: PeopleDirectoryType.participants,
-      onMutate: (action, {id, name, shortName}) async {
+      onMutate: (action, {id, name}) async {
         mutations.add(action);
         return null;
       },
@@ -122,7 +121,7 @@ Widget _table({
           key: key,
           type: type,
           entries: const [
-            PeopleDirectoryEntry(id: '1', name: 'Анна', shortName: 'Анна'),
+            PeopleDirectoryEntry(id: '1', name: 'Анна'),
           ],
           onMutate: onMutate,
           onCountReferences: (_) async => 0,

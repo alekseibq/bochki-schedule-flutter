@@ -7,6 +7,25 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 
 void main() {
+  testWidgets('people directory footer centers its close button',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PeopleDirectoryFooter(isSaving: false, onClose: () {}),
+        ),
+      ),
+    );
+
+    expect(find.text('ОК'), findsOneWidget);
+    expect(
+      tester
+          .widget<Align>(find.byKey(const Key('people_directory_footer')))
+          .alignment,
+      Alignment.center,
+    );
+  });
+
   testWidgets('child windows apply the persisted scale to their dialogs',
       (tester) async {
     await tester.pumpWidget(
