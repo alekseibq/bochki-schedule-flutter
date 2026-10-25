@@ -52,6 +52,7 @@ typedef DesktopWindowCloseRequestHandler = Future<bool> Function();
 typedef CascadeCloseTimeoutHandler = Future<void> Function();
 typedef MainWindowClosingHandler = void Function();
 typedef DesktopWindowFocusOperation = Future<void> Function(String windowId);
+typedef DesktopWindowVisibilityNotifier = Future<void> Function(bool visible);
 
 CascadeCloseTimeoutHandler? _cascadeCloseTimeoutHandler;
 MainWindowClosingHandler? _mainWindowClosingHandler;
@@ -264,6 +265,23 @@ Future<void> focusFirstVisibleDirectChildWindow({
     await focus(targetId);
   } catch (_) {
     // The target can close while the native focus request is in flight.
+  }
+}
+
+/// Clears the parent-visible state before a native hide can focus that parent.
+///
+/// The ordering prevents the parent's focus listener from immediately showing
+/// the child again. A failed native hide restores the visible state.
+Future<void> hideNativeWindowAfterReportingHidden({
+  required DesktopWindowVisibilityNotifier notifyVisibility,
+  required Future<void> Function() hideNativeWindow,
+}) async {
+  await notifyVisibility(false);
+  try {
+    await hideNativeWindow();
+  } catch (_) {
+    await notifyVisibility(true);
+    rethrow;
   }
 }
 
@@ -885,8 +903,10 @@ final class DesktopWindowLifecycle with WindowListener {
         context: 'while requesting hide for descendant window $windowId',
       ),
     );
-    await windowManager.hide();
-    await _notifyVisibility(false);
+    await hideNativeWindowAfterReportingHidden(
+      notifyVisibility: _notifyVisibility,
+      hideNativeWindow: windowManager.hide,
+    );
     if (activateParent) await _activateParent(current.windowId);
   }
 
