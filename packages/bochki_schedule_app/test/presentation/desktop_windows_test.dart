@@ -268,7 +268,10 @@ void main() {
   group('DesktopWindowFeatureMethodDispatcher', () {
     test('routes a feature method through its scoped registration', () async {
       final dispatcher = DesktopWindowFeatureMethodDispatcher();
+      expect(dispatcher.hasHandler, isFalse);
       final registration = dispatcher.register((call) async => call.arguments);
+
+      expect(dispatcher.hasHandler, isTrue);
 
       expect(
         await dispatcher
@@ -277,6 +280,8 @@ void main() {
       );
 
       registration.dispose();
+
+      expect(dispatcher.hasHandler, isFalse);
     });
 
     test('rejects a second feature handler for the same window', () {
@@ -299,6 +304,51 @@ void main() {
         () => dispatcher.dispatch(const MethodCall('directory_changed')),
         throwsA(isA<MissingPluginException>()),
       );
+    });
+  });
+
+  group('focusFirstVisibleDirectChildWindow', () {
+    test('shows and focuses the first available visible child', () async {
+      final operations = <String>[];
+
+      await focusFirstVisibleDirectChildWindow(
+        visibleChildWindowIds: const ['missing', 'editor', 'other'],
+        availableWindowIds: const ['main', 'editor', 'other'],
+        show: (id) async => operations.add('show:$id'),
+        focus: (id) async => operations.add('focus:$id'),
+      );
+
+      expect(operations, ['show:editor', 'focus:editor']);
+    });
+
+    test('keeps focus on the current window when no child is available',
+        () async {
+      final operations = <String>[];
+
+      await focusFirstVisibleDirectChildWindow(
+        visibleChildWindowIds: const ['stale-child'],
+        availableWindowIds: const ['main'],
+        show: (id) async => operations.add('show:$id'),
+        focus: (id) async => operations.add('focus:$id'),
+      );
+
+      expect(operations, isEmpty);
+    });
+
+    test('does not select another child when activation fails', () async {
+      final operations = <String>[];
+
+      await focusFirstVisibleDirectChildWindow(
+        visibleChildWindowIds: const ['editor', 'other'],
+        availableWindowIds: const ['editor', 'other'],
+        show: (id) async {
+          operations.add('show:$id');
+          throw StateError('editor disappeared');
+        },
+        focus: (id) async => operations.add('focus:$id'),
+      );
+
+      expect(operations, ['show:editor']);
     });
   });
 
