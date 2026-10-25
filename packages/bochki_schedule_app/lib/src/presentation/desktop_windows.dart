@@ -51,6 +51,7 @@ typedef DesktopWindowFeatureMethodHandler = Future<dynamic> Function(
 typedef DesktopWindowCloseRequestHandler = Future<bool> Function();
 typedef CascadeCloseTimeoutHandler = Future<void> Function();
 typedef MainWindowClosingHandler = void Function();
+typedef DesktopWindowFocusOperation = Future<void> Function(String windowId);
 
 CascadeCloseTimeoutHandler? _cascadeCloseTimeoutHandler;
 MainWindowClosingHandler? _mainWindowClosingHandler;
@@ -242,6 +243,29 @@ bool hasWindowAncestor(
   DesktopWindowKind kind,
 ) =>
     descriptor.ancestorWindowKinds.contains(kind);
+
+/// Shows and focuses the first still-present visible direct child.
+///
+/// A window can disappear between a visibility notification and a native focus
+/// event. In that case, or when activation fails, the caller deliberately
+/// keeps focus on the current window instead of selecting another child.
+Future<void> focusFirstVisibleDirectChildWindow({
+  required Iterable<String> visibleChildWindowIds,
+  required Iterable<String> availableWindowIds,
+  required DesktopWindowFocusOperation show,
+  required DesktopWindowFocusOperation focus,
+}) async {
+  final availableIds = availableWindowIds.toSet();
+  final targetId =
+      visibleChildWindowIds.where(availableIds.contains).firstOrNull;
+  if (targetId == null) return;
+  try {
+    await show(targetId);
+    await focus(targetId);
+  } catch (_) {
+    // The target can close while the native focus request is in flight.
+  }
+}
 
 /// The sole production gateway for creating child engines.
 final class DesktopWindowPlatform {
@@ -456,6 +480,8 @@ final class DesktopWindowCloseRequestHandlerRegistration {
 final class DesktopWindowFeatureMethodDispatcher {
   DesktopWindowFeatureMethodHandler? _handler;
 
+  bool get hasHandler => _handler != null;
+
   DesktopWindowFeatureHandlerRegistration register(
     DesktopWindowFeatureMethodHandler handler,
   ) {
@@ -613,7 +639,9 @@ final class DesktopWindowLifecycle with WindowListener {
             _visibleDirectChildWindowIds.remove(windowId);
           }
         }
-        return _handleFeatureCall(call);
+        return _featureMethodDispatcher.hasHandler
+            ? _handleFeatureCall(call)
+            : null;
       default:
         return _handleFeatureCall(call);
     }
@@ -690,6 +718,26 @@ final class DesktopWindowLifecycle with WindowListener {
   @override
   void onWindowClose() {
     unawaited(close(source: 'native-window-close'));
+  }
+
+  @override
+  void onWindowFocus() {
+    unawaited(_focusVisibleDirectChild());
+  }
+
+  Future<void> _focusVisibleDirectChild() async {
+    try {
+      final windows = await WindowController.getAll();
+      final byId = {for (final window in windows) window.windowId: window};
+      await focusFirstVisibleDirectChildWindow(
+        visibleChildWindowIds: _visibleDirectChildWindowIds,
+        availableWindowIds: byId.keys,
+        show: (windowId) => byId[windowId]!.show(),
+        focus: (windowId) => byId[windowId]!.invokeMethod<void>('window_focus'),
+      );
+    } catch (_) {
+      // Focus redirection is best-effort while windows are being destroyed.
+    }
   }
 
   @override
@@ -1270,7 +1318,7 @@ final class DesktopWindowCoordinator {
     required bool active,
     String? windowId,
   }) {
-    if (parentWindowId == null || parentWindowId == _mainWindowId) {
+    if (parentWindowId == null) {
       return Future<void>.value();
     }
     final previous =
@@ -2533,6 +2581,39 @@ class DirectoryChildWindowScaffold extends StatelessWidget {
       );
 }
 
+class PeopleDirectoryFooter extends StatelessWidget {
+  const PeopleDirectoryFooter({
+    required this.isSaving,
+    required this.onClose,
+    super.key,
+  });
+
+  final bool isSaving;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: Color(0xFFD0D7DE))),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Align(
+            key: const Key('people_directory_footer'),
+            alignment: Alignment.center,
+            child: FilledButton(
+              key: const Key('people_directory_ok_button'),
+              onPressed: isSaving ? null : onClose,
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24),
+                child: Text('ОК'),
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
 class DirectoryChildWindow extends StatefulWidget {
   const DirectoryChildWindow({super.key});
 
@@ -2815,7 +2896,6 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
                     (entry) => PeopleDirectoryEntry(
                       id: entry['id'] as String,
                       name: entry['name'] as String,
-                      shortName: entry['shortName'] as String?,
                     ),
                   )
                   .toList(growable: false),
@@ -2827,24 +2907,9 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
               onChanged: _load,
             ),
           ),
-          DecoratedBox(
-            decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: Color(0xFFD0D7DE))),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: FilledButton(
-                  onPressed:
-                      _saving ? null : () => unawaited(_closePeopleDirectory()),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24),
-                    child: Text('ОК'),
-                  ),
-                ),
-              ),
-            ),
+          PeopleDirectoryFooter(
+            isSaving: _saving,
+            onClose: () => unawaited(_closePeopleDirectory()),
           ),
         ],
       );
@@ -3043,7 +3108,6 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
     String action, {
     String? id,
     String? name,
-    String? shortName,
   }) async {
     try {
       final result = Map<String, dynamic>.from(
@@ -3053,7 +3117,6 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
           if (id != null) 'id': id,
           'entry': {
             if (name != null) 'name': name,
-            if (shortName != null) 'shortName': shortName,
           },
         }) as Map,
       );

@@ -9,19 +9,16 @@ class PeopleDirectoryEntry {
   const PeopleDirectoryEntry({
     required this.id,
     required this.name,
-    this.shortName,
   });
 
   final String id;
   final String name;
-  final String? shortName;
 }
 
 typedef PeopleDirectoryMutation = Future<String?> Function(
   String action, {
   String? id,
   String? name,
-  String? shortName,
 });
 
 class PeopleDirectoryTable extends StatefulWidget {
@@ -46,7 +43,6 @@ class PeopleDirectoryTable extends StatefulWidget {
 
 class PeopleDirectoryTableState extends State<PeopleDirectoryTable> {
   final _name = TextEditingController();
-  final _shortName = TextEditingController();
   final _rowFocus = FocusNode();
   final _nameFocus = FocusNode();
   String? _editingId;
@@ -54,13 +50,11 @@ class PeopleDirectoryTableState extends State<PeopleDirectoryTable> {
   bool _saving = false;
   String? _error;
 
-  bool get _hasShortName => widget.type == PeopleDirectoryType.assistants;
   bool get _isEditing => _creating || _editingId != null;
 
   @override
   void dispose() {
     _name.dispose();
-    _shortName.dispose();
     _rowFocus.dispose();
     _nameFocus.dispose();
     super.dispose();
@@ -72,7 +66,6 @@ class PeopleDirectoryTableState extends State<PeopleDirectoryTable> {
       _creating = false;
       _editingId = entry.id;
       _name.text = entry.name;
-      _shortName.text = entry.shortName ?? '';
       _error = null;
     });
     _focusName();
@@ -84,7 +77,6 @@ class PeopleDirectoryTableState extends State<PeopleDirectoryTable> {
       _creating = true;
       _editingId = null;
       _name.clear();
-      _shortName.clear();
       _error = null;
     });
     _focusName();
@@ -112,7 +104,6 @@ class PeopleDirectoryTableState extends State<PeopleDirectoryTable> {
       _creating ? 'create' : 'update',
       id: _editingId,
       name: _name.text,
-      shortName: _hasShortName ? _shortName.text : null,
     );
     if (!mounted) return false;
     if (error != null) {
@@ -139,9 +130,7 @@ class PeopleDirectoryTableState extends State<PeopleDirectoryTable> {
   /// change must be saved before its owning native window can be hidden.
   Future<bool> requestClose() async {
     if (!_isEditing) return true;
-    if (_creating &&
-        _name.text.trim().isEmpty &&
-        (!_hasShortName || _shortName.text.trim().isEmpty)) {
+    if (_creating && _name.text.trim().isEmpty) {
       _cancel();
       return true;
     }
@@ -256,7 +245,6 @@ class PeopleDirectoryTableState extends State<PeopleDirectoryTable> {
               onTapOutside: (_) => unawaited(_submit()),
               child: Row(children: [
                 _field(_name, 'Имя'),
-                if (_hasShortName) _field(_shortName, 'Краткое имя'),
                 const SizedBox(width: 180),
               ]),
             ),
@@ -266,11 +254,6 @@ class PeopleDirectoryTableState extends State<PeopleDirectoryTable> {
                 child: Padding(
                     padding: const EdgeInsets.all(12),
                     child: Text(entry.name))),
-            if (_hasShortName)
-              Expanded(
-                  child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Text(entry.shortName ?? ''))),
             SizedBox(
               width: 180,
               child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
@@ -299,16 +282,11 @@ class PeopleDirectoryTableState extends State<PeopleDirectoryTable> {
         children: [
           Container(
             color: const Color(0xFFF0F4F8),
-            child: Row(children: [
-              const Expanded(
+            child: const Row(children: [
+              Expanded(
                   child:
                       Padding(padding: EdgeInsets.all(12), child: Text('Имя'))),
-              if (_hasShortName)
-                const Expanded(
-                    child: Padding(
-                        padding: EdgeInsets.all(12),
-                        child: Text('Краткое имя'))),
-              const SizedBox(width: 180),
+              SizedBox(width: 180),
             ]),
           ),
           Expanded(
@@ -324,7 +302,6 @@ class PeopleDirectoryTableState extends State<PeopleDirectoryTable> {
                 onTapOutside: (_) => unawaited(_submit()),
                 child: Row(children: [
                   _field(_name, 'Имя'),
-                  if (_hasShortName) _field(_shortName, 'Краткое имя'),
                   const SizedBox(width: 180),
                 ]),
               ),

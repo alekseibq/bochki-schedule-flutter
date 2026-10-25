@@ -82,6 +82,14 @@ void main() {
     expect(find.byTooltip('Inspect'), findsOneWidget);
     expect(find.byIcon(Icons.search), findsOneWidget);
     expect(find.text('АННА'), findsOneWidget);
+    expect(
+      tester
+          .widget<Align>(
+            find.byKey(const Key('named_directory_dialog_footer')),
+          )
+          .alignment,
+      Alignment.center,
+    );
 
     final row = find.byKey(const Key('generic_entry_row_1'));
     final iconButton = tester.widget<IconButton>(
