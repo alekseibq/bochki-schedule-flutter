@@ -352,6 +352,37 @@ void main() {
     });
   });
 
+  group('hideNativeWindowAfterReportingHidden', () {
+    test('clears visibility before hiding the native window', () async {
+      final operations = <String>[];
+
+      await hideNativeWindowAfterReportingHidden(
+        notifyVisibility: (visible) async => operations.add('visible:$visible'),
+        hideNativeWindow: () async => operations.add('hide'),
+      );
+
+      expect(operations, ['visible:false', 'hide']);
+    });
+
+    test('restores visibility when native hide fails', () async {
+      final operations = <String>[];
+
+      await expectLater(
+        hideNativeWindowAfterReportingHidden(
+          notifyVisibility: (visible) async =>
+              operations.add('visible:$visible'),
+          hideNativeWindow: () async {
+            operations.add('hide');
+            throw StateError('native hide failed');
+          },
+        ),
+        throwsStateError,
+      );
+
+      expect(operations, ['visible:false', 'hide', 'visible:true']);
+    });
+  });
+
   group('mutateProcedureKindDirectory', () {
     test('deletes by ID without decoding a missing form entry', () async {
       final deletedIds = <String>[];
