@@ -1,15 +1,13 @@
 import 'package:flutter/foundation.dart';
+import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 
 import '../../domain/humans/human.dart';
 import '../../domain/procedure_sessions/procedure_session_rich.dart';
 import '../../domain/procedure_sessions/procedure_session_time.dart';
 import '../../domain/procedure_sessions/procedure_session_raw.dart';
-import '../../domain/procedure_sessions/quick_reassignments_use_case.dart';
-import '../../domain/procedure_sessions/list_rich_procedure_sessions_use_case.dart';
-import '../../domain/workdays/list_workdays_use_case.dart';
 import '../../domain/workdays/workday.dart';
-import '../../domain/humans/list_humans_use_case.dart';
-import '../../domain/program_settings/get_program_settings_use_case.dart';
+import '../../domain/assistants/assistant.dart';
+import '../../domain/procedure_kinds/procedure_kind.dart';
 
 enum QuickPeopleFilter {
   all('Все'),
@@ -36,26 +34,39 @@ final class QuickAssistantCandidate {
   bool get isSwap => swapSession != null;
 }
 
+final class QuickReassignmentsSnapshot {
+  const QuickReassignmentsSnapshot({
+    required this.workdays,
+    required this.humans,
+    required this.assistants,
+    required this.procedureKinds,
+    required this.programSettings,
+    required this.entries,
+  });
+
+  final List<Workday> workdays;
+  final List<Human> humans;
+  final List<Assistant> assistants;
+  final List<ProcedureKind> procedureKinds;
+  final ProgramSettings programSettings;
+  final List<ProcedureSessionRich> entries;
+}
+
 final class QuickReassignmentsViewModel extends ChangeNotifier {
   QuickReassignmentsViewModel(
-      {required ListRichProcedureSessionsUseCase sessions,
-      required ListWorkdaysUseCase workdays,
-      required ListHumansUseCase humans,
-      required GetProgramSettingsUseCase settings,
-      required QuickReassignmentsUseCase mutations})
-      : _sessions = sessions,
-        _workdaysUseCase = workdays,
-        _humansUseCase = humans,
-        _settingsUseCase = settings,
+      {required Future<QuickReassignmentsSnapshot> Function() loadSnapshot,
+      required Future<void> Function(List<ProcedureSessionRaw>) mutations})
+      : _loadSnapshot = loadSnapshot,
         _mutations = mutations;
-  final ListRichProcedureSessionsUseCase _sessions;
-  final ListWorkdaysUseCase _workdaysUseCase;
-  final ListHumansUseCase _humansUseCase;
-  final GetProgramSettingsUseCase _settingsUseCase;
-  final QuickReassignmentsUseCase _mutations;
+  final Future<QuickReassignmentsSnapshot> Function() _loadSnapshot;
+  final Future<void> Function(List<ProcedureSessionRaw>) _mutations;
   List<Workday> workdays = const [];
   List<Human> humans = const [];
+  List<Assistant> assistants = const [];
+  List<ProcedureKind> procedureKinds = const [];
+  ProgramSettings programSettings = ProgramSettings.defaults;
   List<ProcedureSessionRich> _all = const [];
+  List<ProcedureSessionRich> get allEntries => _all;
   String? dayId;
   QuickPeopleFilter people = QuickPeopleFilter.all;
   QuickSort sort = QuickSort.time;
@@ -75,10 +86,13 @@ final class QuickReassignmentsViewModel extends ChangeNotifier {
     loading = true;
     notifyListeners();
     try {
-      workdays = await _workdaysUseCase.execute();
-      humans = await _humansUseCase.execute();
-      await _settingsUseCase.execute();
-      _all = await _sessions.execute();
+      final snapshot = await _loadSnapshot();
+      workdays = snapshot.workdays;
+      humans = snapshot.humans;
+      assistants = snapshot.assistants;
+      procedureKinds = snapshot.procedureKinds;
+      programSettings = snapshot.programSettings;
+      _all = snapshot.entries;
       dayId ??= workdays.isEmpty ? null : workdays.first.id;
       error = null;
     } catch (_) {
@@ -161,7 +175,7 @@ final class QuickReassignmentsViewModel extends ChangeNotifier {
     saving = true;
     notifyListeners();
     try {
-      await _mutations.execute(r);
+      await _mutations(r);
       await load();
     } catch (_) {
       error = 'Не удалось применить перестановку.';

@@ -40,6 +40,8 @@ class ProcedureKindsContent extends StatefulWidget {
 }
 
 class _ProcedureKindsContentState extends State<ProcedureKindsContent> {
+  static const _headerHeight = 32.0;
+  static const _rowHeight = 30.0;
   static const List<_ProcedureKindsTableColumn> _columns = [
     _ProcedureKindsTableColumn('', 36, 36),
     _ProcedureKindsTableColumn('Название', 140, 100),
@@ -301,6 +303,7 @@ class _ProcedureKindsContentState extends State<ProcedureKindsContent> {
               children: [
                 Container(
                   key: const Key('procedure_kinds_table_header'),
+                  height: _headerHeight,
                   decoration: const BoxDecoration(
                     color: Color(0xFFF4F6F8),
                     border: Border(
@@ -337,7 +340,7 @@ class _ProcedureKindsContentState extends State<ProcedureKindsContent> {
                           });
                         },
                         child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          height: _rowHeight,
                           decoration: BoxDecoration(
                             color: isSelected
                                 ? const Color(0xFFF0F6FF)
@@ -465,13 +468,17 @@ class _ProcedureKindsResizableHeaderCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox(
         width: width,
-        height: 42,
+        height: 32,
         child: Stack(
           fit: StackFit.expand,
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-              child: Text(text),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(text,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+              ),
             ),
             Positioned(
               top: 0,

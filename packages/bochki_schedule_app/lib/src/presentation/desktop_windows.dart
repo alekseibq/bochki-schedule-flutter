@@ -14,6 +14,7 @@ import '../domain/assistants/assistant.dart';
 import '../domain/humans/human.dart';
 import '../domain/procedure_kinds/procedure_kind.dart';
 import '../domain/procedure_sessions/procedure_session_raw.dart';
+import '../domain/procedure_sessions/procedure_session_rich_factory.dart';
 import '../domain/procedure_statistics/build_procedure_statistics_table_use_case.dart';
 import '../domain/procedure_statistics/procedure_statistics_table.dart';
 import '../domain/schedule_gaps/build_schedule_gaps_use_case.dart';
@@ -30,12 +31,15 @@ import '../features/procedure_kinds/procedure_kinds_dialog.dart';
 import '../features/procedure_kinds/procedure_kinds_view_model.dart';
 import '../features/directory/people_directory_table.dart';
 import '../features/procedure_statistics/procedure_statistics_content.dart';
+import '../features/quick_reassignments/quick_reassignments_dialog.dart';
+import '../features/quick_reassignments/quick_reassignments_view_model.dart';
 
 enum DesktopWindowKind {
   main,
   procedureStatistics,
   procedureSession,
   freeTime,
+  quickReassignments,
   participants,
   assistants,
   procedureKinds,
@@ -50,7 +54,7 @@ typedef DesktopWindowFeatureMethodHandler = Future<dynamic> Function(
 );
 typedef DesktopWindowCloseRequestHandler = Future<bool> Function();
 typedef CascadeCloseTimeoutHandler = Future<void> Function();
-typedef MainWindowClosingHandler = void Function();
+typedef MainWindowClosingHandler = Future<void> Function();
 typedef DesktopWindowFocusOperation = Future<void> Function(String windowId);
 typedef DesktopWindowVisibilityNotifier = Future<void> Function(bool visible);
 
@@ -814,7 +818,7 @@ final class DesktopWindowLifecycle with WindowListener {
         return;
       }
       if (descriptor?.kind == DesktopWindowKind.main && current != null) {
-        _mainWindowClosingHandler?.call();
+        await _mainWindowClosingHandler?.call();
         final closed = await _cascadeCloseAndWait(current.windowId);
         if (!closed) {
           developer.log(
@@ -1061,6 +1065,7 @@ final class DesktopWindowCoordinator {
     required BuildScheduleGapsUseCase scheduleGaps,
     required ProcedureSessionsViewModel sessions,
     required DirectoryChangedCallback onDirectoryChanged,
+    required Future<void> Function() onQuickReassignmentsClosed,
     required ValueChanged<bool> onBlockingStateChanged,
     DesktopWindowPlatform platform = const DesktopWindowPlatform(),
   })  : _platform = platform,
@@ -1069,6 +1074,7 @@ final class DesktopWindowCoordinator {
         _scheduleGaps = scheduleGaps,
         _sessions = sessions,
         _onDirectoryChanged = onDirectoryChanged,
+        _onQuickReassignmentsClosed = onQuickReassignmentsClosed,
         _onBlockingStateChanged = onBlockingStateChanged;
 
   final AppServices _services;
@@ -1077,6 +1083,7 @@ final class DesktopWindowCoordinator {
   final BuildScheduleGapsUseCase _scheduleGaps;
   final ProcedureSessionsViewModel _sessions;
   final DirectoryChangedCallback _onDirectoryChanged;
+  final Future<void> Function() _onQuickReassignmentsClosed;
   final ValueChanged<bool> _onBlockingStateChanged;
   final _childWindowGeometry = ChildWindowGeometryStore();
   final _windowStates = DesktopChildWindowStateStore();
@@ -1138,6 +1145,11 @@ final class DesktopWindowCoordinator {
   Future<void> openFreeTime() async {
     await _sessions.load();
     await _open(DesktopWindowKind.freeTime);
+  }
+
+  Future<void> openQuickReassignments() async {
+    await _sessions.load();
+    await _open(DesktopWindowKind.quickReassignments);
   }
 
   Future<void> openDirectory(DesktopWindowKind kind) => _open(kind);
@@ -1327,9 +1339,10 @@ final class DesktopWindowCoordinator {
     _onBlockingStateChanged(value);
   }
 
-  void _handleMainWindowClosing() {
+  Future<void> _handleMainWindowClosing() async {
     _windowStates.markAllClosing();
     _emitBlockingState();
+    await _services.uiSettingsRepository.flush();
   }
 
   Future<void> _notifyParentBlockingState({
@@ -1431,6 +1444,29 @@ final class DesktopWindowCoordinator {
           'workdays': _sessions.workdays.map(_workdayMap).toList(),
           'gaps': gaps.map(_gapMap).toList()
         };
+      case 'quickReassignmentsSnapshot':
+        return {
+          ..._sessionSnapshot(),
+          'quickReassignmentsColumnWidths': _services
+              .uiSettingsRepository.settings.quickReassignmentsColumnWidths,
+        };
+      case 'quickReassignmentsMutate':
+        final replacements =
+            _maps(call.arguments).map(_sessionFromMap).toList(growable: false);
+        await _services.quickReassignmentsUseCase!.execute(replacements);
+        await _sessions.load();
+        return null;
+      case 'updateQuickReassignmentsColumnWidths':
+        final widths = (call.arguments as List)
+            .whereType<num>()
+            .map((width) => width.toDouble())
+            .toList(growable: false);
+        await _services.uiSettingsRepository.update(
+          _services.uiSettingsRepository.settings.copyWith(
+            quickReassignmentsColumnWidths: widths,
+          ),
+        );
+        return null;
       case 'procedureSessionSnapshot':
         return _sessionSnapshot();
       case 'directorySnapshot':
@@ -1443,6 +1479,17 @@ final class DesktopWindowCoordinator {
         await _services.uiSettingsRepository.update(
           _services.uiSettingsRepository.settings.copyWith(
             procedureKindsColumnWidths: widths,
+          ),
+        );
+        return null;
+      case 'updateWorkdaysColumnWidths':
+        final widths = (call.arguments as List)
+            .whereType<num>()
+            .map((width) => width.toDouble())
+            .toList(growable: false);
+        await _services.uiSettingsRepository.update(
+          _services.uiSettingsRepository.settings.copyWith(
+            workdaysColumnWidths: widths,
           ),
         );
         return null;
@@ -1558,6 +1605,9 @@ final class DesktopWindowCoordinator {
               ? DesktopChildWindowState.visible
               : DesktopChildWindowState.hidden,
         );
+        if (!visible && kind == DesktopWindowKind.quickReassignments) {
+          unawaited(_onQuickReassignmentsClosed());
+        }
         final context = _contextsByKind[kind];
         await _notifyParentBlockingState(
           parentWindowId:
@@ -1638,7 +1688,9 @@ final class DesktopWindowCoordinator {
         return {
           'entries': (await _services.listWorkdaysUseCase.execute())
               .map(_workdayMap)
-              .toList()
+              .toList(),
+          'workdaysColumnWidths':
+              _services.uiSettingsRepository.settings.workdaysColumnWidths,
         };
       default:
         throw ArgumentError.value(directory, 'directory');
@@ -1747,6 +1799,7 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
   final title = switch (kind) {
     DesktopWindowKind.procedureStatistics => 'Статистика процедур',
     DesktopWindowKind.freeTime => 'Свободное время',
+    DesktopWindowKind.quickReassignments => 'Быстрые перестановки',
     DesktopWindowKind.procedureSession => 'Назначенная процедура',
     DesktopWindowKind.participants => 'Участники',
     DesktopWindowKind.assistants => 'Сопровождающие',
@@ -1768,22 +1821,26 @@ Future<void> configureChildWindow(DesktopWindowKind kind) async {
       kind == DesktopWindowKind.workdayEditor;
   final options = WindowOptions(
     title: title,
-    size: isStatistics || isFreeTime
-        ? const Size(1080, 514)
-        : isDirectory
-            ? const Size(920, 640)
+    size: kind == DesktopWindowKind.quickReassignments
+        ? const Size(1000, 600)
+        : isStatistics || isFreeTime
+            ? const Size(1080, 514)
+            : isDirectory
+                ? const Size(920, 640)
+                : kind == DesktopWindowKind.procedureKindEditor
+                    ? scaled(const Size(820, 560))
+                    : isEditor
+                        ? const Size(650, 500)
+                        : const Size(900, 680),
+    minimumSize: kind == DesktopWindowKind.quickReassignments
+        ? const Size(700, 500)
+        : isStatistics || isFreeTime
+            ? const Size(1080, 420)
             : kind == DesktopWindowKind.procedureKindEditor
-                ? scaled(const Size(820, 560))
+                ? scaled(const Size(760, 480))
                 : isEditor
-                    ? const Size(650, 500)
-                    : const Size(900, 680),
-    minimumSize: isStatistics || isFreeTime
-        ? const Size(1080, 420)
-        : kind == DesktopWindowKind.procedureKindEditor
-            ? scaled(const Size(760, 480))
-            : isEditor
-                ? const Size(600, 420)
-                : const Size(700, 500),
+                    ? const Size(600, 420)
+                    : const Size(700, 500),
     center: false,
   );
   final savedBounds = await _savedChildWindowBounds(kind);
@@ -2252,6 +2309,143 @@ class _FreeTimeWindowState extends State<FreeTimeWindow> {
               ]))));
 }
 
+class QuickReassignmentsWindow extends StatefulWidget {
+  const QuickReassignmentsWindow({super.key});
+
+  @override
+  State<QuickReassignmentsWindow> createState() =>
+      _QuickReassignmentsWindowState();
+}
+
+class _QuickReassignmentsWindowState extends State<QuickReassignmentsWindow> {
+  QuickReassignmentsViewModel? _viewModel;
+  List<double> _columnWidths = const [];
+  DesktopWindowFeatureHandlerRegistration? _handlerRegistration;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewModel = QuickReassignmentsViewModel(
+      loadSnapshot: _loadSnapshot,
+      mutations: _mutate,
+    );
+    _listen();
+    unawaited(_viewModel!.load());
+  }
+
+  Future<void> _listen() async {
+    final registration =
+        registerCurrentDesktopWindowFeatureHandler((call) async {
+      switch (call.method) {
+        case 'window_reopen':
+        case 'directory_changed':
+          await _viewModel?.load();
+          return null;
+        default:
+          throw MissingPluginException('Unknown quick-reassignments method');
+      }
+    });
+    if (!mounted) {
+      registration.dispose();
+      return;
+    }
+    _handlerRegistration = registration;
+  }
+
+  Future<QuickReassignmentsSnapshot> _loadSnapshot() async {
+    final value = Map<String, dynamic>.from(
+      await _mainChannel.invokeMethod<Map>('quickReassignmentsSnapshot') ??
+          const {},
+    );
+    final workdays = _maps(value['workdays']).map(_workdayFromMap).toList();
+    final humans = _maps(value['humans']).map(_humanFromMap).toList();
+    final assistants =
+        _maps(value['assistants']).map(_assistantFromMap).toList();
+    final kinds = _maps(value['procedureKinds']).map(_kindFromMap).toList();
+    final raw = _maps(value['procedureSessions']).map(_sessionFromMap).toList();
+    final settings = Map<String, dynamic>.from(value['settings'] as Map);
+    final richFactory = const ProcedureSessionRichFactory();
+    final entries = raw
+        .map((item) => richFactory.create(
+              raw: item,
+              workdays: workdays,
+              humans: humans,
+              procedureKinds: kinds,
+              assistants: assistants,
+            ))
+        .toList(growable: false);
+    _columnWidths =
+        (value['quickReassignmentsColumnWidths'] as List? ?? const [])
+            .whereType<num>()
+            .map((width) => width.toDouble())
+            .toList(growable: false);
+    if (mounted) setState(() {});
+    return QuickReassignmentsSnapshot(
+      workdays: workdays,
+      humans: humans,
+      assistants: assistants,
+      procedureKinds: kinds,
+      programSettings: ProgramSettings(
+        minimumTime: ProgramSettingsTime.fromJson(settings['minimumTime']),
+        maximumTime: ProgramSettingsTime.fromJson(settings['maximumTime']),
+      ),
+      entries: entries,
+    );
+  }
+
+  Future<void> _mutate(List<ProcedureSessionRaw> replacements) =>
+      _mainChannel.invokeMethod<void>(
+        'quickReassignmentsMutate',
+        replacements.map(_sessionMap).toList(growable: false),
+      );
+
+  Future<void> _saveColumnWidths(List<double> widths) async {
+    _columnWidths = widths;
+    await _mainChannel.invokeMethod<void>(
+      'updateQuickReassignmentsColumnWidths',
+      widths,
+    );
+  }
+
+  @override
+  void dispose() {
+    _handlerRegistration?.dispose();
+    _viewModel?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final viewModel = _viewModel!;
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(useMaterial3: true, tooltipTheme: AppTooltips.theme),
+      home: Scaffold(
+        body: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+          child: Column(children: [
+            Expanded(
+              child: QuickReassignmentsContent(
+                viewModel: viewModel,
+                columnWidths: _columnWidths,
+                onColumnWidthsChanged: _saveColumnWidths,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.center,
+              child: FilledButton(
+                onPressed: () => unawaited(closeCurrentDesktopWindow()),
+                child: const Text('Закрыть'),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
 class FreeTimeResultsTable extends StatefulWidget {
   const FreeTimeResultsTable({
     required this.gaps,
@@ -2647,6 +2841,7 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
   int _procedureKindFormSession = 0;
   List<Map<String, dynamic>> _entries = const [];
   List<double> _procedureKindsColumnWidths = const [];
+  List<double> _workdaysColumnWidths = const [];
   bool _loading = true;
   bool _saving = false;
   bool _hasModalChild = false;
@@ -2756,6 +2951,11 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
               .whereType<num>()
               .map((width) => width.toDouble())
               .toList(growable: false);
+      _workdaysColumnWidths =
+          (result['workdaysColumnWidths'] as List? ?? const [])
+              .whereType<num>()
+              .map((width) => width.toDouble())
+              .toList(growable: false);
       if (_procedureKindsViewModel case final viewModel?) {
         await viewModel.loadProcedureKinds();
       }
@@ -2778,6 +2978,12 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
       'updateProcedureKindsColumnWidths',
       widths,
     );
+  }
+
+  Future<void> _saveWorkdaysColumnWidths(List<double> widths) {
+    _workdaysColumnWidths = widths;
+    return _mainChannel.invokeMethod<void>(
+        'updateWorkdaysColumnWidths', widths);
   }
 
   @override
@@ -2952,80 +3158,16 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
           ),
           const SizedBox(height: 12),
           Expanded(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFFD0D7DE)),
-                borderRadius: BorderRadius.circular(12),
+            child: _WorkdaysTable(
+              entries: _entries,
+              columnWidths: _workdaysColumnWidths,
+              onColumnWidthsChanged: _saveWorkdaysColumnWidths,
+              saving: _saving,
+              onEdit: (id) => _openEditor(
+                DesktopWindowKind.workdayEditor.name,
+                id,
               ),
-              child: Column(
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    child: Row(children: [
-                      Expanded(flex: 3, child: Text('Название')),
-                      Expanded(flex: 2, child: Text('Дата')),
-                      SizedBox(width: 180),
-                    ]),
-                  ),
-                  const Divider(height: 1),
-                  Expanded(
-                    child: ListView.separated(
-                      itemCount: _entries.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
-                      itemBuilder: (_, index) {
-                        final entry = _entries[index];
-                        final id = entry['id'] as String;
-                        return InkWell(
-                          onTap: () {},
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            child: Row(children: [
-                              Expanded(
-                                flex: 3,
-                                child: Text(entry['name'] as String),
-                              ),
-                              Expanded(
-                                flex: 2,
-                                child: Text(
-                                  _formatWorkdayDate(entry['date'] as String),
-                                ),
-                              ),
-                              SizedBox(
-                                width: 180,
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    TextButton(
-                                      onPressed: _saving
-                                          ? null
-                                          : () => _openEditor(
-                                                DesktopWindowKind
-                                                    .workdayEditor.name,
-                                                id,
-                                              ),
-                                      child: const Text('Изменить'),
-                                    ),
-                                    TextButton(
-                                      onPressed: _saving
-                                          ? null
-                                          : () => _deleteWorkday(
-                                              contentContext, entry),
-                                      child: const Text('Удалить'),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ]),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
+              onDelete: (entry) => _deleteWorkday(contentContext, entry),
             ),
           ),
         ],
@@ -3187,4 +3329,200 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
 
   Map<String, dynamic> get _editorEntry =>
       {'name': _name.text, 'date': _date.text};
+}
+
+class _WorkdaysTable extends StatefulWidget {
+  const _WorkdaysTable({
+    required this.entries,
+    required this.columnWidths,
+    required this.onColumnWidthsChanged,
+    required this.saving,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final List<Map<String, dynamic>> entries;
+  final List<double> columnWidths;
+  final Future<void> Function(List<double>) onColumnWidthsChanged;
+  final bool saving;
+  final Future<void> Function(String id) onEdit;
+  final Future<void> Function(Map<String, dynamic> entry) onDelete;
+
+  @override
+  State<_WorkdaysTable> createState() => _WorkdaysTableState();
+}
+
+class _WorkdaysTableState extends State<_WorkdaysTable> {
+  static const _columns = [
+    _DirectoryTableColumn('Название', 260, 120),
+    _DirectoryTableColumn('Дата', 160, 100),
+    _DirectoryTableColumn('Изменить', 100, 72),
+    _DirectoryTableColumn('Удалить', 90, 72),
+  ];
+  late List<double> _widths;
+
+  @override
+  void initState() {
+    super.initState();
+    _widths = widget.columnWidths.length == _columns.length
+        ? List<double>.from(widget.columnWidths)
+        : _columns.map((column) => column.initialWidth).toList();
+  }
+
+  void _resize(int index, double delta) {
+    final current = _widths[index];
+    if (index == _columns.length - 1) {
+      final actual = delta.clamp(
+        _columns[index].minimumWidth - current,
+        double.infinity,
+      );
+      if (actual == 0) return;
+      setState(() => _widths[index] = current + actual);
+    } else {
+      final next = _widths[index + 1];
+      final actual = delta.clamp(
+        _columns[index].minimumWidth - current,
+        next - _columns[index + 1].minimumWidth,
+      );
+      if (actual == 0) return;
+      setState(() {
+        _widths[index] = current + actual;
+        _widths[index + 1] = next - actual;
+      });
+    }
+    unawaited(widget.onColumnWidthsChanged(List<double>.from(_widths)));
+  }
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: const Color(0xFFD0D7DE)),
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.white,
+        ),
+        child: LayoutBuilder(builder: (context, constraints) {
+          final width = _widths.fold<double>(0, (sum, value) => sum + value);
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width:
+                  width < constraints.maxWidth ? constraints.maxWidth : width,
+              child: Column(children: [
+                Container(
+                  key: const Key('workdays_table_header'),
+                  height: 32,
+                  color: const Color(0xFFF2F5F8),
+                  child: Row(children: [
+                    for (var index = 0; index < _columns.length; index++)
+                      _DirectoryResizableHeaderCell(
+                        width: _widths[index],
+                        label: _columns[index].label,
+                        resizeHandleKey: Key('workdays_column_resizer_$index'),
+                        onResize: (delta) => _resize(index, delta),
+                      ),
+                  ]),
+                ),
+                const Divider(height: 1, color: Color(0xFFD7DFE8)),
+                Expanded(
+                    child: ListView.separated(
+                  itemCount: widget.entries.length,
+                  separatorBuilder: (_, __) =>
+                      const Divider(height: 1, color: Color(0xFFD7DFE8)),
+                  itemBuilder: (_, index) => _row(widget.entries[index]),
+                )),
+              ]),
+            ),
+          );
+        }),
+      );
+
+  Widget _row(Map<String, dynamic> entry) {
+    final id = entry['id'] as String;
+    return SizedBox(
+      height: 30,
+      child: Row(children: [
+        _DirectoryTableCell(_widths[0], Text(entry['name'] as String)),
+        _DirectoryTableCell(
+          _widths[1],
+          Text(_formatWorkdayDate(entry['date'] as String)),
+        ),
+        _DirectoryTableCell(
+          _widths[2],
+          TextButton(
+            onPressed:
+                widget.saving ? null : () => unawaited(widget.onEdit(id)),
+            child: const Text('Изм.'),
+          ),
+        ),
+        _DirectoryTableCell(
+          _widths[3],
+          TextButton(
+            onPressed:
+                widget.saving ? null : () => unawaited(widget.onDelete(entry)),
+            child: const Text('Удл.'),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+class _DirectoryTableColumn {
+  const _DirectoryTableColumn(this.label, this.initialWidth, this.minimumWidth);
+  final String label;
+  final double initialWidth;
+  final double minimumWidth;
+}
+
+class _DirectoryTableCell extends StatelessWidget {
+  const _DirectoryTableCell(this.width, this.child);
+  final double width;
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: width,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Align(alignment: Alignment.centerLeft, child: child),
+        ),
+      );
+}
+
+class _DirectoryResizableHeaderCell extends StatelessWidget {
+  const _DirectoryResizableHeaderCell({
+    required this.width,
+    required this.label,
+    required this.resizeHandleKey,
+    required this.onResize,
+  });
+  final double width;
+  final String label;
+  final Key resizeHandleKey;
+  final ValueChanged<double> onResize;
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: width,
+        child: Stack(children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(label,
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: MouseRegion(
+              cursor: SystemMouseCursors.resizeColumn,
+              child: GestureDetector(
+                key: resizeHandleKey,
+                behavior: HitTestBehavior.opaque,
+                onHorizontalDragUpdate: (details) => onResize(details.delta.dx),
+                child: const SizedBox(width: 8, height: double.infinity),
+              ),
+            ),
+          ),
+        ]),
+      );
 }

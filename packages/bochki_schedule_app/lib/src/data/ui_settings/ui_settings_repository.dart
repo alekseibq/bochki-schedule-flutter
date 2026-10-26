@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async';
 
 import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
 
@@ -10,6 +11,8 @@ final class UiSettings {
     this.windowSizes = const {},
     this.procedureSessionsColumnWidths = const [],
     this.procedureKindsColumnWidths = const [],
+    this.quickReassignmentsColumnWidths = const [],
+    this.workdaysColumnWidths = const [],
   });
 
   final double uiScale;
@@ -17,6 +20,8 @@ final class UiSettings {
   final Map<String, Map<String, double>> windowSizes;
   final List<double> procedureSessionsColumnWidths;
   final List<double> procedureKindsColumnWidths;
+  final List<double> quickReassignmentsColumnWidths;
+  final List<double> workdaysColumnWidths;
 
   UiSettings copyWith({
     double? uiScale,
@@ -24,6 +29,8 @@ final class UiSettings {
     Map<String, Map<String, double>>? windowSizes,
     List<double>? procedureSessionsColumnWidths,
     List<double>? procedureKindsColumnWidths,
+    List<double>? quickReassignmentsColumnWidths,
+    List<double>? workdaysColumnWidths,
   }) =>
       UiSettings(
         uiScale: uiScale ?? this.uiScale,
@@ -34,6 +41,9 @@ final class UiSettings {
             procedureSessionsColumnWidths ?? this.procedureSessionsColumnWidths,
         procedureKindsColumnWidths:
             procedureKindsColumnWidths ?? this.procedureKindsColumnWidths,
+        quickReassignmentsColumnWidths: quickReassignmentsColumnWidths ??
+            this.quickReassignmentsColumnWidths,
+        workdaysColumnWidths: workdaysColumnWidths ?? this.workdaysColumnWidths,
       );
 
   Map<String, Object?> toJson() => {
@@ -43,6 +53,8 @@ final class UiSettings {
         'windowSizes': windowSizes,
         'procedureSessionsColumnWidths': procedureSessionsColumnWidths,
         'procedureKindsColumnWidths': procedureKindsColumnWidths,
+        'quickReassignmentsColumnWidths': quickReassignmentsColumnWidths,
+        'workdaysColumnWidths': workdaysColumnWidths,
       };
 
   factory UiSettings.fromJson(Object? value) {
@@ -72,6 +84,15 @@ final class UiSettings {
             .whereType<num>()
             .map((width) => width.toDouble())
             .toList(growable: false);
+    final quickReassignmentsWidths =
+        (value['quickReassignmentsColumnWidths'] as List? ?? const [])
+            .whereType<num>()
+            .map((width) => width.toDouble())
+            .toList(growable: false);
+    final workdaysWidths = (value['workdaysColumnWidths'] as List? ?? const [])
+        .whereType<num>()
+        .map((width) => width.toDouble())
+        .toList(growable: false);
     return UiSettings(
       uiScale: scale,
       shouldResetUiDimensionsOnStart:
@@ -79,6 +100,8 @@ final class UiSettings {
       windowSizes: sizes,
       procedureSessionsColumnWidths: widths,
       procedureKindsColumnWidths: procedureKindsWidths,
+      quickReassignmentsColumnWidths: quickReassignmentsWidths,
+      workdaysColumnWidths: workdaysWidths,
     );
   }
 }
@@ -92,6 +115,9 @@ final class UiSettingsRepository {
   final SafeFileWriter _writer;
   UiSettings _settings = const UiSettings();
   bool _isLoaded = false;
+  Timer? _saveDebounce;
+  Completer<void>? _pendingSave;
+  Future<void> _writeTail = Future<void>.value();
 
   UiSettings get settings => _settings;
   bool get isLoaded => _isLoaded;
@@ -122,11 +148,43 @@ final class UiSettingsRepository {
 
   Future<void> update(UiSettings settings) {
     _settings = settings;
-    return save();
+    _saveDebounce?.cancel();
+    final pending = _pendingSave ??= Completer<void>();
+    _saveDebounce = Timer(const Duration(milliseconds: 300), _enqueuePending);
+    return pending.future;
   }
 
-  Future<void> save() => _writer.writeString(
-        _file,
-        const JsonEncoder.withIndent('  ').convert(_settings.toJson()),
-      );
+  Future<void> save() => _enqueueWrite(_settings);
+
+  Future<void> flush() async {
+    _saveDebounce?.cancel();
+    _saveDebounce = null;
+    _enqueuePending();
+    await _writeTail;
+  }
+
+  void dispose() {
+    _saveDebounce?.cancel();
+    _saveDebounce = null;
+    _pendingSave?.complete();
+    _pendingSave = null;
+  }
+
+  void _enqueuePending() {
+    _saveDebounce = null;
+    final pending = _pendingSave;
+    if (pending == null) return;
+    _pendingSave = null;
+    _enqueueWrite(_settings)
+        .then(pending.complete, onError: pending.completeError);
+  }
+
+  Future<void> _enqueueWrite(UiSettings settings) {
+    final contents =
+        const JsonEncoder.withIndent('  ').convert(settings.toJson());
+    _writeTail = _writeTail.catchError((_) {}).then(
+          (_) => _writer.writeString(_file, contents),
+        );
+    return _writeTail;
+  }
 }
