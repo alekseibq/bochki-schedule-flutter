@@ -34,7 +34,9 @@ Future<void> main(List<String> args) async {
                 ? const FreeTimeWindow()
                 : kind == DesktopWindowKind.procedureSession
                     ? const ProcedureSessionWindow()
-                    : const DirectoryChildWindow(),
+                    : kind == DesktopWindowKind.quickReassignments
+                        ? const QuickReassignmentsWindow()
+                        : const DirectoryChildWindow(),
       ),
     );
     return;

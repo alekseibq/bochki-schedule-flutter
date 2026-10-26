@@ -23,8 +23,6 @@ import '../../features/assistants/assistants_dialog.dart';
 import '../../features/assistants/assistants_view_model.dart';
 import '../../features/workdays/workdays_dialog.dart';
 import '../../features/workdays/workdays_view_model.dart';
-import '../../features/quick_reassignments/quick_reassignments_dialog.dart';
-import '../../features/quick_reassignments/quick_reassignments_view_model.dart';
 import '../desktop_windows.dart';
 
 enum DirectorySection {
@@ -81,7 +79,6 @@ class _BochkiShellState extends State<BochkiShell> {
   bool _assistantsDialogOpen = false;
   bool _programSettingsDialogOpen = false;
   bool _printPresetParamsDialogOpen = false;
-  bool _quickReassignmentsDialogOpen = false;
   bool _templatesDialogOpen = false;
   int? _procedureKindsCount;
   int? _workdaysCount;
@@ -120,6 +117,7 @@ class _BochkiShellState extends State<BochkiShell> {
         scheduleGaps: scheduleGaps,
         sessions: _procedureSessionsViewModel,
         onDirectoryChanged: _refreshDirectoryCount,
+        onQuickReassignmentsClosed: _procedureSessionsViewModel.load,
         onBlockingStateChanged: _setWindowModalState,
       );
       unawaited(_startDesktopWindows());
@@ -215,6 +213,7 @@ class _BochkiShellState extends State<BochkiShell> {
   void dispose() {
     setCascadeCloseTimeoutHandler(null);
     unawaited(_desktopWindows?.dispose());
+    widget.services.uiSettingsRepository.dispose();
     _procedureSessionsViewModel.dispose();
     super.dispose();
   }
@@ -506,30 +505,8 @@ class _BochkiShellState extends State<BochkiShell> {
   Future<void> _openFreeTime() async => _desktopWindows?.openFreeTime();
 
   Future<void> _openQuickReassignments() async {
-    if (_quickReassignmentsDialogOpen ||
-        widget.services.quickReassignmentsUseCase == null) {
-      return;
-    }
-    setState(() => _quickReassignmentsDialogOpen = true);
-    final viewModel = QuickReassignmentsViewModel(
-      sessions: widget.services.listRichProcedureSessionsUseCase,
-      workdays: widget.services.listWorkdaysUseCase,
-      humans: widget.services.listHumansUseCase,
-      settings: widget.services.getProgramSettingsUseCase,
-      mutations: widget.services.quickReassignmentsUseCase!,
-    );
-    try {
-      await viewModel.load();
-      if (mounted) {
-        await showDialog<void>(
-            context: context,
-            builder: (_) => QuickReassignmentsDialog(viewModel: viewModel));
-      }
-    } finally {
-      viewModel.dispose();
-      unawaited(_procedureSessionsViewModel.load());
-      if (mounted) setState(() => _quickReassignmentsDialogOpen = false);
-    }
+    if (widget.services.quickReassignmentsUseCase == null) return;
+    await _desktopWindows?.openQuickReassignments();
   }
 
   Future<void> _selectTemplateSection(TemplatesSection section) async {
