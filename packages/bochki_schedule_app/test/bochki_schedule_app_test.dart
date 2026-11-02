@@ -2094,6 +2094,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('workday_reorder_dialog')), findsNothing);
 
+    await tester.ensureVisible(find.byKey(const Key('workday_delete_2')));
     await tester.tap(find.byKey(const Key('workday_delete_2')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Продолжить'));

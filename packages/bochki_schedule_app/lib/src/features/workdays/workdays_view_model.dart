@@ -69,6 +69,11 @@ final class WorkdaysViewModel extends ChangeNotifier {
   Future<int> countReferences(String workdayId) =>
       _operations.countReferences(workdayId);
 
+  Future<List<double>> loadColumnWidths() => _operations.loadColumnWidths();
+
+  Future<void> saveColumnWidths(List<double> widths) =>
+      _operations.saveColumnWidths(widths);
+
   void clearFormError() {
     if (_formErrorMessage == null) {
       return;

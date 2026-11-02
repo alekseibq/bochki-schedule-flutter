@@ -37,6 +37,7 @@ import '../features/free_time/free_time_view_model.dart';
 import '../features/free_time/ipc_free_time_operations.dart';
 import '../features/workdays/ipc_workdays_operations.dart';
 import '../features/workdays/workday_form_content.dart';
+import '../features/workdays/workdays_content.dart';
 import '../features/workdays/workdays_view_model.dart';
 
 enum DesktopWindowKind {
@@ -2684,14 +2685,6 @@ String _formatCalendarDate(DateTime value) {
   return '$year-$month-$day';
 }
 
-String _formatWorkdayDate(String value) {
-  final date = DateTime.tryParse(value);
-  if (date == null) return value;
-  final day = date.day.toString().padLeft(2, '0');
-  final month = date.month.toString().padLeft(2, '0');
-  return '$day.$month.${date.year}';
-}
-
 Map<String, dynamic> _kindMap(ProcedureKind k) => {
       'id': k.id,
       'patternId': k.patternId,
@@ -2847,7 +2840,6 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
   List<double> _procedureKindsColumnWidths = const [];
   List<double> _workdaysColumnWidths = const [];
   bool _loading = true;
-  bool _deletingWorkday = false;
   bool _hasModalChild = false;
   ProcedureKindsViewModel? _procedureKindsViewModel;
   WorkdaysViewModel? _workdaysViewModel;
@@ -3115,123 +3107,29 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
     throw StateError('Unsupported directory window kind: $_kind');
   }
 
-  Widget _workdaysList(BuildContext contentContext) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: FilledButton.tonal(
-              onPressed: _deletingWorkday
-                  ? null
-                  : () => _openEditor(DesktopWindowKind.workdayEditor.name),
-              child: const Text('Создать'),
-            ),
+  Widget _workdaysList(BuildContext contentContext) => WorkdaysContent(
+        viewModel: _workdaysViewModel!,
+        columnWidths: _workdaysColumnWidths,
+        onColumnWidthsChanged: _saveWorkdaysColumnWidths,
+        onOpenCreate: () =>
+            unawaited(_openEditor(DesktopWindowKind.workdayEditor.name)),
+        onOpenEdit: (workday) => unawaited(
+            _openEditor(DesktopWindowKind.workdayEditor.name, workday.id)),
+        onOpenReorder: (workday) => unawaited(showDialog<void>(
+          context: contentContext,
+          builder: (context) => AlertDialog(
+            key: const Key('workday_reorder_dialog'),
+            title: Text('Перестановки: ${workday.name}'),
+            content: const Text(
+                'Заглушка. Здесь позже будет управление перестановками строк расписания.'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Закрыть'))
+            ],
           ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: _WorkdaysTable(
-              entries: _entries,
-              columnWidths: _workdaysColumnWidths,
-              onColumnWidthsChanged: _saveWorkdaysColumnWidths,
-              saving: _deletingWorkday,
-              onEdit: (id) => _openEditor(
-                DesktopWindowKind.workdayEditor.name,
-                id,
-              ),
-              onDelete: (entry) => _deleteWorkday(contentContext, entry),
-            ),
-          ),
-        ],
+        )),
       );
-
-  Future<void> _deleteWorkday(
-    BuildContext contentContext,
-    Map<String, dynamic> entry,
-  ) async {
-    final name = entry['name'] as String;
-    final confirmed = await showDialog<bool>(
-      context: contentContext,
-      builder: (context) => AlertDialog(
-        title: const Text('Удалить день?'),
-        content: Text('День "$name" будет скрыт из списка.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Нет'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Продолжить'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-
-    final referencesCount = await _mainChannel.invokeMethod<int>(
-          'workdayReferences',
-          entry['id'] as String,
-        ) ??
-        0;
-    if (!mounted) return;
-    if (referencesCount > 0) {
-      await showDialog<void>(
-        context: contentContext,
-        builder: (context) => AlertDialog(
-          title: const Text('Невозможно удалить день'),
-          content: Text(
-            'День "$name" используется в $referencesCount '
-            '${_assignedProcedureWord(referencesCount)}. '
-            'Сначала удалите или переназначьте эти процедуры.',
-          ),
-          actions: [
-            FilledButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Понятно'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-    setState(() => _deletingWorkday = true);
-    final deleted = await _workdaysViewModel!.deleteWorkday(
-      entry['id'] as String,
-    );
-    if (!mounted) return;
-    setState(() => _deletingWorkday = false);
-    if (deleted) {
-      await _load();
-      return;
-    }
-    await showDialog<void>(
-      context: contentContext,
-      builder: (context) => AlertDialog(
-        title: const Text('Не удалось удалить день'),
-        content: Text(
-          _workdaysViewModel!.actionErrorMessage ?? 'Не удалось удалить день.',
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Понятно'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _assignedProcedureWord(int count) {
-    final remainder100 = count % 100;
-    if (remainder100 >= 11 && remainder100 <= 14) {
-      return 'назначенных процедур';
-    }
-    return switch (count % 10) {
-      1 => 'назначенная процедура',
-      2 || 3 || 4 => 'назначенные процедуры',
-      _ => 'назначенных процедур',
-    };
-  }
 
   Future<String?> _mutatePeople(
     String action, {
@@ -3271,200 +3169,4 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
       onCancel: () => unawaited(closeCurrentDesktopWindow()),
     );
   }
-}
-
-class _WorkdaysTable extends StatefulWidget {
-  const _WorkdaysTable({
-    required this.entries,
-    required this.columnWidths,
-    required this.onColumnWidthsChanged,
-    required this.saving,
-    required this.onEdit,
-    required this.onDelete,
-  });
-
-  final List<Map<String, dynamic>> entries;
-  final List<double> columnWidths;
-  final Future<void> Function(List<double>) onColumnWidthsChanged;
-  final bool saving;
-  final Future<void> Function(String id) onEdit;
-  final Future<void> Function(Map<String, dynamic> entry) onDelete;
-
-  @override
-  State<_WorkdaysTable> createState() => _WorkdaysTableState();
-}
-
-class _WorkdaysTableState extends State<_WorkdaysTable> {
-  static const _columns = [
-    _DirectoryTableColumn('Название', 260, 120),
-    _DirectoryTableColumn('Дата', 160, 100),
-    _DirectoryTableColumn('Изменить', 100, 72),
-    _DirectoryTableColumn('Удалить', 90, 72),
-  ];
-  late List<double> _widths;
-
-  @override
-  void initState() {
-    super.initState();
-    _widths = widget.columnWidths.length == _columns.length
-        ? List<double>.from(widget.columnWidths)
-        : _columns.map((column) => column.initialWidth).toList();
-  }
-
-  void _resize(int index, double delta) {
-    final current = _widths[index];
-    if (index == _columns.length - 1) {
-      final actual = delta.clamp(
-        _columns[index].minimumWidth - current,
-        double.infinity,
-      );
-      if (actual == 0) return;
-      setState(() => _widths[index] = current + actual);
-    } else {
-      final next = _widths[index + 1];
-      final actual = delta.clamp(
-        _columns[index].minimumWidth - current,
-        next - _columns[index + 1].minimumWidth,
-      );
-      if (actual == 0) return;
-      setState(() {
-        _widths[index] = current + actual;
-        _widths[index + 1] = next - actual;
-      });
-    }
-    unawaited(widget.onColumnWidthsChanged(List<double>.from(_widths)));
-  }
-
-  @override
-  Widget build(BuildContext context) => DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFFD0D7DE)),
-          borderRadius: BorderRadius.circular(12),
-          color: Colors.white,
-        ),
-        child: LayoutBuilder(builder: (context, constraints) {
-          final width = _widths.fold<double>(0, (sum, value) => sum + value);
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width:
-                  width < constraints.maxWidth ? constraints.maxWidth : width,
-              child: Column(children: [
-                Container(
-                  key: const Key('workdays_table_header'),
-                  height: 32,
-                  color: const Color(0xFFF2F5F8),
-                  child: Row(children: [
-                    for (var index = 0; index < _columns.length; index++)
-                      _DirectoryResizableHeaderCell(
-                        width: _widths[index],
-                        label: _columns[index].label,
-                        resizeHandleKey: Key('workdays_column_resizer_$index'),
-                        onResize: (delta) => _resize(index, delta),
-                      ),
-                  ]),
-                ),
-                const Divider(height: 1, color: Color(0xFFD7DFE8)),
-                Expanded(
-                    child: ListView.separated(
-                  itemCount: widget.entries.length,
-                  separatorBuilder: (_, __) =>
-                      const Divider(height: 1, color: Color(0xFFD7DFE8)),
-                  itemBuilder: (_, index) => _row(widget.entries[index]),
-                )),
-              ]),
-            ),
-          );
-        }),
-      );
-
-  Widget _row(Map<String, dynamic> entry) {
-    final id = entry['id'] as String;
-    return SizedBox(
-      height: 30,
-      child: Row(children: [
-        _DirectoryTableCell(_widths[0], Text(entry['name'] as String)),
-        _DirectoryTableCell(
-          _widths[1],
-          Text(_formatWorkdayDate(entry['date'] as String)),
-        ),
-        _DirectoryTableCell(
-          _widths[2],
-          TextButton(
-            onPressed:
-                widget.saving ? null : () => unawaited(widget.onEdit(id)),
-            child: const Text('Изм.'),
-          ),
-        ),
-        _DirectoryTableCell(
-          _widths[3],
-          TextButton(
-            onPressed:
-                widget.saving ? null : () => unawaited(widget.onDelete(entry)),
-            child: const Text('Удл.'),
-          ),
-        ),
-      ]),
-    );
-  }
-}
-
-class _DirectoryTableColumn {
-  const _DirectoryTableColumn(this.label, this.initialWidth, this.minimumWidth);
-  final String label;
-  final double initialWidth;
-  final double minimumWidth;
-}
-
-class _DirectoryTableCell extends StatelessWidget {
-  const _DirectoryTableCell(this.width, this.child);
-  final double width;
-  final Widget child;
-  @override
-  Widget build(BuildContext context) => SizedBox(
-        width: width,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Align(alignment: Alignment.centerLeft, child: child),
-        ),
-      );
-}
-
-class _DirectoryResizableHeaderCell extends StatelessWidget {
-  const _DirectoryResizableHeaderCell({
-    required this.width,
-    required this.label,
-    required this.resizeHandleKey,
-    required this.onResize,
-  });
-  final double width;
-  final String label;
-  final Key resizeHandleKey;
-  final ValueChanged<double> onResize;
-  @override
-  Widget build(BuildContext context) => SizedBox(
-        width: width,
-        child: Stack(children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(label,
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: MouseRegion(
-              cursor: SystemMouseCursors.resizeColumn,
-              child: GestureDetector(
-                key: resizeHandleKey,
-                behavior: HitTestBehavior.opaque,
-                onHorizontalDragUpdate: (details) => onResize(details.delta.dx),
-                child: const SizedBox(width: 8, height: double.infinity),
-              ),
-            ),
-          ),
-        ]),
-      );
 }
