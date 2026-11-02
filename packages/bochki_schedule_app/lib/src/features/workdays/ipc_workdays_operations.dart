@@ -21,14 +21,13 @@ final class IpcWorkdaysOperations implements WorkdaysOperations {
 
   @override
   Future<Workday> create(Workday value) async {
-    await _mutate('create', entry: _toMap(value));
-    return value;
+    return _fromMap(await _mutate('create', entry: _toMap(value)));
   }
 
   @override
   Future<Workday> update(Workday value) async {
-    await _mutate('update', id: value.id, entry: _toMap(value));
-    return value;
+    return _fromMap(
+        await _mutate('update', id: value.id, entry: _toMap(value)));
   }
 
   @override
@@ -36,7 +35,9 @@ final class IpcWorkdaysOperations implements WorkdaysOperations {
       await _invoke('workdayReferences', id) as int? ?? 0;
 
   @override
-  Future<void> delete(String id) => _mutate('delete', id: id);
+  Future<void> delete(String id) async {
+    await _mutate('delete', id: id);
+  }
 
   @override
   Future<List<double>> loadColumnWidths() async {
@@ -53,7 +54,7 @@ final class IpcWorkdaysOperations implements WorkdaysOperations {
   Future<void> saveColumnWidths(List<double> widths) =>
       _invoke('updateWorkdaysColumnWidths', widths);
 
-  Future<void> _mutate(String action,
+  Future<Map<String, dynamic>> _mutate(String action,
       {String? id, Map<String, dynamic>? entry}) async {
     final result = Map<String, dynamic>.from(await _invoke('directoryMutate', {
       'directory': 'workdays',
@@ -68,6 +69,7 @@ final class IpcWorkdaysOperations implements WorkdaysOperations {
       throw StateError(
           result['error'] as String? ?? 'Не удалось сохранить изменения.');
     }
+    return Map<String, dynamic>.from(result['entry'] as Map? ?? const {});
   }
 
   Workday _fromMap(Map<String, dynamic> map) => Workday(

@@ -1794,12 +1794,14 @@ final class DesktopWindowCoordinator {
                 .execute(values['id'] as String);
           } else if (action == 'create') {
             final day = _workdayFromMap({...entry, 'id': 'new'});
-            await _services.createWorkdayUseCase.execute(day);
+            savedEntry =
+                _workdayMap(await _services.createWorkdayUseCase.execute(day));
           } else if (action == 'update') {
             final day = _workdayFromMap(
               {...entry, 'id': values['id'] as String},
             );
-            await _services.updateWorkdayUseCase.execute(day);
+            savedEntry =
+                _workdayMap(await _services.updateWorkdayUseCase.execute(day));
           }
           break;
         default:
@@ -2743,6 +2745,10 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
         registerCurrentDesktopWindowFeatureHandler((call) async {
       switch (call.method) {
         case 'directory_changed':
+          if ((_workdaysViewModel?.isSaving ?? false) ||
+              (_procedureKindsViewModel?.isSaving ?? false)) {
+            return null;
+          }
           if (_participantsViewModel case final viewModel?) {
             if (!viewModel.isSaving) await viewModel.loadParticipants();
             return null;
