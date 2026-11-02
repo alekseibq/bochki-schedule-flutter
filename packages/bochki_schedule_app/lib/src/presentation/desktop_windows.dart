@@ -35,6 +35,9 @@ import '../features/quick_reassignments/quick_reassignments_dialog.dart';
 import '../features/quick_reassignments/quick_reassignments_view_model.dart';
 import '../features/free_time/free_time_view_model.dart';
 import '../features/free_time/ipc_free_time_operations.dart';
+import '../features/workdays/ipc_workdays_operations.dart';
+import '../features/workdays/workday_form_content.dart';
+import '../features/workdays/workdays_view_model.dart';
 
 enum DesktopWindowKind {
   main,
@@ -2839,17 +2842,15 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
   DesktopWindowKind? _kind;
   String? _entryId;
   int _procedureKindFormSession = 0;
+  int _workdayFormSession = 0;
   List<Map<String, dynamic>> _entries = const [];
   List<double> _procedureKindsColumnWidths = const [];
   List<double> _workdaysColumnWidths = const [];
   bool _loading = true;
-  bool _saving = false;
+  bool _deletingWorkday = false;
   bool _hasModalChild = false;
-  String? _error;
-  final _name = TextEditingController();
-  final _shortName = TextEditingController();
-  final _date = TextEditingController();
   ProcedureKindsViewModel? _procedureKindsViewModel;
+  WorkdaysViewModel? _workdaysViewModel;
   DesktopWindowFeatureHandlerRegistration? _handlerRegistration;
   DesktopWindowCloseRequestHandlerRegistration? _closeRequestRegistration;
   final _peopleDirectoryTableKey = GlobalKey<PeopleDirectoryTableState>();
@@ -2893,6 +2894,14 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
         ),
       );
     }
+    if (_kind == DesktopWindowKind.workdays ||
+        _kind == DesktopWindowKind.workdayEditor) {
+      _workdaysViewModel = WorkdaysViewModel.fromOperations(
+        IpcWorkdaysOperations(
+          (method, arguments) => _mainChannel.invokeMethod(method, arguments),
+        ),
+      );
+    }
     final registration =
         registerCurrentDesktopWindowFeatureHandler((call) async {
       switch (call.method) {
@@ -2908,6 +2917,10 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
           if (_kind == DesktopWindowKind.procedureKindEditor) {
             _procedureKindFormSession += 1;
             _procedureKindsViewModel?.clearFormError();
+          }
+          if (_kind == DesktopWindowKind.workdayEditor) {
+            _workdayFormSession += 1;
+            _workdaysViewModel?.clearFormError();
           }
           await _load();
           return null;
@@ -2940,7 +2953,6 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
     if (_kind == null) return;
     setState(() {
       _loading = true;
-      _error = null;
     });
     try {
       final result = Map<String, dynamic>.from(await _mainChannel.invokeMethod(
@@ -2959,14 +2971,11 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
       if (_procedureKindsViewModel case final viewModel?) {
         await viewModel.loadProcedureKinds();
       }
-      if (_isEditor) {
-        final entry = _entryId == null
-            ? null
-            : _entries.where((item) => item['id'] == _entryId).firstOrNull;
-        _fillEditor(entry);
+      if (_workdaysViewModel case final viewModel?) {
+        await viewModel.loadWorkdays();
       }
     } catch (_) {
-      _error = 'Не удалось загрузить данные.';
+      // The child keeps its current state when the main window is unavailable.
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -2990,10 +2999,8 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
   void dispose() {
     _handlerRegistration?.dispose();
     _closeRequestRegistration?.dispose();
-    _name.dispose();
-    _shortName.dispose();
-    _date.dispose();
     _procedureKindsViewModel?.dispose();
+    _workdaysViewModel?.dispose();
     super.dispose();
   }
 
@@ -3003,42 +3010,6 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
 
   Future<void> _closePeopleDirectory() async {
     await closeCurrentDesktopWindow();
-  }
-
-  void _fillEditor(Map<String, dynamic>? entry) {
-    _name.text = entry?['name'] as String? ?? '';
-    _shortName.text = entry?['shortName'] as String? ?? '';
-    _date.text = entry?['date'] as String? ??
-        (_kind == DesktopWindowKind.workdayEditor ? _nextWorkdayDate() : '');
-  }
-
-  Future<void> _mutate(String action,
-      {String? id, Map<String, dynamic>? entry}) async {
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-    try {
-      final result = Map<String, dynamic>.from(
-          await _mainChannel.invokeMethod('directoryMutate', {
-        'directory': _directory,
-        'action': action,
-        if (id != null) 'id': id,
-        'entry': entry ?? <String, dynamic>{},
-      }) as Map);
-      if (result['ok'] != true) throw StateError(result['error']);
-      if (_isEditor) {
-        await closeCurrentDesktopWindow();
-        return;
-      }
-      await _load();
-    } catch (error) {
-      if (mounted)
-        setState(
-            () => _error = error.toString().replaceFirst('Bad state: ', ''));
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
   }
 
   Future<void> _openEditor(String editorKind, [String? id]) async {
@@ -3134,7 +3105,7 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
             ),
           ),
           PeopleDirectoryFooter(
-            isSaving: _saving,
+            isSaving: false,
             onClose: () => unawaited(_closePeopleDirectory()),
           ),
         ],
@@ -3150,7 +3121,7 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
           Align(
             alignment: Alignment.centerLeft,
             child: FilledButton.tonal(
-              onPressed: _saving
+              onPressed: _deletingWorkday
                   ? null
                   : () => _openEditor(DesktopWindowKind.workdayEditor.name),
               child: const Text('Создать'),
@@ -3162,7 +3133,7 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
               entries: _entries,
               columnWidths: _workdaysColumnWidths,
               onColumnWidthsChanged: _saveWorkdaysColumnWidths,
-              saving: _saving,
+              saving: _deletingWorkday,
               onEdit: (id) => _openEditor(
                 DesktopWindowKind.workdayEditor.name,
                 id,
@@ -3223,35 +3194,31 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
       );
       return;
     }
-    await _mutate('delete', id: entry['id'] as String);
-  }
-
-  Future<void> _selectWorkdayDate(BuildContext contentContext) async {
-    if (_saving) return;
-    final initialDate = DateTime.tryParse(_date.text) ?? DateTime.now();
-    final selectedDate = await showDatePicker(
-      context: contentContext,
-      initialDate: initialDate,
-      firstDate: DateTime(1900),
-      lastDate: DateTime(2100, 12, 31),
+    setState(() => _deletingWorkday = true);
+    final deleted = await _workdaysViewModel!.deleteWorkday(
+      entry['id'] as String,
     );
-    if (selectedDate == null || !mounted) return;
-    setState(() => _date.text = _formatCalendarDate(selectedDate));
-  }
-
-  String _nextWorkdayDate() {
-    final dates = _entries
-        .map((entry) => DateTime.tryParse(entry['date'] as String? ?? ''))
-        .whereType<DateTime>();
-    if (dates.isEmpty) {
-      return _formatCalendarDate(
-        DateTime.now().add(const Duration(days: 1)),
-      );
+    if (!mounted) return;
+    setState(() => _deletingWorkday = false);
+    if (deleted) {
+      await _load();
+      return;
     }
-    final latest = dates.reduce(
-      (left, right) => left.isAfter(right) ? left : right,
+    await showDialog<void>(
+      context: contentContext,
+      builder: (context) => AlertDialog(
+        title: const Text('Не удалось удалить день'),
+        content: Text(
+          _workdaysViewModel!.actionErrorMessage ?? 'Не удалось удалить день.',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Понятно'),
+          ),
+        ],
+      ),
     );
-    return _formatCalendarDate(latest.add(const Duration(days: 1)));
   }
 
   String _assignedProcedureWord(int count) {
@@ -3290,45 +3257,20 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
     }
   }
 
-  Widget _editor(BuildContext contentContext) =>
-      Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        TextField(
-            controller: _name,
-            enabled: !_saving,
-            decoration: const InputDecoration(labelText: 'Название')),
-        const SizedBox(height: 12),
-        const Text('Дата'),
-        const SizedBox(height: 4),
-        OutlinedButton.icon(
-          onPressed: _saving ? null : () => _selectWorkdayDate(contentContext),
-          icon: const Icon(Icons.calendar_month),
-          label: Text(
-            _date.text.isEmpty
-                ? 'Выберите дату'
-                : _formatWorkdayDate(_date.text),
-          ),
-        ),
-        if (_error != null)
-          Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Text(_error!, style: const TextStyle(color: Colors.red))),
-        const Spacer(),
-        Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-          TextButton(
-              onPressed: _saving ? null : () => closeCurrentDesktopWindow(),
-              child: const Text('Отмена')),
-          const SizedBox(width: 12),
-          FilledButton(
-              onPressed: _saving
-                  ? null
-                  : () => _mutate(_entryId == null ? 'create' : 'update',
-                      id: _entryId, entry: _editorEntry),
-              child: Text(_entryId == null ? 'Создать' : 'Сохранить')),
-        ]),
-      ]);
-
-  Map<String, dynamic> get _editorEntry =>
-      {'name': _name.text, 'date': _date.text};
+  Widget _editor(BuildContext contentContext) {
+    final viewModel = _workdaysViewModel!;
+    final entry = _entryId == null
+        ? viewModel.suggestDraftWorkday()
+        : viewModel.workdays.firstWhere((workday) => workday.id == _entryId);
+    return WorkdayFormContent(
+      key: ValueKey(_workdayFormSession),
+      viewModel: viewModel,
+      initialWorkday: entry,
+      isEditing: _entryId != null,
+      onSaved: (_) => unawaited(closeCurrentDesktopWindow()),
+      onCancel: () => unawaited(closeCurrentDesktopWindow()),
+    );
+  }
 }
 
 class _WorkdaysTable extends StatefulWidget {
