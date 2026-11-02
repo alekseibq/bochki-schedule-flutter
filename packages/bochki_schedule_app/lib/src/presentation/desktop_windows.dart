@@ -34,6 +34,10 @@ import '../features/procedure_kinds/procedure_kind_form_content.dart';
 import '../features/procedure_kinds/procedure_kinds_dialog.dart';
 import '../features/procedure_kinds/procedure_kinds_view_model.dart';
 import '../features/directory/people_directory_table.dart';
+import '../features/participants/ipc_participants_operations.dart';
+import '../features/participants/participants_content.dart';
+import '../features/participants/participants_dialog.dart';
+import '../features/participants/participants_view_model.dart';
 import '../features/procedure_statistics/procedure_statistics_dialog.dart';
 import '../features/procedure_statistics/procedure_statistics_view_model.dart';
 import '../features/quick_reassignments/quick_reassignments_dialog.dart';
@@ -2698,9 +2702,11 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
   bool _hasModalChild = false;
   ProcedureKindsViewModel? _procedureKindsViewModel;
   WorkdaysViewModel? _workdaysViewModel;
+  ParticipantsViewModel? _participantsViewModel;
   DesktopWindowFeatureHandlerRegistration? _handlerRegistration;
   DesktopWindowCloseRequestHandlerRegistration? _closeRequestRegistration;
   final _peopleDirectoryTableKey = GlobalKey<PeopleDirectoryTableState>();
+  final _participantsContentKey = GlobalKey<ParticipantsContentState>();
 
   bool get _isEditor =>
       _kind == DesktopWindowKind.procedureKindEditor ||
@@ -2733,6 +2739,13 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
         Map<String, dynamic>.from(jsonDecode(controller.arguments) as Map);
     _kind = DesktopWindowKind.values.byName(args['kind'] as String);
     _entryId = args['entryId'] as String?;
+    if (_kind == DesktopWindowKind.participants) {
+      _participantsViewModel = ParticipantsViewModel.fromOperations(
+        IpcParticipantsOperations(
+          (method, arguments) => _mainChannel.invokeMethod(method, arguments),
+        ),
+      );
+    }
     if (_kind == DesktopWindowKind.procedureKinds ||
         _kind == DesktopWindowKind.procedureKindEditor) {
       _procedureKindsViewModel = ProcedureKindsViewModel(
@@ -2753,6 +2766,10 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
         registerCurrentDesktopWindowFeatureHandler((call) async {
       switch (call.method) {
         case 'directory_changed':
+          if (_participantsViewModel case final viewModel?) {
+            if (!viewModel.isSaving) await viewModel.loadParticipants();
+            return null;
+          }
           if (_procedureKindsViewModel case final viewModel?) {
             await viewModel.loadProcedureKinds();
           }
@@ -2821,6 +2838,9 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
       if (_workdaysViewModel case final viewModel?) {
         await viewModel.loadWorkdays();
       }
+      if (_participantsViewModel case final viewModel?) {
+        await viewModel.loadParticipants();
+      }
     } catch (_) {
       // The child keeps its current state when the main window is unavailable.
     } finally {
@@ -2848,10 +2868,14 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
     _closeRequestRegistration?.dispose();
     _procedureKindsViewModel?.dispose();
     _workdaysViewModel?.dispose();
+    _participantsViewModel?.dispose();
     super.dispose();
   }
 
   Future<bool> _requestPeopleDirectoryClose() async {
+    if (_kind == DesktopWindowKind.participants) {
+      return await _participantsContentKey.currentState?.requestClose() ?? true;
+    }
     return _peopleDirectoryTableKey.currentState?.requestClose() ?? true;
   }
 
@@ -2926,6 +2950,15 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
       };
 
   Widget _directoryList(BuildContext contentContext) {
+    if (_kind == DesktopWindowKind.participants) {
+      return ParticipantsContent(
+        key: _participantsContentKey,
+        viewModel: _participantsViewModel!,
+        config: ParticipantsDialog.participantConfig,
+        windowMode: true,
+        onClose: closeCurrentDesktopWindow,
+      );
+    }
     if (_isPeopleDirectory) {
       return Column(
         children: [
