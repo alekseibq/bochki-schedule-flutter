@@ -1,5 +1,5 @@
 import '../../domain/assistants/assistant.dart';
-import '../directory/named_directory_dialog_config.dart';
+import 'assistants_dialog_config.dart';
 
 import 'assistants_content.dart';
 import 'assistants_view_model.dart';
@@ -13,8 +13,8 @@ class AssistantsDialog extends AssistantsContent {
           config: assistantConfig,
         );
 
-  static const NamedDirectoryDialogConfig<Assistant> assistantConfig =
-      NamedDirectoryDialogConfig<Assistant>(
+  static const AssistantsDialogConfig<Assistant> assistantConfig =
+      AssistantsDialogConfig<Assistant>(
     dialogKey: 'assistants_directory_dialog',
     tableDividerKey: 'assistants_table_divider',
     entryKeyPrefix: 'assistant',
@@ -25,7 +25,7 @@ class AssistantsDialog extends AssistantsContent {
     deleteConfirmationTitle: 'Удалить сопровождающего?',
     deleteConfirmationMessage: _deleteConfirmationMessage,
     columns: [
-      DirectoryColumnSpec<Assistant>(
+      AssistantsColumnSpec<Assistant>(
         id: 'name',
         label: 'Имя',
         cellText: _nameCellText,
@@ -33,16 +33,16 @@ class AssistantsDialog extends AssistantsContent {
     ],
     showColumnHeaders: true,
     rowActions: [
-      DirectoryRowActionSpec<Assistant>(
+      AssistantsRowActionSpec<Assistant>(
         id: 'edit',
         label: 'Edit',
-        placement: DirectoryRowActionPlacement.contextMenu,
+        placement: AssistantsRowActionPlacement.contextMenu,
         onInvoke: _editAction,
       ),
-      DirectoryRowActionSpec<Assistant>(
+      AssistantsRowActionSpec<Assistant>(
         id: 'delete',
         label: 'Delete',
-        placement: DirectoryRowActionPlacement.contextMenu,
+        placement: AssistantsRowActionPlacement.contextMenu,
         onInvoke: _deleteAction,
       ),
     ],
@@ -57,14 +57,14 @@ class AssistantsDialog extends AssistantsContent {
   }
 
   static Future<void> _editAction(
-    NamedDirectoryDialogController<Assistant> controller,
+    AssistantsDialogController<Assistant> controller,
     Assistant assistant,
   ) async {
     controller.beginEdit(assistant.id);
   }
 
   static Future<void> _deleteAction(
-    NamedDirectoryDialogController<Assistant> controller,
+    AssistantsDialogController<Assistant> controller,
     Assistant assistant,
   ) {
     return controller.deleteEntry(assistant);

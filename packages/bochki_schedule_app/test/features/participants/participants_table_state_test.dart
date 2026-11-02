@@ -1,23 +1,23 @@
-import 'package:bochki_schedule_app/src/features/directory/directory_table_state.dart';
+import 'package:bochki_schedule_app/src/features/participants/participants_table_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  const reducer = DirectoryTableReducer();
+  const reducer = ParticipantsTableReducer();
   const rows = [
-    DirectoryTableRowData(id: '1', editValue: 'Анна'),
-    DirectoryTableRowData(id: '2', editValue: 'Борис'),
+    ParticipantsTableRowData(id: '1', editValue: 'Анна'),
+    ParticipantsTableRowData(id: '2', editValue: 'Борис'),
   ];
 
   test('no selection click on data row selects row', () {
     final transition = reducer.reduce(
-      state: const DirectoryTableNoSelection(),
-      event: const DirectoryTableEvent.clickRow('2'),
+      state: const ParticipantsTableNoSelection(),
+      event: const ParticipantsTableEvent.clickRow('2'),
       rows: rows,
     );
 
     expect(
       transition.state,
-      isA<DirectoryTableSelectedRow>()
+      isA<ParticipantsTableSelectedRow>()
           .having((state) => state.entryId, 'entryId', '2'),
     );
     expect(transition.submitRequest, isNull);
@@ -25,19 +25,19 @@ void main() {
 
   test('no selection click on new row opens edit new row', () {
     final transition = reducer.reduce(
-      state: const DirectoryTableNoSelection(),
-      event: const DirectoryTableEvent.clickNewRow(),
+      state: const ParticipantsTableNoSelection(),
+      event: const ParticipantsTableEvent.clickNewRow(),
       rows: rows,
     );
 
-    expect(transition.state, isA<DirectoryTableEditNewRow>());
+    expect(transition.state, isA<ParticipantsTableEditNewRow>());
     expect(transition.submitRequest, isNull);
   });
 
   test('right click on data row opens context menu', () {
     final transition = reducer.reduce(
-      state: const DirectoryTableNoSelection(),
-      event: const DirectoryTableEvent.rightClickRow(
+      state: const ParticipantsTableNoSelection(),
+      event: const ParticipantsTableEvent.rightClickRow(
         entryId: '1',
         position: Offset(24, 40),
       ),
@@ -46,7 +46,7 @@ void main() {
 
     expect(
       transition.state,
-      isA<DirectoryTableSelectedRow>()
+      isA<ParticipantsTableSelectedRow>()
           .having((state) => state.entryId, 'entryId', '1')
           .having(
             (state) => state.contextMenuPosition,
@@ -58,17 +58,17 @@ void main() {
 
   test('escape closes open context menu and keeps selection', () {
     final transition = reducer.reduce(
-      state: const DirectoryTableSelectedRow(
+      state: const ParticipantsTableSelectedRow(
         entryId: '1',
         contextMenuPosition: Offset(24, 40),
       ),
-      event: const DirectoryTableEvent.pressEscape(),
+      event: const ParticipantsTableEvent.pressEscape(),
       rows: rows,
     );
 
     expect(
       transition.state,
-      isA<DirectoryTableSelectedRow>()
+      isA<ParticipantsTableSelectedRow>()
           .having((state) => state.entryId, 'entryId', '1')
           .having(
               (state) => state.isContextMenuOpen, 'isContextMenuOpen', false),
@@ -77,14 +77,14 @@ void main() {
 
   test('enter on selected row opens edit for that row', () {
     final transition = reducer.reduce(
-      state: const DirectoryTableSelectedRow(entryId: '1'),
-      event: const DirectoryTableEvent.pressEnter(),
+      state: const ParticipantsTableSelectedRow(entryId: '1'),
+      event: const ParticipantsTableEvent.pressEnter(),
       rows: rows,
     );
 
     expect(
       transition.state,
-      isA<DirectoryTableEditRow>()
+      isA<ParticipantsTableEditRow>()
           .having((state) => state.entryId, 'entryId', '1')
           .having((state) => state.currentValue, 'currentValue', 'Анна'),
     );
@@ -93,27 +93,27 @@ void main() {
 
   test('dirty edit data row click another row requires submit', () {
     final transition = reducer.reduce(
-      state: const DirectoryTableEditRow(
+      state: const ParticipantsTableEditRow(
         entryId: '1',
         initialValue: 'Анна',
         currentValue: 'Анна Петрова',
       ),
-      event: const DirectoryTableEvent.clickRow('2'),
+      event: const ParticipantsTableEvent.clickRow('2'),
       rows: rows,
     );
 
-    expect(transition.state, isA<DirectoryTableEditRow>());
+    expect(transition.state, isA<ParticipantsTableEditRow>());
     expect(
       transition.submitRequest,
-      isA<DirectoryTableSubmitRequest>()
+      isA<ParticipantsTableSubmitRequest>()
           .having((request) => request.mode, 'mode',
-              DirectoryTableSubmitMode.update)
+              ParticipantsTableSubmitMode.update)
           .having((request) => request.entryId, 'entryId', '1')
           .having((request) => request.rawValue, 'rawValue', 'Анна Петрова')
           .having(
             (request) => request.successTarget,
             'successTarget',
-            isA<DirectoryTableSuccessSelectRow>().having(
+            isA<ParticipantsTableSuccessSelectRow>().having(
               (target) => target.entryId,
               'entryId',
               '2',
@@ -124,18 +124,18 @@ void main() {
 
   test('clean edit data row arrow down moves edit to next row', () {
     final transition = reducer.reduce(
-      state: const DirectoryTableEditRow(
+      state: const ParticipantsTableEditRow(
         entryId: '1',
         initialValue: 'Анна',
         currentValue: 'Анна',
       ),
-      event: const DirectoryTableEvent.pressArrowDown(),
+      event: const ParticipantsTableEvent.pressArrowDown(),
       rows: rows,
     );
 
     expect(
       transition.state,
-      isA<DirectoryTableEditRow>()
+      isA<ParticipantsTableEditRow>()
           .having((state) => state.entryId, 'entryId', '2')
           .having((state) => state.currentValue, 'currentValue', 'Борис'),
     );
@@ -144,36 +144,36 @@ void main() {
 
   test('dirty edit new row enter submits and selects created row', () {
     final transition = reducer.reduce(
-      state: const DirectoryTableEditNewRow(currentValue: 'Глеб'),
-      event: const DirectoryTableEvent.pressEnter(),
+      state: const ParticipantsTableEditNewRow(currentValue: 'Глеб'),
+      event: const ParticipantsTableEvent.pressEnter(),
       rows: rows,
     );
 
-    expect(transition.state, isA<DirectoryTableEditNewRow>());
+    expect(transition.state, isA<ParticipantsTableEditNewRow>());
     expect(
       transition.submitRequest,
-      isA<DirectoryTableSubmitRequest>()
+      isA<ParticipantsTableSubmitRequest>()
           .having((request) => request.mode, 'mode',
-              DirectoryTableSubmitMode.create)
+              ParticipantsTableSubmitMode.create)
           .having((request) => request.rawValue, 'rawValue', 'Глеб')
           .having(
             (request) => request.successTarget,
             'successTarget',
-            isA<DirectoryTableSuccessSelectCreatedRow>(),
+            isA<ParticipantsTableSuccessSelectCreatedRow>(),
           ),
     );
   });
 
   test('clean edit new row arrow up moves edit to last data row', () {
     final transition = reducer.reduce(
-      state: const DirectoryTableEditNewRow(currentValue: ''),
-      event: const DirectoryTableEvent.pressArrowUp(),
+      state: const ParticipantsTableEditNewRow(currentValue: ''),
+      event: const ParticipantsTableEvent.pressArrowUp(),
       rows: rows,
     );
 
     expect(
       transition.state,
-      isA<DirectoryTableEditRow>()
+      isA<ParticipantsTableEditRow>()
           .having((state) => state.entryId, 'entryId', '2')
           .having((state) => state.currentValue, 'currentValue', 'Борис'),
     );

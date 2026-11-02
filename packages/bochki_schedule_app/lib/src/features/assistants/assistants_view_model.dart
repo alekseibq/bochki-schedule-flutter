@@ -7,11 +7,9 @@ import '../../domain/assistants/create_assistant_use_case.dart';
 import '../../domain/assistants/update_assistant_use_case.dart';
 import '../../domain/assistants/delete_assistant_use_case.dart';
 import '../../domain/assistants/list_assistants_use_case.dart';
-import '../directory/named_directory_view_model.dart';
 import 'assistants_operations.dart';
 
-final class AssistantsViewModel extends ChangeNotifier
-    implements NamedDirectoryState<Assistant> {
+final class AssistantsViewModel extends ChangeNotifier {
   AssistantsViewModel({
     required ListAssistantsUseCase listAssistantsUseCase,
     required CreateAssistantUseCase createAssistantUseCase,
@@ -33,11 +31,14 @@ final class AssistantsViewModel extends ChangeNotifier
         _deleteEntry = operations.delete,
         _countReferences = operations.countReferences;
 
-  final NamedDirectoryLoader<Assistant> _loadEntries;
-  final NamedDirectoryCreator<Assistant> _createEntry;
-  final NamedDirectoryUpdater<Assistant> _updateEntry;
-  final NamedDirectoryDeleter _deleteEntry;
-  final NamedDirectoryReferenceCounter? _countReferences;
+  final Future<List<Assistant>> Function() _loadEntries;
+  final Future<Assistant> Function(String) _createEntry;
+  final Future<Assistant> Function(
+      {required String entryId,
+      required String rawName,
+      required String fieldId}) _updateEntry;
+  final Future<void> Function(String) _deleteEntry;
+  final Future<int> Function(String)? _countReferences;
   final String loadErrorMessageText = 'Не удалось загрузить сопровождающих.';
   final String saveErrorMessageText = 'Не удалось сохранить изменения.';
   final String deleteErrorMessageText = 'Не удалось удалить сопровождающего.';

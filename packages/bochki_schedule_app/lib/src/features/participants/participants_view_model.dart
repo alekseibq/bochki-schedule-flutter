@@ -7,11 +7,9 @@ import '../../domain/participants/create_participant_use_case.dart';
 import '../../domain/participants/update_participant_use_case.dart';
 import '../../domain/participants/delete_participant_use_case.dart';
 import '../../domain/participants/list_participants_use_case.dart';
-import '../directory/named_directory_view_model.dart';
 import 'participants_operations.dart';
 
-final class ParticipantsViewModel extends ChangeNotifier
-    implements NamedDirectoryState<Participant> {
+final class ParticipantsViewModel extends ChangeNotifier {
   ParticipantsViewModel({
     required ListParticipantsUseCase listParticipantsUseCase,
     required CreateParticipantUseCase createParticipantUseCase,
@@ -33,11 +31,14 @@ final class ParticipantsViewModel extends ChangeNotifier
         _deleteEntry = operations.delete,
         _countReferences = operations.countReferences;
 
-  final NamedDirectoryLoader<Participant> _loadEntries;
-  final NamedDirectoryCreator<Participant> _createEntry;
-  final NamedDirectoryUpdater<Participant> _updateEntry;
-  final NamedDirectoryDeleter _deleteEntry;
-  final NamedDirectoryReferenceCounter? _countReferences;
+  final Future<List<Participant>> Function() _loadEntries;
+  final Future<Participant> Function(String) _createEntry;
+  final Future<Participant> Function(
+      {required String entryId,
+      required String rawName,
+      required String fieldId}) _updateEntry;
+  final Future<void> Function(String) _deleteEntry;
+  final Future<int> Function(String)? _countReferences;
   final String loadErrorMessageText = 'Не удалось загрузить участников.';
   final String saveErrorMessageText = 'Не удалось сохранить изменения.';
   final String deleteErrorMessageText = 'Не удалось удалить участника.';

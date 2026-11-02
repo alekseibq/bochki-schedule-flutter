@@ -6,8 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../domain/named_directory/named_directory_entry.dart';
-import '../directory/directory_table_state.dart';
-import '../directory/named_directory_dialog_config.dart';
+import 'participants_table_state.dart';
+import 'participants_dialog_config.dart';
 import 'participants_view_model.dart';
 import '../../domain/participants/participant.dart';
 
@@ -27,7 +27,7 @@ class ParticipantsContent extends StatefulWidget {
   });
 
   final ParticipantsViewModel viewModel;
-  final NamedDirectoryDialogConfig<Participant> config;
+  final ParticipantsDialogConfig<Participant> config;
   final bool windowMode;
   final Future<void> Function()? onClose;
 
@@ -36,32 +36,32 @@ class ParticipantsContent extends StatefulWidget {
 }
 
 class ParticipantsContentState extends State<ParticipantsContent>
-    implements NamedDirectoryDialogController<Participant> {
+    implements ParticipantsDialogController<Participant> {
   final TextEditingController _nameController = TextEditingController();
   final FocusNode _editorFocusNode = FocusNode();
   final FocusNode _tableFocusNode = FocusNode();
   final GlobalKey _tableAreaKey = GlobalKey();
-  final DirectoryTableReducer _reducer = const DirectoryTableReducer();
+  final ParticipantsTableReducer _reducer = const ParticipantsTableReducer();
 
-  DirectoryTableState _tableState = const DirectoryTableNoSelection();
+  ParticipantsTableState _tableState = const ParticipantsTableNoSelection();
   String _editingColumnId = 'name';
   Future<bool>? _pendingSubmit;
 
-  NamedDirectoryDialogConfig<Participant> get _config => widget.config;
-  List<DirectoryRowActionSpec<Participant>> get _contextMenuActions =>
+  ParticipantsDialogConfig<Participant> get _config => widget.config;
+  List<ParticipantsRowActionSpec<Participant>> get _contextMenuActions =>
       _config.rowActions
           .where((action) =>
-              action.placement == DirectoryRowActionPlacement.contextMenu)
+              action.placement == ParticipantsRowActionPlacement.contextMenu)
           .toList(growable: false);
-  List<DirectoryRowActionSpec<Participant>> get _rowButtonActions => _config
-      .rowActions
-      .where(
-          (action) => action.placement == DirectoryRowActionPlacement.rowButton)
-      .toList(growable: false);
+  List<ParticipantsRowActionSpec<Participant>> get _rowButtonActions =>
+      _config.rowActions
+          .where((action) =>
+              action.placement == ParticipantsRowActionPlacement.rowButton)
+          .toList(growable: false);
 
-  List<DirectoryTableRowData> get _rows => [
+  List<ParticipantsTableRowData> get _rows => [
         for (final entry in widget.viewModel.entries)
-          DirectoryTableRowData(
+          ParticipantsTableRowData(
             id: entry.id,
             editValue: entry.name,
           ),
@@ -82,7 +82,7 @@ class ParticipantsContentState extends State<ParticipantsContent>
 
   bool _isEditingEntry(Participant entry) {
     final tableState = _tableState;
-    return tableState is DirectoryTableEditRow &&
+    return tableState is ParticipantsTableEditRow &&
         tableState.entryId == entry.id;
   }
 
@@ -106,10 +106,10 @@ class ParticipantsContentState extends State<ParticipantsContent>
     });
   }
 
-  void _syncControllerFromState(DirectoryTableState state) {
+  void _syncControllerFromState(ParticipantsTableState state) {
     final nextText = switch (state) {
-      DirectoryTableEditRow(:final currentValue) => currentValue,
-      DirectoryTableEditNewRow(:final currentValue) => currentValue,
+      ParticipantsTableEditRow(:final currentValue) => currentValue,
+      ParticipantsTableEditNewRow(:final currentValue) => currentValue,
       _ => '',
     };
 
@@ -124,7 +124,7 @@ class ParticipantsContentState extends State<ParticipantsContent>
   }
 
   void _setTableState(
-    DirectoryTableState nextState, {
+    ParticipantsTableState nextState, {
     bool clearFormError = false,
   }) {
     if (!mounted) {
@@ -183,7 +183,7 @@ class ParticipantsContentState extends State<ParticipantsContent>
     );
   }
 
-  Future<bool> _submit(DirectoryTableSubmitRequest request) {
+  Future<bool> _submit(ParticipantsTableSubmitRequest request) {
     if (_pendingSubmit != null) {
       return _pendingSubmit!;
     }
@@ -191,9 +191,9 @@ class ParticipantsContentState extends State<ParticipantsContent>
     final viewModel = widget.viewModel;
     final submitFuture = () async {
       final isSuccess = switch (request.mode) {
-        DirectoryTableSubmitMode.create =>
+        ParticipantsTableSubmitMode.create =>
           await viewModel.createEntry(request.rawValue),
-        DirectoryTableSubmitMode.update => await viewModel.updateEntry(
+        ParticipantsTableSubmitMode.update => await viewModel.updateEntry(
             entryId: request.entryId!,
             rawName: request.rawValue,
             fieldId: _editingColumnId,
@@ -209,7 +209,7 @@ class ParticipantsContentState extends State<ParticipantsContent>
           _reducer.resolveSubmitSuccess(
             target: request.successTarget,
             rows: _rows,
-            createdEntryId: request.mode == DirectoryTableSubmitMode.create
+            createdEntryId: request.mode == ParticipantsTableSubmitMode.create
                 ? _findEntryIdByName(request.rawValue)
                 : null,
           ),
@@ -231,7 +231,7 @@ class ParticipantsContentState extends State<ParticipantsContent>
   }
 
   void _dispatch(
-    DirectoryTableEvent event, {
+    ParticipantsTableEvent event, {
     bool clearFormError = false,
   }) {
     final viewModel = widget.viewModel;
@@ -264,7 +264,7 @@ class ParticipantsContentState extends State<ParticipantsContent>
 
     final transition = _reducer.reduce(
       state: _tableState,
-      event: const DirectoryTableEvent.clickOutside(),
+      event: const ParticipantsTableEvent.clickOutside(),
       rows: _rows,
     );
     _setTableState(transition.state);
@@ -301,14 +301,14 @@ class ParticipantsContentState extends State<ParticipantsContent>
     }
 
     final tableState = _tableState;
-    if (tableState is DirectoryTableSelectedRow &&
+    if (tableState is ParticipantsTableSelectedRow &&
         tableState.entryId == entry.id &&
         !tableState.isContextMenuOpen) {
       return;
     }
 
     _setTableState(
-      DirectoryTableSelectedRow(entryId: entry.id),
+      ParticipantsTableSelectedRow(entryId: entry.id),
     );
   }
 
@@ -317,7 +317,7 @@ class ParticipantsContentState extends State<ParticipantsContent>
     _editingColumnId = 'name';
     _setTableState(
       _reducer.resolveSubmitSuccess(
-        target: DirectoryTableSuccessTarget.editRow(entryId),
+        target: ParticipantsTableSuccessTarget.editRow(entryId),
         rows: _rows,
       ),
       clearFormError: true,
@@ -325,11 +325,11 @@ class ParticipantsContentState extends State<ParticipantsContent>
   }
 
   void _beginEditCell(
-      Participant entry, DirectoryColumnSpec<Participant> column) {
+      Participant entry, ParticipantsColumnSpec<Participant> column) {
     final value = column.editValue?.call(entry) ?? column.cellText(entry);
     _editingColumnId = column.id;
     _setTableState(
-      DirectoryTableEditRow(
+      ParticipantsTableEditRow(
         entryId: entry.id,
         initialValue: value,
         currentValue: value,
@@ -412,13 +412,13 @@ class ParticipantsContentState extends State<ParticipantsContent>
 
     final nextEntries = widget.viewModel.entries;
     if (nextEntries.isEmpty) {
-      _setTableState(const DirectoryTableNoSelection());
+      _setTableState(const ParticipantsTableNoSelection());
       return;
     }
 
     final nextSelectionIndex = deletedIndex.clamp(0, nextEntries.length - 1);
     _setTableState(
-      DirectoryTableSelectedRow(
+      ParticipantsTableSelectedRow(
         entryId: nextEntries[nextSelectionIndex].id,
       ),
     );
@@ -443,20 +443,20 @@ class ParticipantsContentState extends State<ParticipantsContent>
     }
 
     if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-      _dispatch(const DirectoryTableEvent.pressArrowDown());
+      _dispatch(const ParticipantsTableEvent.pressArrowDown());
       return true;
     }
     if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-      _dispatch(const DirectoryTableEvent.pressArrowUp());
+      _dispatch(const ParticipantsTableEvent.pressArrowUp());
       return true;
     }
     if (event.logicalKey == LogicalKeyboardKey.escape) {
-      _dispatch(const DirectoryTableEvent.pressEscape());
+      _dispatch(const ParticipantsTableEvent.pressEscape());
       return true;
     }
     if (_isEnterKey(event.logicalKey) ||
         event.logicalKey == LogicalKeyboardKey.f2) {
-      _dispatch(const DirectoryTableEvent.pressEnter());
+      _dispatch(const ParticipantsTableEvent.pressEnter());
       return true;
     }
 
@@ -481,7 +481,7 @@ class ParticipantsContentState extends State<ParticipantsContent>
   Widget _buildHeaderRow(BuildContext context, int count) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => _dispatch(const DirectoryTableEvent.clickOutside()),
+      onTap: () => _dispatch(const ParticipantsTableEvent.clickOutside()),
       child: Container(
         color: const Color(0xFFD7E8FB),
         padding: const EdgeInsets.symmetric(vertical: 10),
@@ -588,19 +588,19 @@ class ParticipantsContentState extends State<ParticipantsContent>
           return KeyEventResult.ignored;
         }
         if (event.logicalKey == LogicalKeyboardKey.escape) {
-          _dispatch(const DirectoryTableEvent.pressEscape());
+          _dispatch(const ParticipantsTableEvent.pressEscape());
           return KeyEventResult.handled;
         }
         if (_isEnterKey(event.logicalKey)) {
-          _dispatch(const DirectoryTableEvent.pressEnter());
+          _dispatch(const ParticipantsTableEvent.pressEnter());
           return KeyEventResult.handled;
         }
         if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-          _dispatch(const DirectoryTableEvent.pressArrowUp());
+          _dispatch(const ParticipantsTableEvent.pressArrowUp());
           return KeyEventResult.handled;
         }
         if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-          _dispatch(const DirectoryTableEvent.pressArrowDown());
+          _dispatch(const ParticipantsTableEvent.pressArrowDown());
           return KeyEventResult.handled;
         }
         return KeyEventResult.ignored;
@@ -622,10 +622,11 @@ class ParticipantsContentState extends State<ParticipantsContent>
         ),
         textInputAction: TextInputAction.done,
         onChanged: (value) => _dispatch(
-          DirectoryTableEvent.textChanged(value),
+          ParticipantsTableEvent.textChanged(value),
           clearFormError: true,
         ),
-        onSubmitted: (_) => _dispatch(const DirectoryTableEvent.pressEnter()),
+        onSubmitted: (_) =>
+            _dispatch(const ParticipantsTableEvent.pressEnter()),
       ),
     );
   }
@@ -703,14 +704,14 @@ class ParticipantsContentState extends State<ParticipantsContent>
         behavior: HitTestBehavior.opaque,
         onTap: viewModel.isSaving || !_tableState.isEditing
             ? null
-            : () => _dispatch(DirectoryTableEvent.clickRow(entry.id)),
+            : () => _dispatch(ParticipantsTableEvent.clickRow(entry.id)),
         onDoubleTap: viewModel.isSaving
             ? null
             : () => _beginEditCell(entry, _config.columns.first),
         onSecondaryTapDown: viewModel.isSaving
             ? null
             : (details) => _dispatch(
-                  DirectoryTableEvent.rightClickRow(
+                  ParticipantsTableEvent.rightClickRow(
                     entryId: entry.id,
                     position: _toTableLocalPosition(details.globalPosition),
                   ),
@@ -762,7 +763,7 @@ class ParticipantsContentState extends State<ParticipantsContent>
     BuildContext context,
     ParticipantsViewModel viewModel,
   ) {
-    final isEditing = _tableState is DirectoryTableEditNewRow;
+    final isEditing = _tableState is ParticipantsTableEditNewRow;
     final backgroundColor =
         isEditing ? const Color(0xFFDDEAF8) : const Color(0xFFE8F0F6);
 
@@ -772,12 +773,12 @@ class ParticipantsContentState extends State<ParticipantsContent>
       onTap: viewModel.isSaving
           ? null
           : () => _dispatch(
-                const DirectoryTableEvent.clickNewRow(),
+                const ParticipantsTableEvent.clickNewRow(),
                 clearFormError: true,
               ),
       onSecondaryTapDown: viewModel.isSaving
           ? null
-          : (_) => _dispatch(const DirectoryTableEvent.rightClickNewRow()),
+          : (_) => _dispatch(const ParticipantsTableEvent.rightClickNewRow()),
       child: Container(
         decoration: const BoxDecoration(
           border: Border(
@@ -820,7 +821,7 @@ class ParticipantsContentState extends State<ParticipantsContent>
 
   Widget _buildContextMenu(Size size) {
     final tableState = _tableState;
-    if (tableState is! DirectoryTableSelectedRow ||
+    if (tableState is! ParticipantsTableSelectedRow ||
         tableState.contextMenuPosition == null) {
       return const SizedBox.shrink();
     }
@@ -885,7 +886,7 @@ class ParticipantsContentState extends State<ParticipantsContent>
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () =>
-                    _dispatch(const DirectoryTableEvent.clickOutside()),
+                    _dispatch(const ParticipantsTableEvent.clickOutside()),
                 child: const DecoratedBox(
                   decoration: BoxDecoration(
                     color: Color(0xFFF9FBFD),
@@ -944,7 +945,7 @@ class ParticipantsContentState extends State<ParticipantsContent>
                         child: GestureDetector(
                           behavior: HitTestBehavior.opaque,
                           onTap: () => _dispatch(
-                            const DirectoryTableEvent.clickOutside(),
+                            const ParticipantsTableEvent.clickOutside(),
                           ),
                           child: Text(
                             _config.dialogTitle,
@@ -987,7 +988,7 @@ class ParticipantsContentState extends State<ParticipantsContent>
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () =>
-                      _dispatch(const DirectoryTableEvent.clickOutside()),
+                      _dispatch(const ParticipantsTableEvent.clickOutside()),
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: const BoxDecoration(

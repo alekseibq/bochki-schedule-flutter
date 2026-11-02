@@ -1,5 +1,5 @@
 import '../../domain/participants/participant.dart';
-import '../directory/named_directory_dialog_config.dart';
+import 'participants_dialog_config.dart';
 
 import 'participants_content.dart';
 import 'participants_view_model.dart';
@@ -13,8 +13,8 @@ class ParticipantsDialog extends ParticipantsContent {
           config: participantConfig,
         );
 
-  static const NamedDirectoryDialogConfig<Participant> participantConfig =
-      NamedDirectoryDialogConfig<Participant>(
+  static const ParticipantsDialogConfig<Participant> participantConfig =
+      ParticipantsDialogConfig<Participant>(
     dialogKey: 'participants_directory_dialog',
     tableDividerKey: 'participants_table_divider',
     entryKeyPrefix: 'participant',
@@ -25,23 +25,23 @@ class ParticipantsDialog extends ParticipantsContent {
     deleteConfirmationTitle: 'Удалить участника?',
     deleteConfirmationMessage: _deleteConfirmationMessage,
     columns: [
-      DirectoryColumnSpec<Participant>(
+      ParticipantsColumnSpec<Participant>(
         id: 'name',
         label: 'Имя',
         cellText: _cellText,
       ),
     ],
     rowActions: [
-      DirectoryRowActionSpec<Participant>(
+      ParticipantsRowActionSpec<Participant>(
         id: 'edit',
         label: 'Edit',
-        placement: DirectoryRowActionPlacement.contextMenu,
+        placement: ParticipantsRowActionPlacement.contextMenu,
         onInvoke: _editAction,
       ),
-      DirectoryRowActionSpec<Participant>(
+      ParticipantsRowActionSpec<Participant>(
         id: 'delete',
         label: 'Delete',
-        placement: DirectoryRowActionPlacement.contextMenu,
+        placement: ParticipantsRowActionPlacement.contextMenu,
         onInvoke: _deleteAction,
       ),
     ],
@@ -56,14 +56,14 @@ class ParticipantsDialog extends ParticipantsContent {
   }
 
   static Future<void> _editAction(
-    NamedDirectoryDialogController<Participant> controller,
+    ParticipantsDialogController<Participant> controller,
     Participant participant,
   ) async {
     controller.beginEdit(participant.id);
   }
 
   static Future<void> _deleteAction(
-    NamedDirectoryDialogController<Participant> controller,
+    ParticipantsDialogController<Participant> controller,
     Participant participant,
   ) {
     return controller.deleteEntry(participant);

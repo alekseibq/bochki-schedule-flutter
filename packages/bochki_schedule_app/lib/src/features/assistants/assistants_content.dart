@@ -6,8 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../domain/named_directory/named_directory_entry.dart';
-import '../directory/directory_table_state.dart';
-import '../directory/named_directory_dialog_config.dart';
+import 'assistants_table_state.dart';
+import 'assistants_dialog_config.dart';
 import 'assistants_view_model.dart';
 import '../../domain/assistants/assistant.dart';
 
@@ -27,7 +27,7 @@ class AssistantsContent extends StatefulWidget {
   });
 
   final AssistantsViewModel viewModel;
-  final NamedDirectoryDialogConfig<Assistant> config;
+  final AssistantsDialogConfig<Assistant> config;
   final bool windowMode;
   final Future<void> Function()? onClose;
 
@@ -36,32 +36,32 @@ class AssistantsContent extends StatefulWidget {
 }
 
 class AssistantsContentState extends State<AssistantsContent>
-    implements NamedDirectoryDialogController<Assistant> {
+    implements AssistantsDialogController<Assistant> {
   final TextEditingController _nameController = TextEditingController();
   final FocusNode _editorFocusNode = FocusNode();
   final FocusNode _tableFocusNode = FocusNode();
   final GlobalKey _tableAreaKey = GlobalKey();
-  final DirectoryTableReducer _reducer = const DirectoryTableReducer();
+  final AssistantsTableReducer _reducer = const AssistantsTableReducer();
 
-  DirectoryTableState _tableState = const DirectoryTableNoSelection();
+  AssistantsTableState _tableState = const AssistantsTableNoSelection();
   String _editingColumnId = 'name';
   Future<bool>? _pendingSubmit;
 
-  NamedDirectoryDialogConfig<Assistant> get _config => widget.config;
-  List<DirectoryRowActionSpec<Assistant>> get _contextMenuActions =>
+  AssistantsDialogConfig<Assistant> get _config => widget.config;
+  List<AssistantsRowActionSpec<Assistant>> get _contextMenuActions =>
       _config.rowActions
           .where((action) =>
-              action.placement == DirectoryRowActionPlacement.contextMenu)
+              action.placement == AssistantsRowActionPlacement.contextMenu)
           .toList(growable: false);
-  List<DirectoryRowActionSpec<Assistant>> get _rowButtonActions => _config
-      .rowActions
-      .where(
-          (action) => action.placement == DirectoryRowActionPlacement.rowButton)
-      .toList(growable: false);
+  List<AssistantsRowActionSpec<Assistant>> get _rowButtonActions =>
+      _config.rowActions
+          .where((action) =>
+              action.placement == AssistantsRowActionPlacement.rowButton)
+          .toList(growable: false);
 
-  List<DirectoryTableRowData> get _rows => [
+  List<AssistantsTableRowData> get _rows => [
         for (final entry in widget.viewModel.entries)
-          DirectoryTableRowData(
+          AssistantsTableRowData(
             id: entry.id,
             editValue: entry.name,
           ),
@@ -82,7 +82,7 @@ class AssistantsContentState extends State<AssistantsContent>
 
   bool _isEditingEntry(Assistant entry) {
     final tableState = _tableState;
-    return tableState is DirectoryTableEditRow &&
+    return tableState is AssistantsTableEditRow &&
         tableState.entryId == entry.id;
   }
 
@@ -106,10 +106,10 @@ class AssistantsContentState extends State<AssistantsContent>
     });
   }
 
-  void _syncControllerFromState(DirectoryTableState state) {
+  void _syncControllerFromState(AssistantsTableState state) {
     final nextText = switch (state) {
-      DirectoryTableEditRow(:final currentValue) => currentValue,
-      DirectoryTableEditNewRow(:final currentValue) => currentValue,
+      AssistantsTableEditRow(:final currentValue) => currentValue,
+      AssistantsTableEditNewRow(:final currentValue) => currentValue,
       _ => '',
     };
 
@@ -124,7 +124,7 @@ class AssistantsContentState extends State<AssistantsContent>
   }
 
   void _setTableState(
-    DirectoryTableState nextState, {
+    AssistantsTableState nextState, {
     bool clearFormError = false,
   }) {
     if (!mounted) {
@@ -183,7 +183,7 @@ class AssistantsContentState extends State<AssistantsContent>
     );
   }
 
-  Future<bool> _submit(DirectoryTableSubmitRequest request) {
+  Future<bool> _submit(AssistantsTableSubmitRequest request) {
     if (_pendingSubmit != null) {
       return _pendingSubmit!;
     }
@@ -191,9 +191,9 @@ class AssistantsContentState extends State<AssistantsContent>
     final viewModel = widget.viewModel;
     final submitFuture = () async {
       final isSuccess = switch (request.mode) {
-        DirectoryTableSubmitMode.create =>
+        AssistantsTableSubmitMode.create =>
           await viewModel.createEntry(request.rawValue),
-        DirectoryTableSubmitMode.update => await viewModel.updateEntry(
+        AssistantsTableSubmitMode.update => await viewModel.updateEntry(
             entryId: request.entryId!,
             rawName: request.rawValue,
             fieldId: _editingColumnId,
@@ -209,7 +209,7 @@ class AssistantsContentState extends State<AssistantsContent>
           _reducer.resolveSubmitSuccess(
             target: request.successTarget,
             rows: _rows,
-            createdEntryId: request.mode == DirectoryTableSubmitMode.create
+            createdEntryId: request.mode == AssistantsTableSubmitMode.create
                 ? _findEntryIdByName(request.rawValue)
                 : null,
           ),
@@ -231,7 +231,7 @@ class AssistantsContentState extends State<AssistantsContent>
   }
 
   void _dispatch(
-    DirectoryTableEvent event, {
+    AssistantsTableEvent event, {
     bool clearFormError = false,
   }) {
     final viewModel = widget.viewModel;
@@ -264,7 +264,7 @@ class AssistantsContentState extends State<AssistantsContent>
 
     final transition = _reducer.reduce(
       state: _tableState,
-      event: const DirectoryTableEvent.clickOutside(),
+      event: const AssistantsTableEvent.clickOutside(),
       rows: _rows,
     );
     _setTableState(transition.state);
@@ -301,14 +301,14 @@ class AssistantsContentState extends State<AssistantsContent>
     }
 
     final tableState = _tableState;
-    if (tableState is DirectoryTableSelectedRow &&
+    if (tableState is AssistantsTableSelectedRow &&
         tableState.entryId == entry.id &&
         !tableState.isContextMenuOpen) {
       return;
     }
 
     _setTableState(
-      DirectoryTableSelectedRow(entryId: entry.id),
+      AssistantsTableSelectedRow(entryId: entry.id),
     );
   }
 
@@ -317,18 +317,18 @@ class AssistantsContentState extends State<AssistantsContent>
     _editingColumnId = 'name';
     _setTableState(
       _reducer.resolveSubmitSuccess(
-        target: DirectoryTableSuccessTarget.editRow(entryId),
+        target: AssistantsTableSuccessTarget.editRow(entryId),
         rows: _rows,
       ),
       clearFormError: true,
     );
   }
 
-  void _beginEditCell(Assistant entry, DirectoryColumnSpec<Assistant> column) {
+  void _beginEditCell(Assistant entry, AssistantsColumnSpec<Assistant> column) {
     final value = column.editValue?.call(entry) ?? column.cellText(entry);
     _editingColumnId = column.id;
     _setTableState(
-      DirectoryTableEditRow(
+      AssistantsTableEditRow(
         entryId: entry.id,
         initialValue: value,
         currentValue: value,
@@ -411,13 +411,13 @@ class AssistantsContentState extends State<AssistantsContent>
 
     final nextEntries = widget.viewModel.entries;
     if (nextEntries.isEmpty) {
-      _setTableState(const DirectoryTableNoSelection());
+      _setTableState(const AssistantsTableNoSelection());
       return;
     }
 
     final nextSelectionIndex = deletedIndex.clamp(0, nextEntries.length - 1);
     _setTableState(
-      DirectoryTableSelectedRow(
+      AssistantsTableSelectedRow(
         entryId: nextEntries[nextSelectionIndex].id,
       ),
     );
@@ -442,20 +442,20 @@ class AssistantsContentState extends State<AssistantsContent>
     }
 
     if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-      _dispatch(const DirectoryTableEvent.pressArrowDown());
+      _dispatch(const AssistantsTableEvent.pressArrowDown());
       return true;
     }
     if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-      _dispatch(const DirectoryTableEvent.pressArrowUp());
+      _dispatch(const AssistantsTableEvent.pressArrowUp());
       return true;
     }
     if (event.logicalKey == LogicalKeyboardKey.escape) {
-      _dispatch(const DirectoryTableEvent.pressEscape());
+      _dispatch(const AssistantsTableEvent.pressEscape());
       return true;
     }
     if (_isEnterKey(event.logicalKey) ||
         event.logicalKey == LogicalKeyboardKey.f2) {
-      _dispatch(const DirectoryTableEvent.pressEnter());
+      _dispatch(const AssistantsTableEvent.pressEnter());
       return true;
     }
 
@@ -480,7 +480,7 @@ class AssistantsContentState extends State<AssistantsContent>
   Widget _buildHeaderRow(BuildContext context, int count) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => _dispatch(const DirectoryTableEvent.clickOutside()),
+      onTap: () => _dispatch(const AssistantsTableEvent.clickOutside()),
       child: Container(
         color: const Color(0xFFD7E8FB),
         padding: const EdgeInsets.symmetric(vertical: 10),
@@ -587,19 +587,19 @@ class AssistantsContentState extends State<AssistantsContent>
           return KeyEventResult.ignored;
         }
         if (event.logicalKey == LogicalKeyboardKey.escape) {
-          _dispatch(const DirectoryTableEvent.pressEscape());
+          _dispatch(const AssistantsTableEvent.pressEscape());
           return KeyEventResult.handled;
         }
         if (_isEnterKey(event.logicalKey)) {
-          _dispatch(const DirectoryTableEvent.pressEnter());
+          _dispatch(const AssistantsTableEvent.pressEnter());
           return KeyEventResult.handled;
         }
         if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-          _dispatch(const DirectoryTableEvent.pressArrowUp());
+          _dispatch(const AssistantsTableEvent.pressArrowUp());
           return KeyEventResult.handled;
         }
         if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-          _dispatch(const DirectoryTableEvent.pressArrowDown());
+          _dispatch(const AssistantsTableEvent.pressArrowDown());
           return KeyEventResult.handled;
         }
         return KeyEventResult.ignored;
@@ -621,10 +621,10 @@ class AssistantsContentState extends State<AssistantsContent>
         ),
         textInputAction: TextInputAction.done,
         onChanged: (value) => _dispatch(
-          DirectoryTableEvent.textChanged(value),
+          AssistantsTableEvent.textChanged(value),
           clearFormError: true,
         ),
-        onSubmitted: (_) => _dispatch(const DirectoryTableEvent.pressEnter()),
+        onSubmitted: (_) => _dispatch(const AssistantsTableEvent.pressEnter()),
       ),
     );
   }
@@ -702,14 +702,14 @@ class AssistantsContentState extends State<AssistantsContent>
         behavior: HitTestBehavior.opaque,
         onTap: viewModel.isSaving || !_tableState.isEditing
             ? null
-            : () => _dispatch(DirectoryTableEvent.clickRow(entry.id)),
+            : () => _dispatch(AssistantsTableEvent.clickRow(entry.id)),
         onDoubleTap: viewModel.isSaving
             ? null
             : () => _beginEditCell(entry, _config.columns.first),
         onSecondaryTapDown: viewModel.isSaving
             ? null
             : (details) => _dispatch(
-                  DirectoryTableEvent.rightClickRow(
+                  AssistantsTableEvent.rightClickRow(
                     entryId: entry.id,
                     position: _toTableLocalPosition(details.globalPosition),
                   ),
@@ -761,7 +761,7 @@ class AssistantsContentState extends State<AssistantsContent>
     BuildContext context,
     AssistantsViewModel viewModel,
   ) {
-    final isEditing = _tableState is DirectoryTableEditNewRow;
+    final isEditing = _tableState is AssistantsTableEditNewRow;
     final backgroundColor =
         isEditing ? const Color(0xFFDDEAF8) : const Color(0xFFE8F0F6);
 
@@ -771,12 +771,12 @@ class AssistantsContentState extends State<AssistantsContent>
       onTap: viewModel.isSaving
           ? null
           : () => _dispatch(
-                const DirectoryTableEvent.clickNewRow(),
+                const AssistantsTableEvent.clickNewRow(),
                 clearFormError: true,
               ),
       onSecondaryTapDown: viewModel.isSaving
           ? null
-          : (_) => _dispatch(const DirectoryTableEvent.rightClickNewRow()),
+          : (_) => _dispatch(const AssistantsTableEvent.rightClickNewRow()),
       child: Container(
         decoration: const BoxDecoration(
           border: Border(
@@ -819,7 +819,7 @@ class AssistantsContentState extends State<AssistantsContent>
 
   Widget _buildContextMenu(Size size) {
     final tableState = _tableState;
-    if (tableState is! DirectoryTableSelectedRow ||
+    if (tableState is! AssistantsTableSelectedRow ||
         tableState.contextMenuPosition == null) {
       return const SizedBox.shrink();
     }
@@ -884,7 +884,7 @@ class AssistantsContentState extends State<AssistantsContent>
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () =>
-                    _dispatch(const DirectoryTableEvent.clickOutside()),
+                    _dispatch(const AssistantsTableEvent.clickOutside()),
                 child: const DecoratedBox(
                   decoration: BoxDecoration(
                     color: Color(0xFFF9FBFD),
@@ -943,7 +943,7 @@ class AssistantsContentState extends State<AssistantsContent>
                         child: GestureDetector(
                           behavior: HitTestBehavior.opaque,
                           onTap: () => _dispatch(
-                            const DirectoryTableEvent.clickOutside(),
+                            const AssistantsTableEvent.clickOutside(),
                           ),
                           child: Text(
                             _config.dialogTitle,
@@ -986,7 +986,7 @@ class AssistantsContentState extends State<AssistantsContent>
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () =>
-                      _dispatch(const DirectoryTableEvent.clickOutside()),
+                      _dispatch(const AssistantsTableEvent.clickOutside()),
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: const BoxDecoration(
