@@ -16,7 +16,6 @@ import '../domain/humans/human.dart';
 import '../domain/participants/participants_validation_exception.dart';
 import '../domain/procedure_kinds/procedure_kind.dart';
 import '../domain/procedure_sessions/procedure_session_raw.dart';
-import '../domain/procedure_sessions/procedure_session_rich_factory.dart';
 import '../domain/procedure_statistics/build_procedure_statistics_table_use_case.dart';
 import '../domain/procedure_statistics/procedure_statistics_table.dart';
 import '../domain/schedule_gaps/build_schedule_gaps_use_case.dart';
@@ -46,7 +45,7 @@ import '../features/procedure_statistics/ipc_procedure_statistics_operations.dar
 import '../features/procedure_statistics/procedure_statistics_view_model.dart';
 import '../features/quick_reassignments/quick_reassignments_dialog.dart';
 import '../features/quick_reassignments/quick_reassignments_view_model.dart';
-import '../features/quick_reassignments/quick_reassignments_operations.dart';
+import '../features/quick_reassignments/ipc_quick_reassignments_operations.dart';
 import '../features/free_time/free_time_view_model.dart';
 import '../features/free_time/free_time_dialog.dart';
 import '../features/free_time/ipc_free_time_operations.dart';
@@ -2182,18 +2181,14 @@ class QuickReassignmentsWindow extends StatefulWidget {
 
 class _QuickReassignmentsWindowState extends State<QuickReassignmentsWindow> {
   QuickReassignmentsViewModel? _viewModel;
-  List<double> _columnWidths = const [];
   DesktopWindowFeatureHandlerRegistration? _handlerRegistration;
 
   @override
   void initState() {
     super.initState();
     _viewModel = QuickReassignmentsViewModel(
-      operations: QuickReassignmentsOperationsAdapter(
-        load: _loadSnapshot,
-        mutate: _mutate,
-        loadColumnWidths: () async => _columnWidths,
-        saveColumnWidths: _saveColumnWidths,
+      operations: IpcQuickReassignmentsOperations(
+        (method, arguments) => _mainChannel.invokeMethod(method, arguments),
       ),
     );
     _listen();
@@ -2219,61 +2214,6 @@ class _QuickReassignmentsWindowState extends State<QuickReassignmentsWindow> {
     _handlerRegistration = registration;
   }
 
-  Future<QuickReassignmentsSnapshot> _loadSnapshot() async {
-    final value = Map<String, dynamic>.from(
-      await _mainChannel.invokeMethod<Map>('quickReassignmentsSnapshot') ??
-          const {},
-    );
-    final workdays = _maps(value['workdays']).map(_workdayFromMap).toList();
-    final humans = _maps(value['humans']).map(_humanFromMap).toList();
-    final assistants =
-        _maps(value['assistants']).map(_assistantFromMap).toList();
-    final kinds = _maps(value['procedureKinds']).map(_kindFromMap).toList();
-    final raw = _maps(value['procedureSessions']).map(_sessionFromMap).toList();
-    final settings = Map<String, dynamic>.from(value['settings'] as Map);
-    final richFactory = const ProcedureSessionRichFactory();
-    final entries = raw
-        .map((item) => richFactory.create(
-              raw: item,
-              workdays: workdays,
-              humans: humans,
-              procedureKinds: kinds,
-              assistants: assistants,
-            ))
-        .toList(growable: false);
-    _columnWidths =
-        (value['quickReassignmentsColumnWidths'] as List? ?? const [])
-            .whereType<num>()
-            .map((width) => width.toDouble())
-            .toList(growable: false);
-    if (mounted) setState(() {});
-    return QuickReassignmentsSnapshot(
-      workdays: workdays,
-      humans: humans,
-      assistants: assistants,
-      procedureKinds: kinds,
-      programSettings: ProgramSettings(
-        minimumTime: ProgramSettingsTime.fromJson(settings['minimumTime']),
-        maximumTime: ProgramSettingsTime.fromJson(settings['maximumTime']),
-      ),
-      entries: entries,
-    );
-  }
-
-  Future<void> _mutate(List<ProcedureSessionRaw> replacements) =>
-      _mainChannel.invokeMethod<void>(
-        'quickReassignmentsMutate',
-        replacements.map(_sessionMap).toList(growable: false),
-      );
-
-  Future<void> _saveColumnWidths(List<double> widths) async {
-    _columnWidths = widths;
-    await _mainChannel.invokeMethod<void>(
-      'updateQuickReassignmentsColumnWidths',
-      widths,
-    );
-  }
-
   @override
   void dispose() {
     _handlerRegistration?.dispose();
@@ -2292,10 +2232,13 @@ class _QuickReassignmentsWindowState extends State<QuickReassignmentsWindow> {
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
           child: Column(children: [
             Expanded(
-              child: QuickReassignmentsContent(
-                viewModel: viewModel,
-                columnWidths: _columnWidths,
-                onColumnWidthsChanged: _saveColumnWidths,
+              child: AnimatedBuilder(
+                animation: viewModel,
+                builder: (_, __) => QuickReassignmentsContent(
+                  viewModel: viewModel,
+                  columnWidths: viewModel.columnWidths,
+                  onColumnWidthsChanged: viewModel.saveColumnWidths,
+                ),
               ),
             ),
             const SizedBox(height: 12),
