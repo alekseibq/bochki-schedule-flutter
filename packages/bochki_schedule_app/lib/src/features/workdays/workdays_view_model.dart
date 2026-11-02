@@ -7,6 +7,7 @@ import '../../domain/workdays/update_workday_use_case.dart';
 import '../../domain/workdays/workday.dart';
 import '../../domain/workdays/workday_defaults.dart';
 import '../../domain/workdays/workdays_validation_exception.dart';
+import 'workdays_operations.dart';
 
 final class WorkdaysViewModel extends ChangeNotifier {
   WorkdaysViewModel({
@@ -15,16 +16,23 @@ final class WorkdaysViewModel extends ChangeNotifier {
     required UpdateWorkdayUseCase updateWorkdayUseCase,
     required DeleteWorkdayUseCase deleteWorkdayUseCase,
     WorkdayDefaults? defaults,
-  })  : _listWorkdaysUseCase = listWorkdaysUseCase,
-        _createWorkdayUseCase = createWorkdayUseCase,
-        _updateWorkdayUseCase = updateWorkdayUseCase,
-        _deleteWorkdayUseCase = deleteWorkdayUseCase,
+  })  : _operations = UseCaseWorkdaysOperations(
+          listWorkdaysUseCase: listWorkdaysUseCase,
+          createWorkdayUseCase: createWorkdayUseCase,
+          updateWorkdayUseCase: updateWorkdayUseCase,
+          deleteWorkdayUseCase: deleteWorkdayUseCase,
+          loadColumnWidths: () async => const [],
+          saveColumnWidths: (_) async {},
+        ),
         _defaults = defaults ?? const WorkdayDefaults();
 
-  final ListWorkdaysUseCase _listWorkdaysUseCase;
-  final CreateWorkdayUseCase _createWorkdayUseCase;
-  final UpdateWorkdayUseCase _updateWorkdayUseCase;
-  final DeleteWorkdayUseCase _deleteWorkdayUseCase;
+  WorkdaysViewModel.fromOperations(
+    WorkdaysOperations operations, {
+    WorkdayDefaults? defaults,
+  })  : _operations = operations,
+        _defaults = defaults ?? const WorkdayDefaults();
+
+  final WorkdaysOperations _operations;
   final WorkdayDefaults _defaults;
 
   List<Workday> _workdays = const [];
@@ -47,7 +55,7 @@ final class WorkdaysViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _workdays = await _listWorkdaysUseCase.execute();
+      _workdays = await _operations.list();
     } catch (_) {
       _loadErrorMessage = 'Не удалось загрузить дни.';
     } finally {
@@ -59,7 +67,7 @@ final class WorkdaysViewModel extends ChangeNotifier {
   Workday suggestDraftWorkday() => _defaults.createDraft(_workdays);
 
   Future<int> countReferences(String workdayId) =>
-      _deleteWorkdayUseCase.countReferences(workdayId);
+      _operations.countReferences(workdayId);
 
   void clearFormError() {
     if (_formErrorMessage == null) {
@@ -78,7 +86,7 @@ final class WorkdaysViewModel extends ChangeNotifier {
     required String rawCalendarDate,
   }) {
     return _runFormCommand(() async {
-      final createdWorkday = await _createWorkdayUseCase.execute(
+      final createdWorkday = await _operations.create(
         _buildWorkday(
           id: 'new',
           rawName: rawName,
@@ -96,7 +104,7 @@ final class WorkdaysViewModel extends ChangeNotifier {
     required String rawCalendarDate,
   }) {
     return _runFormCommand(() async {
-      final updatedWorkday = await _updateWorkdayUseCase.execute(
+      final updatedWorkday = await _operations.update(
         _buildWorkday(
           id: workdayId,
           rawName: rawName,
@@ -121,7 +129,7 @@ final class WorkdaysViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _deleteWorkdayUseCase.execute(workdayId);
+      await _operations.delete(workdayId);
       _workdays = _workdays
           .where((workday) => workday.id != workdayId)
           .toList(growable: false);
