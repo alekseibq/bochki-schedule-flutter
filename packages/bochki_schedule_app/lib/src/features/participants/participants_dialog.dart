@@ -1,71 +1,97 @@
-import '../../domain/participants/participant.dart';
-import '../directory/named_directory_dialog.dart';
-import '../directory/named_directory_dialog_config.dart';
+import 'package:flutter/material.dart';
 
 import 'participants_view_model.dart';
 
-class ParticipantsDialog extends NamedDirectoryDialog<Participant> {
-  const ParticipantsDialog({
-    required ParticipantsViewModel viewModel,
-    super.key,
-  }) : super(
-          viewModel: viewModel,
-          config: _config,
-        );
+/// Fallback host for the participants feature.
+class ParticipantsDialog extends StatelessWidget {
+  const ParticipantsDialog({required this.viewModel, super.key});
+  final ParticipantsViewModel viewModel;
 
-  static const NamedDirectoryDialogConfig<Participant> _config =
-      NamedDirectoryDialogConfig<Participant>(
-    dialogKey: 'participants_directory_dialog',
-    tableDividerKey: 'participants_table_divider',
-    entryKeyPrefix: 'participant',
-    dialogTitle: 'Список участников',
-    sectionTitleBuilder: _sectionTitle,
-    inlineFieldHintText: 'Введите имя участника',
-    addRowLabel: 'Добавить новую запись',
-    deleteConfirmationTitle: 'Удалить участника?',
-    deleteConfirmationMessage: _deleteConfirmationMessage,
-    columns: [
-      DirectoryColumnSpec<Participant>(
-        id: 'name',
-        label: 'Имя',
-        cellText: _cellText,
-      ),
-    ],
-    rowActions: [
-      DirectoryRowActionSpec<Participant>(
-        id: 'edit',
-        label: 'Edit',
-        placement: DirectoryRowActionPlacement.contextMenu,
-        onInvoke: _editAction,
-      ),
-      DirectoryRowActionSpec<Participant>(
-        id: 'delete',
-        label: 'Delete',
-        placement: DirectoryRowActionPlacement.contextMenu,
-        onInvoke: _deleteAction,
-      ),
-    ],
-  );
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        key: const Key('participants_directory_dialog'),
+        title: const Text('Список участников'),
+        content: SizedBox(
+          width: 700,
+          height: 460,
+          child: ParticipantsContent(viewModel: viewModel),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Ok'),
+          ),
+        ],
+      );
+}
 
-  static String _sectionTitle(int count) => 'Участники ($count)';
+class ParticipantsContent extends StatefulWidget {
+  const ParticipantsContent({required this.viewModel, super.key});
+  final ParticipantsViewModel viewModel;
+  @override
+  State<ParticipantsContent> createState() => _ParticipantsContentState();
+}
 
-  static String _cellText(Participant participant) => participant.name;
-
-  static String _deleteConfirmationMessage(Participant participant) {
-    return 'Участник "${participant.name}" будет скрыт из списка.';
+class _ParticipantsContentState extends State<ParticipantsContent> {
+  final _controller = TextEditingController();
+  String? _editingId;
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
-  static Future<void> _editAction(
-    NamedDirectoryDialogController<Participant> controller,
-    Participant participant,
-  ) async {
-    controller.beginEdit(participant.id);
+  Future<void> _submit() async {
+    final ok = _editingId == null
+        ? await widget.viewModel.createParticipant(_controller.text)
+        : await widget.viewModel.updateParticipant(
+            participantId: _editingId!, rawName: _controller.text);
+    if (ok && mounted)
+      setState(() {
+        _editingId = null;
+        _controller.clear();
+      });
   }
 
-  static Future<void> _deleteAction(
-    NamedDirectoryDialogController<Participant> controller,
-    Participant participant,
-  ) {
-    return controller.deleteEntry(participant);
-  }
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: widget.viewModel,
+        builder: (_, __) => Column(children: [
+          Row(children: [
+            Expanded(
+                child: TextField(
+                    key: const Key('participants_name_field'),
+                    controller: _controller,
+                    decoration: const InputDecoration(labelText: 'Имя'))),
+            const SizedBox(width: 8),
+            FilledButton(
+                onPressed: widget.viewModel.isSaving ? null : _submit,
+                child: Text(_editingId == null ? 'Создать' : 'Сохранить')),
+          ]),
+          if (widget.viewModel.formErrorMessage != null)
+            Text(widget.viewModel.formErrorMessage!,
+                style: const TextStyle(color: Colors.red)),
+          const SizedBox(height: 12),
+          Expanded(
+              child: widget.viewModel.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView(children: [
+                      for (final entry in widget.viewModel.entries)
+                        ListTile(
+                          key: Key('participant_${entry.id}'),
+                          title: Text(entry.name),
+                          onTap: () => setState(() {
+                            _editingId = entry.id;
+                            _controller.text = entry.name;
+                          }),
+                          trailing: IconButton(
+                              icon: const Icon(Icons.delete),
+                              onPressed: widget.viewModel.isSaving
+                                  ? null
+                                  : () => widget.viewModel
+                                      .deleteParticipant(entry.id)),
+                        ),
+                    ])),
+        ]),
+      );
 }
