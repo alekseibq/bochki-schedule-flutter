@@ -1,25 +1,23 @@
-import '../named_directory/create_named_directory_entry_use_case.dart';
-
 import 'participant.dart';
 import 'participants_repository.dart';
 import 'participants_validation_exception.dart';
 
 final class CreateParticipantUseCase {
-  CreateParticipantUseCase(ParticipantsRepository repository)
-      : _delegate = CreateNamedDirectoryEntryUseCase<Participant>(
-          repository,
-          emptyNameMessage: 'Введите имя участника.',
-          duplicateNameMessage: 'Участник с таким именем уже есть.',
-          exceptionFactory: _validationException,
-        );
+  CreateParticipantUseCase(this._repository);
+  final ParticipantsRepository _repository;
 
-  final CreateNamedDirectoryEntryUseCase<Participant> _delegate;
-
-  Future<Participant> execute(String rawName) {
-    return _delegate.execute(rawName);
-  }
-
-  static ParticipantsValidationException _validationException(String message) {
-    return ParticipantsValidationException(message);
+  Future<Participant> execute(String rawName) async {
+    final name = Participant.normalizeName(rawName);
+    if (name.isEmpty) {
+      throw const ParticipantsValidationException('Введите имя участника.');
+    }
+    final participants = await _repository.list();
+    final key = Participant.sortKeyForName(name);
+    if (participants
+        .any((entry) => Participant.sortKeyForName(entry.name) == key)) {
+      throw const ParticipantsValidationException(
+          'Участник с таким именем уже есть.');
+    }
+    return _repository.create(name: name);
   }
 }
