@@ -24,7 +24,7 @@ class NamedDirectoryDialog<T extends NamedDirectoryEntry>
     super.key,
   });
 
-  final NamedDirectoryViewModel<T> viewModel;
+  final NamedDirectoryState<T> viewModel;
   final NamedDirectoryDialogConfig<T> config;
 
   @override
@@ -568,7 +568,7 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
     return const SizedBox.shrink();
   }
 
-  Widget _buildNameEditor(NamedDirectoryViewModel<T> viewModel) {
+  Widget _buildNameEditor(NamedDirectoryState<T> viewModel) {
     return Focus(
       onKeyEvent: (node, event) {
         if (event is! KeyDownEvent) {
@@ -621,7 +621,7 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
     BuildContext context,
     T entry, {
     required bool isEditing,
-    required NamedDirectoryViewModel<T> viewModel,
+    required NamedDirectoryState<T> viewModel,
   }) {
     return [
       for (final column in _config.columns)
@@ -666,7 +666,7 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
 
   Widget _buildEntryRow(
     BuildContext context,
-    NamedDirectoryViewModel<T> viewModel,
+    NamedDirectoryState<T> viewModel,
     T entry,
   ) {
     final isEditing = _isEditingEntry(entry);
@@ -747,7 +747,7 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
 
   Widget _buildAddRow(
     BuildContext context,
-    NamedDirectoryViewModel<T> viewModel,
+    NamedDirectoryState<T> viewModel,
   ) {
     final isEditing = _tableState is DirectoryTableEditNewRow;
     final backgroundColor =
@@ -861,7 +861,7 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
 
   Widget _buildTableArea(
     BuildContext context,
-    NamedDirectoryViewModel<T> viewModel,
+    NamedDirectoryState<T> viewModel,
   ) {
     return LayoutBuilder(
       builder: (context, constraints) {

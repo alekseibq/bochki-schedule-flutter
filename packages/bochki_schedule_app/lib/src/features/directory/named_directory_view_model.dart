@@ -16,8 +16,28 @@ typedef NamedDirectoryUpdater<T extends NamedDirectoryEntry> = Future<T>
 typedef NamedDirectoryDeleter = Future<void> Function(String entryId);
 typedef NamedDirectoryReferenceCounter = Future<int> Function(String entryId);
 
+abstract interface class NamedDirectoryState<T extends NamedDirectoryEntry>
+    implements Listenable {
+  List<T> get entries;
+  bool get isLoading;
+  bool get isSaving;
+  String? get loadErrorMessage;
+  String? get formErrorMessage;
+  String? get actionErrorMessage;
+  Future<int> countReferences(String entryId);
+  Future<void> loadEntries();
+  Future<bool> createEntry(String rawName);
+  Future<bool> updateEntry(
+      {required String entryId,
+      required String rawName,
+      String fieldId = 'name'});
+  Future<bool> deleteEntry(String entryId);
+  void clearFormError();
+  void clearActionError();
+}
+
 class NamedDirectoryViewModel<T extends NamedDirectoryEntry>
-    extends ChangeNotifier {
+    extends ChangeNotifier implements NamedDirectoryState<T> {
   NamedDirectoryViewModel({
     required NamedDirectoryLoader<T> loadEntries,
     required NamedDirectoryCreator<T> createEntry,
