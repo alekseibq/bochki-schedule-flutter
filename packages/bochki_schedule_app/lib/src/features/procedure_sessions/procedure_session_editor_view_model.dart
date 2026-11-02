@@ -19,23 +19,36 @@ final class ProcedureSessionEditorViewModel extends ChangeNotifier {
     required ProcedureSessionsViewModel sessions,
     required ProcedureSessionEditorOperations operations,
   })  : _sessions = sessions,
+        _snapshot = null,
         _operations = operations {
-    _sessions.addListener(notifyListeners);
+    sessions.addListener(notifyListeners);
   }
 
-  final ProcedureSessionsViewModel _sessions;
+  ProcedureSessionEditorViewModel.fromSnapshot({
+    required ProcedureSessionEditorSnapshot snapshot,
+    required ProcedureSessionEditorOperations operations,
+  })  : _sessions = null,
+        _snapshot = snapshot,
+        _operations = operations;
+
+  final ProcedureSessionsViewModel? _sessions;
+  final ProcedureSessionEditorSnapshot? _snapshot;
   final ProcedureSessionEditorOperations _operations;
 
-  List<Workday> get workdays => _sessions.workdays;
-  List<Human> get humans => _sessions.humans;
-  List<ProcedureKind> get procedureKinds => _sessions.procedureKinds;
-  List<Assistant> get assistants => _sessions.assistants;
+  List<Workday> get workdays => _sessions?.workdays ?? _snapshot!.workdays;
+  List<Human> get humans => _sessions?.humans ?? _snapshot!.humans;
+  List<ProcedureKind> get procedureKinds =>
+      _sessions?.procedureKinds ?? _snapshot!.procedureKinds;
+  List<Assistant> get assistants =>
+      _sessions?.assistants ?? _snapshot!.assistants;
   List<ProcedureSessionRaw> get procedureSessions =>
-      _sessions.allProcedureSessions;
-  ProgramSettings get programSettings => _sessions.programSettings;
-  bool get isSaving => _sessions.isSaving;
+      _sessions?.allProcedureSessions ?? _snapshot!.procedureSessions;
+  ProgramSettings get programSettings =>
+      _sessions?.programSettings ?? _snapshot!.programSettings;
+  bool get isSaving => _sessions?.isSaving ?? false;
 
-  ProcedureSessionRaw createDraft() => _sessions.createDraft();
+  ProcedureSessionRaw createDraft() =>
+      _sessions?.createDraft() ?? _snapshot!.draft;
 
   Future<ProcedureSessionSubmitResult> submit(
     ProcedureSessionRaw value, {
@@ -48,7 +61,27 @@ final class ProcedureSessionEditorViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
-    _sessions.removeListener(notifyListeners);
+    _sessions?.removeListener(notifyListeners);
     super.dispose();
   }
+}
+
+final class ProcedureSessionEditorSnapshot {
+  const ProcedureSessionEditorSnapshot({
+    required this.draft,
+    required this.workdays,
+    required this.humans,
+    required this.procedureKinds,
+    required this.assistants,
+    required this.procedureSessions,
+    required this.programSettings,
+  });
+
+  final ProcedureSessionRaw draft;
+  final List<Workday> workdays;
+  final List<Human> humans;
+  final List<ProcedureKind> procedureKinds;
+  final List<Assistant> assistants;
+  final List<ProcedureSessionRaw> procedureSessions;
+  final ProgramSettings programSettings;
 }

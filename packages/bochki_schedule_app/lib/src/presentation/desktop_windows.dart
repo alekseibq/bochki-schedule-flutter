@@ -24,6 +24,7 @@ import '../app_services.dart';
 import 'app_tooltips.dart';
 import '../features/procedure_sessions/procedure_session_dialog.dart';
 import '../features/procedure_sessions/ipc_procedure_session_editor_operations.dart';
+import '../features/procedure_sessions/procedure_session_editor_view_model.dart';
 import '../features/procedure_sessions/procedure_sessions_view_model.dart';
 import '../features/procedure_kinds/ipc_procedure_kinds_operations.dart';
 import '../features/procedure_kinds/procedure_kind_form_content.dart';
@@ -2528,7 +2529,7 @@ class ProcedureSessionWindow extends StatefulWidget {
 }
 
 class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
-  Map<String, dynamic>? _snapshot;
+  ProcedureSessionEditorViewModel? _editor;
   var _formVersion = 0;
   var _openedFromProcedureStatistics = false;
   DesktopWindowFeatureHandlerRegistration? _handlerRegistration;
@@ -2582,6 +2583,7 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
   @override
   void dispose() {
     _handlerRegistration?.dispose();
+    _editor?.dispose();
     super.dispose();
   }
 
@@ -2589,33 +2591,11 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
     final value =
         await _mainChannel.invokeMethod<Map>('procedureSessionSnapshot');
     if (mounted) {
-      setState(() {
-        _snapshot = Map<String, dynamic>.from(value!);
-        _formVersion += 1;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final snapshot = _snapshot;
-    if (snapshot == null) {
-      return const MaterialApp(
-          debugShowCheckedModeBanner: false,
-          home: Scaffold(body: Center(child: CircularProgressIndicator())));
-    }
-    final editorOperations = IpcProcedureSessionEditorOperations(
-      (method, arguments) => _mainChannel.invokeMethod(method, arguments),
-    );
-    final settings = Map<String, dynamic>.from(snapshot['settings'] as Map);
-    return MaterialApp(
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(tooltipTheme: AppTooltips.theme),
-        home: Scaffold(
-            body: Center(
-                child: ProcedureSessionDialog(
-          key: ValueKey(_formVersion),
-          initialValue: _sessionFromMap(
+      final snapshot = Map<String, dynamic>.from(value!);
+      final settings = Map<String, dynamic>.from(snapshot['settings'] as Map);
+      final editor = ProcedureSessionEditorViewModel.fromSnapshot(
+        snapshot: ProcedureSessionEditorSnapshot(
+          draft: _sessionFromMap(
               Map<String, dynamic>.from(snapshot['draft'] as Map)),
           workdays: _maps(snapshot['workdays']).map(_workdayFromMap).toList(),
           humans: _maps(snapshot['humans']).map(_humanFromMap).toList(),
@@ -2627,15 +2607,51 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
               .map(_sessionFromMap)
               .toList(),
           programSettings: ProgramSettings(
-              minimumTime:
-                  ProgramSettingsTime.fromJson(settings['minimumTime']),
-              maximumTime:
-                  ProgramSettingsTime.fromJson(settings['maximumTime'])),
-          onSubmit: (session, allowConflicts) => editorOperations.submit(
+            minimumTime: ProgramSettingsTime.fromJson(settings['minimumTime']),
+            maximumTime: ProgramSettingsTime.fromJson(settings['maximumTime']),
+          ),
+        ),
+        operations: IpcProcedureSessionEditorOperations(
+          (method, arguments) => _mainChannel.invokeMethod(method, arguments),
+        ),
+      );
+      final previous = _editor;
+      setState(() {
+        _editor = editor;
+        _formVersion += 1;
+      });
+      previous?.dispose();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final editor = _editor;
+    if (editor == null) {
+      return const MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: Scaffold(body: Center(child: CircularProgressIndicator())));
+    }
+    return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(tooltipTheme: AppTooltips.theme),
+        home: Scaffold(
+            body: Center(
+                child: ProcedureSessionDialog(
+          key: ValueKey(_formVersion),
+          initialValue: editor.createDraft(),
+          workdays: editor.workdays,
+          humans: editor.humans,
+          procedureKinds: editor.procedureKinds,
+          assistants: editor.assistants,
+          procedureSessions: editor.procedureSessions,
+          programSettings: editor.programSettings,
+          onSubmit: (session, allowConflicts) => editor.submit(
             session,
             allowConflicts: allowConflicts,
           ),
-          onSavedAndRendered: editorOperations.logRenderedSave,
+          onSavedAndRendered: editor.logRenderedSave,
+          isSaving: editor.isSaving,
           onClose: closeCurrentDesktopWindow,
           onOpenStatistics: openProcedureStatisticsFromCurrentWindow,
           isStatisticsOpeningAllowed: !_openedFromProcedureStatistics,

@@ -922,12 +922,6 @@ class _BochkiShellState extends State<BochkiShell> {
     String? procedureSessionId,
     ProcedureSessionRaw? initialValue,
   }) async {
-    final editorOperations =
-        DirectProcedureSessionEditorOperations(_procedureSessionsViewModel);
-    final editor = ProcedureSessionEditorViewModel(
-      sessions: _procedureSessionsViewModel,
-      operations: editorOperations,
-    );
     final resolvedInitialValue = initialValue ??
         (isEditing
             ? _procedureSessionsViewModel.entries
@@ -945,6 +939,11 @@ class _BochkiShellState extends State<BochkiShell> {
       }
       return;
     }
+    final editor = ProcedureSessionEditorViewModel(
+      sessions: _procedureSessionsViewModel,
+      operations:
+          DirectProcedureSessionEditorOperations(_procedureSessionsViewModel),
+    );
     try {
       await showDialog<void>(
         context: context,
