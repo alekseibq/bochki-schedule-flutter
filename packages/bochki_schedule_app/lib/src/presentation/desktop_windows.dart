@@ -2637,25 +2637,29 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
         theme: ThemeData(tooltipTheme: AppTooltips.theme),
         home: Scaffold(
             body: Center(
-                child: ProcedureSessionDialog(
-          key: ValueKey(_formVersion),
-          initialValue: editor.createDraft(),
-          workdays: editor.workdays,
-          humans: editor.humans,
-          procedureKinds: editor.procedureKinds,
-          assistants: editor.assistants,
-          procedureSessions: editor.procedureSessions,
-          programSettings: editor.programSettings,
-          onSubmit: (session, allowConflicts) => editor.submit(
-            session,
-            allowConflicts: allowConflicts,
-          ),
-          onSavedAndRendered: editor.logRenderedSave,
-          isSaving: editor.isSaving,
-          onClose: closeCurrentDesktopWindow,
-          onOpenStatistics: openProcedureStatisticsFromCurrentWindow,
-          isStatisticsOpeningAllowed: !_openedFromProcedureStatistics,
-        ))));
+                child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: ProcedureSessionFormContent(
+                      key: ValueKey(_formVersion),
+                      initialValue: editor.createDraft(),
+                      workdays: editor.workdays,
+                      humans: editor.humans,
+                      procedureKinds: editor.procedureKinds,
+                      assistants: editor.assistants,
+                      procedureSessions: editor.procedureSessions,
+                      programSettings: editor.programSettings,
+                      onSubmit: (session, allowConflicts) => editor.submit(
+                        session,
+                        allowConflicts: allowConflicts,
+                      ),
+                      onSavedAndRendered: editor.logRenderedSave,
+                      isSaving: editor.isSaving,
+                      onClose: closeCurrentDesktopWindow,
+                      onOpenStatistics:
+                          openProcedureStatisticsFromCurrentWindow,
+                      isStatisticsOpeningAllowed:
+                          !_openedFromProcedureStatistics,
+                    )))));
   }
 }
 
