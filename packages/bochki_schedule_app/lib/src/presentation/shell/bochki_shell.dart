@@ -75,11 +75,13 @@ class BochkiShell extends StatefulWidget {
   const BochkiShell({
     required this.services,
     this.onProjectLoaded,
+    this.enableDesktopWindows = true,
     super.key,
   });
 
   final AppServices services;
   final Future<void> Function()? onProjectLoaded;
+  final bool enableDesktopWindows;
 
   @override
   State<BochkiShell> createState() => _BochkiShellState();
@@ -123,7 +125,9 @@ class _BochkiShellState extends State<BochkiShell> {
     );
     final statistics = widget.services.buildProcedureStatisticsTableUseCase;
     final scheduleGaps = widget.services.buildScheduleGapsUseCase;
-    if (statistics != null && scheduleGaps != null) {
+    if (widget.enableDesktopWindows &&
+        statistics != null &&
+        scheduleGaps != null) {
       _desktopWindows = DesktopWindowCoordinator(
         services: widget.services,
         statistics: statistics,
@@ -215,10 +219,14 @@ class _BochkiShellState extends State<BochkiShell> {
   }
 
   Future<void> _startDesktopWindows() async {
+    final coordinator = _desktopWindows;
     try {
-      await _desktopWindows?.start();
+      await coordinator?.start();
     } catch (_) {
       // The channel is not present in widget tests and unsupported targets.
+      if (identical(_desktopWindows, coordinator)) {
+        _desktopWindows = null;
+      }
     }
   }
 

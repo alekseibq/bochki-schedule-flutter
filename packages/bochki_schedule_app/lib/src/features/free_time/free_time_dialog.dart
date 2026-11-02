@@ -48,6 +48,7 @@ class FreeTimeContent extends StatelessWidget {
           Row(children: [
             Expanded(
               child: DropdownButtonFormField<String?>(
+                isExpanded: true,
                 value: viewModel.dayId,
                 decoration: const InputDecoration(labelText: 'День'),
                 items: [
@@ -73,12 +74,14 @@ class FreeTimeContent extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: DropdownButtonFormField<ScheduleGapPeopleFilter>(
+                isExpanded: true,
                 value: viewModel.people,
                 decoration: const InputDecoration(labelText: 'Искать для'),
                 items: const [
                   DropdownMenuItem(
                       value: ScheduleGapPeopleFilter.all,
-                      child: Text('Участники и сопровождающие')),
+                      child: Text('Участники и сопровождающие',
+                          overflow: TextOverflow.ellipsis)),
                   DropdownMenuItem(
                       value: ScheduleGapPeopleFilter.participants,
                       child: Text('Участники')),
@@ -94,6 +97,7 @@ class FreeTimeContent extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: DropdownButtonFormField<int>(
+                isExpanded: true,
                 value: viewModel.minimumDurationMinutes,
                 decoration: const InputDecoration(
                     labelText: 'Показывать интервалы более'),
@@ -119,6 +123,7 @@ class FreeTimeContent extends StatelessWidget {
   Widget _timeFilter(
           String label, int selected, Future<void> Function(int) onChanged) =>
       DropdownButtonFormField<int>(
+        isExpanded: true,
         value: selected,
         decoration: InputDecoration(labelText: label),
         items: [
