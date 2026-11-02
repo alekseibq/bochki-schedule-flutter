@@ -16,6 +16,8 @@ import '../../features/procedure_sessions/procedure_session_editor_view_model.da
 import '../../features/procedure_sessions/procedure_sessions_view_model.dart';
 import '../../features/procedure_statistics/procedure_statistics_dialog.dart';
 import '../../features/procedure_statistics/procedure_statistics_view_model.dart';
+import '../../features/quick_reassignments/quick_reassignments_dialog.dart';
+import '../../features/quick_reassignments/quick_reassignments_view_model.dart';
 import '../../domain/procedure_sessions/schedule_conflict_target.dart';
 import '../app_tooltips.dart';
 import '../../features/procedure_kinds/procedure_kinds_dialog.dart';
@@ -533,8 +535,37 @@ class _BochkiShellState extends State<BochkiShell> {
   Future<void> _openFreeTime() async => _desktopWindows?.openFreeTime();
 
   Future<void> _openQuickReassignments() async {
-    if (widget.services.quickReassignmentsUseCase == null) return;
-    await _desktopWindows?.openQuickReassignments();
+    final useCase = widget.services.quickReassignmentsUseCase;
+    if (useCase == null) return;
+    final coordinator = _desktopWindows;
+    if (coordinator != null) return coordinator.openQuickReassignments();
+    final viewModel = QuickReassignmentsViewModel(
+      loadSnapshot: () async => QuickReassignmentsSnapshot(
+        workdays: await widget.services.listWorkdaysUseCase.execute(),
+        humans: await widget.services.listHumansUseCase.execute(),
+        assistants: await widget.services.listAssistantsUseCase.execute(),
+        procedureKinds:
+            await widget.services.listProcedureKindsUseCase.execute(),
+        programSettings:
+            await widget.services.getProgramSettingsUseCase.execute(),
+        entries:
+            await widget.services.listRichProcedureSessionsUseCase.execute(),
+      ),
+      mutations: useCase.execute,
+    );
+    try {
+      unawaited(viewModel.load());
+      if (mounted) {
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => QuickReassignmentsDialog(viewModel: viewModel),
+        );
+      }
+    } finally {
+      viewModel.dispose();
+      unawaited(_procedureSessionsViewModel.load());
+    }
   }
 
   Future<void> _selectTemplateSection(TemplatesSection section) async {
