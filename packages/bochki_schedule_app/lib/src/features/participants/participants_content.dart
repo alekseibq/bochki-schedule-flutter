@@ -643,7 +643,7 @@ class ParticipantsContentState extends State<ParticipantsContent>
           flex: column.flex,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onDoubleTap: viewModel.isSaving || isEditing
+            onTap: viewModel.isSaving || isEditing
                 ? null
                 : () => _beginEditCell(entry, column),
             child: Padding(
@@ -702,10 +702,7 @@ class ParticipantsContentState extends State<ParticipantsContent>
             },
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: viewModel.isSaving || !_tableState.isEditing
-            ? null
-            : () => _dispatch(ParticipantsTableEvent.clickRow(entry.id)),
-        onDoubleTap: viewModel.isSaving
+        onTap: viewModel.isSaving
             ? null
             : () => _beginEditCell(entry, _config.columns.first),
         onSecondaryTapDown: viewModel.isSaving

@@ -50,9 +50,14 @@ void main() {
       windowMode: true,
       onClose: () async {},
     ))));
+    await tester.tap(find.byKey(const Key('assistant_row_1')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('assistant_name_field')), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
     Future<void> edit(String name) async {
       await tester.tap(find.byKey(const Key('assistant_edit_1')));
-      await tester.pump(const Duration(milliseconds: 400));
       await tester.pumpAndSettle();
       await tester.enterText(
           find.byKey(const Key('assistant_name_field')), name);
