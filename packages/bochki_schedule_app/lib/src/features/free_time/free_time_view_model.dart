@@ -4,17 +4,22 @@ import '../../domain/schedule_gaps/build_schedule_gaps_use_case.dart';
 import '../../domain/schedule_gaps/schedule_gap.dart';
 import '../../domain/workdays/list_workdays_use_case.dart';
 import '../../domain/workdays/workday.dart';
+import 'free_time_operations.dart';
 
 /// Host-independent state of the free-time feature.
 final class FreeTimeViewModel extends ChangeNotifier {
   FreeTimeViewModel({
     required BuildScheduleGapsUseCase buildScheduleGapsUseCase,
     required ListWorkdaysUseCase listWorkdaysUseCase,
-  })  : _build = buildScheduleGapsUseCase,
-        _days = listWorkdaysUseCase;
+  }) : _operations = UseCaseFreeTimeOperations(
+          buildScheduleGapsUseCase: buildScheduleGapsUseCase,
+          listWorkdaysUseCase: listWorkdaysUseCase,
+        );
 
-  final BuildScheduleGapsUseCase _build;
-  final ListWorkdaysUseCase _days;
+  FreeTimeViewModel.fromOperations(FreeTimeOperations operations)
+      : _operations = operations;
+
+  final FreeTimeOperations _operations;
   String? dayId;
   ScheduleGapPeopleFilter people = ScheduleGapPeopleFilter.all;
   int fromMinutes = 480;
@@ -30,8 +35,8 @@ final class FreeTimeViewModel extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      workdays = await _days.execute();
-      gaps = await _build.execute(ScheduleGapsQuery(
+      workdays = await _operations.listWorkdays();
+      gaps = await _operations.build(ScheduleGapsQuery(
         dayId: dayId,
         fromMinutes: fromMinutes,
         toMinutes: toMinutes,
