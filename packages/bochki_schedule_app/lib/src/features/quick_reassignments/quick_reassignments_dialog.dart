@@ -86,6 +86,13 @@ class _QuickContentState extends State<QuickReassignmentsContent> {
           return Column(children: [
             _filters(),
             const SizedBox(height: 16),
+            if (widget.viewModel.error case final message?) ...[
+              Text(message, style: const TextStyle(color: Color(0xFFB42318))),
+              TextButton(
+                onPressed: widget.viewModel.load,
+                child: const Text('Повторить'),
+              ),
+            ],
             Expanded(child: _table()),
           ]);
         },
@@ -300,10 +307,13 @@ class QuickReassignmentsDialog extends StatelessWidget {
         content: SizedBox(
           width: 1000,
           height: 500,
-          child: QuickReassignmentsContent(
-            viewModel: viewModel,
-            columnWidths: const [],
-            onColumnWidthsChanged: (_) async {},
+          child: AnimatedBuilder(
+            animation: viewModel,
+            builder: (_, __) => QuickReassignmentsContent(
+              viewModel: viewModel,
+              columnWidths: viewModel.columnWidths,
+              onColumnWidthsChanged: viewModel.saveColumnWidths,
+            ),
           ),
         ),
         actions: [

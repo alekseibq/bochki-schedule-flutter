@@ -19,6 +19,7 @@ import '../../features/procedure_statistics/procedure_statistics_dialog.dart';
 import '../../features/procedure_statistics/procedure_statistics_view_model.dart';
 import '../../features/quick_reassignments/quick_reassignments_dialog.dart';
 import '../../features/quick_reassignments/quick_reassignments_view_model.dart';
+import '../../features/quick_reassignments/quick_reassignments_operations.dart';
 import '../../features/free_time/free_time_dialog.dart';
 import '../../features/free_time/free_time_view_model.dart';
 import '../../domain/procedure_sessions/procedure_session_raw.dart';
@@ -593,18 +594,27 @@ class _BochkiShellState extends State<BochkiShell> {
     final coordinator = _desktopWindows;
     if (coordinator != null) return coordinator.openQuickReassignments();
     final viewModel = QuickReassignmentsViewModel(
-      loadSnapshot: () async => QuickReassignmentsSnapshot(
-        workdays: await widget.services.listWorkdaysUseCase.execute(),
-        humans: await widget.services.listHumansUseCase.execute(),
-        assistants: await widget.services.listAssistantsUseCase.execute(),
-        procedureKinds:
-            await widget.services.listProcedureKindsUseCase.execute(),
-        programSettings:
-            await widget.services.getProgramSettingsUseCase.execute(),
-        entries:
-            await widget.services.listRichProcedureSessionsUseCase.execute(),
+      operations: QuickReassignmentsOperationsAdapter(
+        load: () async => QuickReassignmentsSnapshot(
+          workdays: await widget.services.listWorkdaysUseCase.execute(),
+          humans: await widget.services.listHumansUseCase.execute(),
+          assistants: await widget.services.listAssistantsUseCase.execute(),
+          procedureKinds:
+              await widget.services.listProcedureKindsUseCase.execute(),
+          programSettings:
+              await widget.services.getProgramSettingsUseCase.execute(),
+          entries:
+              await widget.services.listRichProcedureSessionsUseCase.execute(),
+        ),
+        mutate: useCase.execute,
+        loadColumnWidths: () async => widget.services.uiSettingsRepository
+            .settings.quickReassignmentsColumnWidths,
+        saveColumnWidths: (widths) =>
+            widget.services.uiSettingsRepository.update(
+          widget.services.uiSettingsRepository.settings
+              .copyWith(quickReassignmentsColumnWidths: widths),
+        ),
       ),
-      mutations: useCase.execute,
     );
     try {
       unawaited(viewModel.load());

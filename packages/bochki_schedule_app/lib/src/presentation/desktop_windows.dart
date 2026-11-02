@@ -45,6 +45,7 @@ import '../features/procedure_statistics/procedure_statistics_dialog.dart';
 import '../features/procedure_statistics/procedure_statistics_view_model.dart';
 import '../features/quick_reassignments/quick_reassignments_dialog.dart';
 import '../features/quick_reassignments/quick_reassignments_view_model.dart';
+import '../features/quick_reassignments/quick_reassignments_operations.dart';
 import '../features/free_time/free_time_view_model.dart';
 import '../features/free_time/free_time_dialog.dart';
 import '../features/free_time/ipc_free_time_operations.dart';
@@ -2200,8 +2201,12 @@ class _QuickReassignmentsWindowState extends State<QuickReassignmentsWindow> {
   void initState() {
     super.initState();
     _viewModel = QuickReassignmentsViewModel(
-      loadSnapshot: _loadSnapshot,
-      mutations: _mutate,
+      operations: QuickReassignmentsOperationsAdapter(
+        load: _loadSnapshot,
+        mutate: _mutate,
+        loadColumnWidths: () async => _columnWidths,
+        saveColumnWidths: _saveColumnWidths,
+      ),
     );
     _listen();
     unawaited(_viewModel!.load());
