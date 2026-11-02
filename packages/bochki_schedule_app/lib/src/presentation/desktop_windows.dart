@@ -23,7 +23,7 @@ import '../domain/workdays/workday.dart';
 import '../app_services.dart';
 import 'app_tooltips.dart';
 import '../features/procedure_sessions/procedure_session_dialog.dart';
-import '../features/procedure_sessions/procedure_session_submit_result.dart';
+import '../features/procedure_sessions/ipc_procedure_session_editor_operations.dart';
 import '../features/procedure_sessions/procedure_sessions_view_model.dart';
 import '../features/procedure_kinds/ipc_procedure_kinds_operations.dart';
 import '../features/procedure_kinds/procedure_kind_form_content.dart';
@@ -2592,6 +2592,9 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
           debugShowCheckedModeBanner: false,
           home: Scaffold(body: Center(child: CircularProgressIndicator())));
     }
+    final editorOperations = IpcProcedureSessionEditorOperations(
+      (method, arguments) => _mainChannel.invokeMethod(method, arguments),
+    );
     final settings = Map<String, dynamic>.from(snapshot['settings'] as Map);
     return MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -2616,28 +2619,11 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
                   ProgramSettingsTime.fromJson(settings['minimumTime']),
               maximumTime:
                   ProgramSettingsTime.fromJson(settings['maximumTime'])),
-          onSubmit: (session, allowConflicts) async {
-            final response = await _mainChannel.invokeMethod<Map>(
-                'submitProcedureSession', {
-              'session': _sessionMap(session),
-              'allowConflicts': allowConflicts
-            });
-            if (response == null) {
-              return const ProcedureSessionSubmitResult.error(
-                  'Не удалось сохранить назначенную процедуру.');
-            }
-            final value = Map<String, dynamic>.from(response);
-            return value['didSave'] as bool
-                ? ProcedureSessionSubmitResult.saved(
-                    value['operationId'] as int)
-                : (value['conflictMessages'] as List).isNotEmpty
-                    ? ProcedureSessionSubmitResult.conflicts(
-                        (value['conflictMessages'] as List).cast<String>())
-                    : ProcedureSessionSubmitResult.error(
-                        value['errorMessage'] as String);
-          },
-          onSavedAndRendered: (operationId) => _mainChannel.invokeMethod<void>(
-              'procedureSessionRendered', operationId),
+          onSubmit: (session, allowConflicts) => editorOperations.submit(
+            session,
+            allowConflicts: allowConflicts,
+          ),
+          onSavedAndRendered: editorOperations.logRenderedSave,
           onClose: closeCurrentDesktopWindow,
           onOpenStatistics: openProcedureStatisticsFromCurrentWindow,
           isStatisticsOpeningAllowed: !_openedFromProcedureStatistics,
