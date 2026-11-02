@@ -569,14 +569,17 @@ class _BochkiShellState extends State<BochkiShell> {
         barrierDismissible: false,
         builder: (_) => FreeTimeDialog(
           viewModel: viewModel,
-          onOccupy: (gap) => _openProcedureSessionDialog(
-            isEditing: false,
-            initialValue: _procedureSessionsViewModel.createDraft().copyWith(
-                  dayId: gap.workday.id,
-                  participantId: gap.human.id,
-                  startTime: gap.startTime,
-                ),
-          ),
+          onOccupy: (gap) async {
+            await _openProcedureSessionDialog(
+              isEditing: false,
+              initialValue: _procedureSessionsViewModel.createDraft().copyWith(
+                    dayId: gap.workday.id,
+                    participantId: gap.human.id,
+                    startTime: gap.startTime,
+                  ),
+            );
+            await viewModel.load();
+          },
         ),
       );
     } finally {

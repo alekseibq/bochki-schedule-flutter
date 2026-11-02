@@ -33,6 +33,7 @@ final class FreeTimeViewModel extends ChangeNotifier {
   bool _disposed = false;
 
   Future<void> load() async {
+    if (_disposed) return;
     final version = ++_loadVersion;
     final query = ScheduleGapsQuery(
       dayId: dayId,
