@@ -2653,39 +2653,6 @@ class DirectoryChildWindowScaffold extends StatelessWidget {
       );
 }
 
-class PeopleDirectoryFooter extends StatelessWidget {
-  const PeopleDirectoryFooter({
-    required this.isSaving,
-    required this.onClose,
-    super.key,
-  });
-
-  final bool isSaving;
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) => DecoratedBox(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: Color(0xFFD0D7DE))),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Align(
-            key: const Key('people_directory_footer'),
-            alignment: Alignment.center,
-            child: FilledButton(
-              key: const Key('people_directory_ok_button'),
-              onPressed: isSaving ? null : onClose,
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24),
-                child: Text('ОК'),
-              ),
-            ),
-          ),
-        ),
-      );
-}
-
 class DirectoryChildWindow extends StatefulWidget {
   const DirectoryChildWindow({super.key});
 

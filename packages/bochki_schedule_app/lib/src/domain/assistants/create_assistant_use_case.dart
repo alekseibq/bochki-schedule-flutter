@@ -1,23 +1,23 @@
+import '../named_directory/create_named_directory_entry_use_case.dart';
+
 import 'assistant.dart';
 import 'assistants_repository.dart';
 import 'assistants_validation_exception.dart';
 
 final class CreateAssistantUseCase {
-  CreateAssistantUseCase(this._repository);
-  final AssistantsRepository _repository;
+  CreateAssistantUseCase(AssistantsRepository repository)
+      : _delegate = CreateNamedDirectoryEntryUseCase<Assistant>(
+          repository,
+          emptyNameMessage: 'Введите имя сопровождающего.',
+          duplicateNameMessage: 'Сопровождающий с таким именем уже есть.',
+          exceptionFactory: _validationException,
+        );
 
-  Future<Assistant> execute(String rawName) async {
-    final name = Assistant.normalizeName(rawName);
-    if (name.isEmpty) {
-      throw const AssistantsValidationException('Введите имя сопровождающего.');
-    }
-    final assistants = await _repository.list();
-    final key = Assistant.sortKeyForName(name);
-    if (assistants
-        .any((entry) => Assistant.sortKeyForName(entry.name) == key)) {
-      throw const AssistantsValidationException(
-          'Сопровождающий с таким именем уже есть.');
-    }
-    return _repository.create(name: name);
+  final CreateNamedDirectoryEntryUseCase<Assistant> _delegate;
+
+  Future<Assistant> execute(String rawName) => _delegate.execute(rawName);
+
+  static AssistantsValidationException _validationException(String message) {
+    return AssistantsValidationException(message);
   }
 }
