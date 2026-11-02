@@ -12,11 +12,13 @@ class BochkiScheduleApp extends StatefulWidget {
   const BochkiScheduleApp({
     required this.services,
     this.onProjectLoaded,
+    this.enableDesktopWindows = true,
     super.key,
   });
 
   final AppServices services;
   final Future<void> Function()? onProjectLoaded;
+  final bool enableDesktopWindows;
 
   @override
   State<BochkiScheduleApp> createState() => _BochkiScheduleAppState();
@@ -87,6 +89,7 @@ class _BochkiScheduleAppState extends State<BochkiScheduleApp> {
       home: BochkiShell(
         services: widget.services,
         onProjectLoaded: widget.onProjectLoaded,
+        enableDesktopWindows: widget.enableDesktopWindows,
       ),
     );
   }

@@ -7,25 +7,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 
 void main() {
-  testWidgets('people directory footer centers its close button',
-      (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: PeopleDirectoryFooter(isSaving: false, onClose: () {}),
-        ),
-      ),
-    );
-
-    expect(find.text('ОК'), findsOneWidget);
-    expect(
-      tester
-          .widget<Align>(find.byKey(const Key('people_directory_footer')))
-          .alignment,
-      Alignment.center,
-    );
-  });
-
   testWidgets('child windows apply the persisted scale to their dialogs',
       (tester) async {
     await tester.pumpWidget(
@@ -654,54 +635,6 @@ void main() {
       childWindowConfiguration('{"kind":"participants"}').hiddenAtLaunch,
       isTrue,
     );
-  });
-
-  testWidgets('free-time results scroll vertically while keeping a scrollbar',
-      (tester) async {
-    final gaps = List<Map<String, dynamic>>.generate(
-      20,
-      (index) => {
-        'day': {'id': 'day', 'name': 'День', 'date': '2026-08-25'},
-        'human': {
-          'id': 'human-$index',
-          'name': 'Человек $index',
-          'shortName': 'Ч.$index',
-          'isParticipant': true,
-          'isAssistant': false,
-        },
-        'start': '08:00',
-        'end': '09:00',
-        'duration': '1 ч',
-      },
-    );
-
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: SizedBox(
-          height: 120,
-          child: FreeTimeResultsTable(
-            gaps: gaps,
-            onOccupy: (_) async {},
-          ),
-        ),
-      ),
-    ));
-
-    final scrollbar = tester.widget<Scrollbar>(find.byType(Scrollbar));
-    final verticalScrollView = tester
-        .widgetList<SingleChildScrollView>(find.byType(SingleChildScrollView))
-        .firstWhere((view) => view.scrollDirection == Axis.vertical);
-
-    expect(scrollbar.thumbVisibility, isTrue);
-    expect(
-      verticalScrollView.controller!.position.maxScrollExtent,
-      greaterThan(0),
-    );
-
-    verticalScrollView.controller!.jumpTo(50);
-    await tester.pump();
-
-    expect(verticalScrollView.controller!.offset, 50);
   });
 
   testWidgets('directory child content opens a localized date picker',

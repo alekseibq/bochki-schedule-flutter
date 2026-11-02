@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../domain/named_directory/named_directory_entry.dart';
 
-enum DirectoryRowActionPlacement {
+enum ParticipantsRowActionPlacement {
   contextMenu,
   rowButton,
 }
 
-class DirectoryColumnSpec<T extends NamedDirectoryEntry> {
-  const DirectoryColumnSpec({
+class ParticipantsColumnSpec<T extends NamedDirectoryEntry> {
+  const ParticipantsColumnSpec({
     required this.id,
     required this.label,
     required this.cellText,
@@ -23,7 +23,7 @@ class DirectoryColumnSpec<T extends NamedDirectoryEntry> {
   final int flex;
 }
 
-abstract interface class NamedDirectoryDialogController<
+abstract interface class ParticipantsDialogController<
     T extends NamedDirectoryEntry> {
   BuildContext get context;
   T? findEntryById(String entryId);
@@ -31,14 +31,14 @@ abstract interface class NamedDirectoryDialogController<
   Future<void> deleteEntry(T entry);
 }
 
-typedef DirectoryRowActionHandler<T extends NamedDirectoryEntry> = Future<void>
-    Function(
-  NamedDirectoryDialogController<T> controller,
+typedef ParticipantsRowActionHandler<T extends NamedDirectoryEntry>
+    = Future<void> Function(
+  ParticipantsDialogController<T> controller,
   T entry,
 );
 
-class DirectoryRowActionSpec<T extends NamedDirectoryEntry> {
-  const DirectoryRowActionSpec({
+class ParticipantsRowActionSpec<T extends NamedDirectoryEntry> {
+  const ParticipantsRowActionSpec({
     required this.id,
     required this.label,
     required this.placement,
@@ -48,13 +48,13 @@ class DirectoryRowActionSpec<T extends NamedDirectoryEntry> {
 
   final String id;
   final String label;
-  final DirectoryRowActionPlacement placement;
+  final ParticipantsRowActionPlacement placement;
   final IconData? icon;
-  final DirectoryRowActionHandler<T> onInvoke;
+  final ParticipantsRowActionHandler<T> onInvoke;
 }
 
-class NamedDirectoryDialogConfig<T extends NamedDirectoryEntry> {
-  const NamedDirectoryDialogConfig({
+class ParticipantsDialogConfig<T extends NamedDirectoryEntry> {
+  const ParticipantsDialogConfig({
     required this.dialogKey,
     required this.tableDividerKey,
     required this.entryKeyPrefix,
@@ -80,8 +80,8 @@ class NamedDirectoryDialogConfig<T extends NamedDirectoryEntry> {
   final String addRowLabel;
   final String deleteConfirmationTitle;
   final String Function(T entry) deleteConfirmationMessage;
-  final List<DirectoryColumnSpec<T>> columns;
-  final List<DirectoryRowActionSpec<T>> rowActions;
+  final List<ParticipantsColumnSpec<T>> columns;
+  final List<ParticipantsRowActionSpec<T>> rowActions;
   final bool showColumnHeaders;
   final String okButtonText;
   final String retryButtonText;

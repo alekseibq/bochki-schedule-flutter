@@ -67,6 +67,9 @@ port -> data adapter -> ProjectDocument sync -> project.json`. Виджеты н
 - В production UI, вынесенный в дочернее окно, открывается через
   `DesktopWindowCoordinator`. Dialog-вариант такого flow — только fallback для
   widget-тестов; не добавляйте его как альтернативный production-путь.
+- У feature с child window должен быть один `...Content` / `...FormContent` и
+  feature-specific ViewModel/operations-контракт. Native host и fallback
+  dialog только размещают content и используют IPC либо direct adapter.
 
 ## Терминология
 
@@ -87,8 +90,7 @@ JSON без миграции.
 
 | Задача | Делать так | Основные образцы |
 | --- | --- | --- |
-| Новый простой именованный справочник | Переиспользовать generic named-directory CRUD: entity/port/use cases, feature ViewModel и конфигурацию диалога. | `domain/named_directory/`, `features/directory/`, `participants/`, `assistants/` |
-| Справочник с собственной формой и полями | Создать feature-specific entity, validator, use cases и `Operations`-порт UI; не пытаться втиснуть поля в generic name-only экран. | `procedure_kinds/` |
+| Новый справочник | Создать собственные feature UI, ViewModel и `Operations`-порт; независимые справочники не объединять в UI из-за общей модели хранения. | `participants/`, `assistants/`, `procedure_kinds/` |
 | Новый день и проверка зависимых назначений | Валидировать в use case, считать ссылки при удалении, хранить через sync-part. | `workdays/` |
 | Назначенная процедура или правило с несколькими сущностями | Держать целостность в feature use case/validator; для отображения использовать rich/projection модели, не раздувать Widget запросами. | `domain/procedure_sessions/`, `features/procedure_sessions/` |
 | Новая часть `project.json` | Добавить поле в `ProjectDocument`, DTO/репозиторий с `ProjectDocumentSyncPart`, зарегистрировать part в `AppBootstrap`, добавить backward-compatible чтение и тесты. | `data/project_document/`, `data/workdays/`, `domain/project_document_test.dart` |
@@ -112,7 +114,7 @@ JSON без миграции.
 ## Коротко: чего не делать
 
 Не обходить существующий vertical slice, coordinator сохранения или оконный
-coordinator; не дублировать generic CRUD; не помещать бизнес-правило в widget;
+coordinator; не объединять независимые справочники в общий UI; не помещать бизнес-правило в widget;
 не смешивать данные проекта с UI-настройками; не создавать новую терминологию
 для уже существующих ролей без явной миграции.
 

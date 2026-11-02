@@ -1,20 +1,20 @@
 import '../../domain/participants/participant.dart';
-import '../directory/named_directory_dialog.dart';
-import '../directory/named_directory_dialog_config.dart';
+import 'participants_dialog_config.dart';
 
+import 'participants_content.dart';
 import 'participants_view_model.dart';
 
-class ParticipantsDialog extends NamedDirectoryDialog<Participant> {
+class ParticipantsDialog extends ParticipantsContent {
   const ParticipantsDialog({
     required ParticipantsViewModel viewModel,
     super.key,
   }) : super(
           viewModel: viewModel,
-          config: _config,
+          config: participantConfig,
         );
 
-  static const NamedDirectoryDialogConfig<Participant> _config =
-      NamedDirectoryDialogConfig<Participant>(
+  static const ParticipantsDialogConfig<Participant> participantConfig =
+      ParticipantsDialogConfig<Participant>(
     dialogKey: 'participants_directory_dialog',
     tableDividerKey: 'participants_table_divider',
     entryKeyPrefix: 'participant',
@@ -25,23 +25,23 @@ class ParticipantsDialog extends NamedDirectoryDialog<Participant> {
     deleteConfirmationTitle: 'Удалить участника?',
     deleteConfirmationMessage: _deleteConfirmationMessage,
     columns: [
-      DirectoryColumnSpec<Participant>(
+      ParticipantsColumnSpec<Participant>(
         id: 'name',
         label: 'Имя',
         cellText: _cellText,
       ),
     ],
     rowActions: [
-      DirectoryRowActionSpec<Participant>(
+      ParticipantsRowActionSpec<Participant>(
         id: 'edit',
         label: 'Edit',
-        placement: DirectoryRowActionPlacement.contextMenu,
+        placement: ParticipantsRowActionPlacement.contextMenu,
         onInvoke: _editAction,
       ),
-      DirectoryRowActionSpec<Participant>(
+      ParticipantsRowActionSpec<Participant>(
         id: 'delete',
         label: 'Delete',
-        placement: DirectoryRowActionPlacement.contextMenu,
+        placement: ParticipantsRowActionPlacement.contextMenu,
         onInvoke: _deleteAction,
       ),
     ],
@@ -56,14 +56,14 @@ class ParticipantsDialog extends NamedDirectoryDialog<Participant> {
   }
 
   static Future<void> _editAction(
-    NamedDirectoryDialogController<Participant> controller,
+    ParticipantsDialogController<Participant> controller,
     Participant participant,
   ) async {
     controller.beginEdit(participant.id);
   }
 
   static Future<void> _deleteAction(
-    NamedDirectoryDialogController<Participant> controller,
+    ParticipantsDialogController<Participant> controller,
     Participant participant,
   ) {
     return controller.deleteEntry(participant);

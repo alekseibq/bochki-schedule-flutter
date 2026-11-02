@@ -8,6 +8,7 @@ import '../../domain/procedure_sessions/procedure_session_raw.dart';
 import '../../domain/workdays/workday.dart';
 import '../../domain/assistants/assistant.dart';
 import '../../domain/procedure_kinds/procedure_kind.dart';
+import 'quick_reassignments_operations.dart';
 
 enum QuickPeopleFilter {
   all('Все'),
@@ -54,12 +55,12 @@ final class QuickReassignmentsSnapshot {
 
 final class QuickReassignmentsViewModel extends ChangeNotifier {
   QuickReassignmentsViewModel(
-      {required Future<QuickReassignmentsSnapshot> Function() loadSnapshot,
-      required Future<void> Function(List<ProcedureSessionRaw>) mutations})
-      : _loadSnapshot = loadSnapshot,
-        _mutations = mutations;
-  final Future<QuickReassignmentsSnapshot> Function() _loadSnapshot;
-  final Future<void> Function(List<ProcedureSessionRaw>) _mutations;
+      {required QuickReassignmentsOperations operations})
+      : _operations = operations;
+  final QuickReassignmentsOperations _operations;
+  List<double> columnWidths = const [];
+  bool _disposed = false;
+  int _loadVersion = 0;
   List<Workday> workdays = const [];
   List<Human> humans = const [];
   List<Assistant> assistants = const [];
@@ -83,10 +84,15 @@ final class QuickReassignmentsViewModel extends ChangeNotifier {
   }
 
   Future<void> load() async {
+    if (_disposed) return;
+    final version = ++_loadVersion;
     loading = true;
     notifyListeners();
     try {
-      final snapshot = await _loadSnapshot();
+      final snapshot = await _operations.load();
+      final widths = await _operations.loadColumnWidths();
+      if (_disposed || version != _loadVersion) return;
+      columnWidths = widths;
       workdays = snapshot.workdays;
       humans = snapshot.humans;
       assistants = snapshot.assistants;
@@ -96,11 +102,25 @@ final class QuickReassignmentsViewModel extends ChangeNotifier {
       dayId ??= workdays.isEmpty ? null : workdays.first.id;
       error = null;
     } catch (_) {
+      if (_disposed || version != _loadVersion) return;
       error = 'Не удалось загрузить быстрые перестановки.';
     } finally {
-      loading = false;
-      notifyListeners();
+      if (!_disposed && version == _loadVersion) {
+        loading = false;
+        notifyListeners();
+      }
     }
+  }
+
+  Future<void> saveColumnWidths(List<double> widths) async {
+    columnWidths = List.unmodifiable(widths);
+    await _operations.saveColumnWidths(widths);
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 
   void setDay(String? v) {
@@ -175,13 +195,16 @@ final class QuickReassignmentsViewModel extends ChangeNotifier {
     saving = true;
     notifyListeners();
     try {
-      await _mutations(r);
+      await _operations.mutate(r);
       await load();
     } catch (_) {
+      if (_disposed) return;
       error = 'Не удалось применить перестановку.';
     } finally {
-      saving = false;
-      notifyListeners();
+      if (!_disposed) {
+        saving = false;
+        notifyListeners();
+      }
     }
   }
 

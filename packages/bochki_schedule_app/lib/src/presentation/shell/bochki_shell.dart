@@ -7,11 +7,22 @@ import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
 import '../../app_services.dart';
 import '../../data/ui_settings/ui_settings_repository.dart';
 import '../../features/participants/participants_dialog.dart';
+import '../../features/participants/participants_operations.dart';
 import '../../features/participants/participants_view_model.dart';
 import '../../features/print_presets/print_preset_params_dialog.dart';
 import '../../features/print_presets/print_preset_params_view_model.dart';
 import '../../features/procedure_sessions/procedure_session_dialog.dart';
+import '../../features/procedure_sessions/procedure_session_editor_operations.dart';
+import '../../features/procedure_sessions/procedure_session_editor_view_model.dart';
 import '../../features/procedure_sessions/procedure_sessions_view_model.dart';
+import '../../features/procedure_statistics/procedure_statistics_dialog.dart';
+import '../../features/procedure_statistics/procedure_statistics_view_model.dart';
+import '../../features/quick_reassignments/quick_reassignments_dialog.dart';
+import '../../features/quick_reassignments/quick_reassignments_view_model.dart';
+import '../../features/quick_reassignments/quick_reassignments_operations.dart';
+import '../../features/free_time/free_time_dialog.dart';
+import '../../features/free_time/free_time_view_model.dart';
+import '../../domain/procedure_sessions/procedure_session_raw.dart';
 import '../../domain/procedure_sessions/schedule_conflict_target.dart';
 import '../app_tooltips.dart';
 import '../../features/procedure_kinds/procedure_kinds_dialog.dart';
@@ -20,9 +31,11 @@ import '../../features/procedure_kinds/procedure_kinds_view_model.dart';
 import '../../features/program_settings/program_settings_dialog.dart';
 import '../../features/program_settings/program_settings_view_model.dart';
 import '../../features/assistants/assistants_dialog.dart';
+import '../../features/assistants/assistants_operations.dart';
 import '../../features/assistants/assistants_view_model.dart';
 import '../../features/workdays/workdays_dialog.dart';
 import '../../features/workdays/workdays_view_model.dart';
+import '../../features/workdays/workdays_operations.dart';
 import '../desktop_windows.dart';
 
 enum DirectorySection {
@@ -62,11 +75,13 @@ class BochkiShell extends StatefulWidget {
   const BochkiShell({
     required this.services,
     this.onProjectLoaded,
+    this.enableDesktopWindows = true,
     super.key,
   });
 
   final AppServices services;
   final Future<void> Function()? onProjectLoaded;
+  final bool enableDesktopWindows;
 
   @override
   State<BochkiShell> createState() => _BochkiShellState();
@@ -110,7 +125,9 @@ class _BochkiShellState extends State<BochkiShell> {
     );
     final statistics = widget.services.buildProcedureStatisticsTableUseCase;
     final scheduleGaps = widget.services.buildScheduleGapsUseCase;
-    if (statistics != null && scheduleGaps != null) {
+    if (widget.enableDesktopWindows &&
+        statistics != null &&
+        scheduleGaps != null) {
       _desktopWindows = DesktopWindowCoordinator(
         services: widget.services,
         statistics: statistics,
@@ -202,10 +219,14 @@ class _BochkiShellState extends State<BochkiShell> {
   }
 
   Future<void> _startDesktopWindows() async {
+    final coordinator = _desktopWindows;
     try {
-      await _desktopWindows?.start();
+      await coordinator?.start();
     } catch (_) {
       // The channel is not present in widget tests and unsupported targets.
+      if (identical(_desktopWindows, coordinator)) {
+        _desktopWindows = null;
+      }
     }
   }
 
@@ -301,11 +322,13 @@ class _BochkiShellState extends State<BochkiShell> {
       _participantsDialogOpen = true;
     });
 
-    final viewModel = ParticipantsViewModel(
-      listParticipantsUseCase: widget.services.listParticipantsUseCase,
-      createParticipantUseCase: widget.services.createParticipantUseCase,
-      updateParticipantUseCase: widget.services.updateParticipantUseCase,
-      deleteParticipantUseCase: widget.services.deleteParticipantUseCase,
+    final viewModel = ParticipantsViewModel.fromOperations(
+      UseCaseParticipantsOperations(
+        listParticipantsUseCase: widget.services.listParticipantsUseCase,
+        createParticipantUseCase: widget.services.createParticipantUseCase,
+        updateParticipantUseCase: widget.services.updateParticipantUseCase,
+        deleteParticipantUseCase: widget.services.deleteParticipantUseCase,
+      ),
     );
 
     try {
@@ -337,11 +360,21 @@ class _BochkiShellState extends State<BochkiShell> {
       _workdaysDialogOpen = true;
     });
 
-    final viewModel = WorkdaysViewModel(
-      listWorkdaysUseCase: widget.services.listWorkdaysUseCase,
-      createWorkdayUseCase: widget.services.createWorkdayUseCase,
-      updateWorkdayUseCase: widget.services.updateWorkdayUseCase,
-      deleteWorkdayUseCase: widget.services.deleteWorkdayUseCase,
+    final viewModel = WorkdaysViewModel.fromOperations(
+      UseCaseWorkdaysOperations(
+        listWorkdaysUseCase: widget.services.listWorkdaysUseCase,
+        createWorkdayUseCase: widget.services.createWorkdayUseCase,
+        updateWorkdayUseCase: widget.services.updateWorkdayUseCase,
+        deleteWorkdayUseCase: widget.services.deleteWorkdayUseCase,
+        loadColumnWidths: () async =>
+            widget.services.uiSettingsRepository.settings.workdaysColumnWidths,
+        saveColumnWidths: (widths) =>
+            widget.services.uiSettingsRepository.update(
+          widget.services.uiSettingsRepository.settings.copyWith(
+            workdaysColumnWidths: widths,
+          ),
+        ),
+      ),
     );
 
     try {
@@ -373,11 +406,13 @@ class _BochkiShellState extends State<BochkiShell> {
       _assistantsDialogOpen = true;
     });
 
-    final viewModel = AssistantsViewModel(
-      listAssistantsUseCase: widget.services.listAssistantsUseCase,
-      createAssistantUseCase: widget.services.createAssistantUseCase,
-      updateAssistantUseCase: widget.services.updateAssistantUseCase,
-      deleteAssistantUseCase: widget.services.deleteAssistantUseCase,
+    final viewModel = AssistantsViewModel.fromOperations(
+      UseCaseAssistantsOperations(
+        listAssistantsUseCase: widget.services.listAssistantsUseCase,
+        createAssistantUseCase: widget.services.createAssistantUseCase,
+        updateAssistantUseCase: widget.services.updateAssistantUseCase,
+        deleteAssistantUseCase: widget.services.deleteAssistantUseCase,
+      ),
     );
 
     try {
@@ -498,15 +533,105 @@ class _BochkiShellState extends State<BochkiShell> {
     }
   }
 
-  Future<void> _openProcedureStatistics() async {
-    await _desktopWindows?.openStatistics();
+  Future<void> _openProcedureStatistics(
+      {bool openedFromSession = false}) async {
+    final coordinator = _desktopWindows;
+    if (coordinator != null) {
+      await coordinator.openStatistics();
+      return;
+    }
+    final build = widget.services.buildProcedureStatisticsTableUseCase;
+    if (build == null) return;
+    final viewModel = ProcedureStatisticsViewModel(
+      buildUseCase: build,
+      listWorkdaysUseCase: widget.services.listWorkdaysUseCase,
+    );
+    try {
+      unawaited(viewModel.load());
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => ProcedureStatisticsDialog(
+          viewModel: viewModel,
+          onAdd: openedFromSession
+              ? null
+              : () => _openProcedureSessionDialog(
+                    isEditing: false,
+                    openedFromStatistics: true,
+                  ),
+        ),
+      );
+    } finally {
+      viewModel.dispose();
+    }
   }
 
-  Future<void> _openFreeTime() async => _desktopWindows?.openFreeTime();
+  Future<void> _openFreeTime() async {
+    final coordinator = _desktopWindows;
+    if (coordinator != null) return coordinator.openFreeTime();
+    final build = widget.services.buildScheduleGapsUseCase;
+    if (build == null) return;
+    final viewModel = FreeTimeViewModel(
+      buildScheduleGapsUseCase: build,
+      listWorkdaysUseCase: widget.services.listWorkdaysUseCase,
+    );
+    try {
+      unawaited(viewModel.load());
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => FreeTimeDialog(
+          viewModel: viewModel,
+          onOccupy: (gap) async {
+            await _openProcedureSessionDialog(
+              isEditing: false,
+              initialValue: _procedureSessionsViewModel.createDraft().copyWith(
+                    dayId: gap.workday.id,
+                    participantId: gap.human.id,
+                    startTime: gap.startTime,
+                  ),
+            );
+            await viewModel.load();
+          },
+        ),
+      );
+    } finally {
+      viewModel.dispose();
+    }
+  }
 
   Future<void> _openQuickReassignments() async {
-    if (widget.services.quickReassignmentsUseCase == null) return;
-    await _desktopWindows?.openQuickReassignments();
+    final useCase = widget.services.quickReassignmentsUseCase;
+    if (useCase == null) return;
+    final coordinator = _desktopWindows;
+    if (coordinator != null) return coordinator.openQuickReassignments();
+    final viewModel = QuickReassignmentsViewModel(
+      operations: UseCaseQuickReassignmentsOperations(
+        listWorkdays: widget.services.listWorkdaysUseCase,
+        listHumans: widget.services.listHumansUseCase,
+        listAssistants: widget.services.listAssistantsUseCase,
+        listProcedureKinds: widget.services.listProcedureKindsUseCase,
+        getProgramSettings: widget.services.getProgramSettingsUseCase,
+        listSessions: widget.services.listRichProcedureSessionsUseCase,
+        reassignments: useCase,
+        uiSettings: widget.services.uiSettingsRepository,
+      ),
+    );
+    try {
+      unawaited(viewModel.load());
+      if (mounted) {
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => QuickReassignmentsDialog(viewModel: viewModel),
+        );
+      }
+    } finally {
+      viewModel.dispose();
+      unawaited(_procedureSessionsViewModel.load());
+    }
   }
 
   Future<void> _selectTemplateSection(TemplatesSection section) async {
@@ -811,16 +936,19 @@ class _BochkiShellState extends State<BochkiShell> {
   Future<void> _openProcedureSessionDialog({
     required bool isEditing,
     String? procedureSessionId,
+    ProcedureSessionRaw? initialValue,
+    bool openedFromStatistics = false,
   }) async {
-    final initialValue = isEditing
-        ? _procedureSessionsViewModel.entries
-            .firstWhere((entry) => entry.id == procedureSessionId!)
-            .raw
-        : _procedureSessionsViewModel.createDraft();
+    final resolvedInitialValue = initialValue ??
+        (isEditing
+            ? _procedureSessionsViewModel.entries
+                .firstWhere((entry) => entry.id == procedureSessionId!)
+                .raw
+            : _procedureSessionsViewModel.createDraft());
     final coordinator = _desktopWindows;
     if (coordinator != null) {
       try {
-        await coordinator.openSession(initialValue: initialValue);
+        await coordinator.openSession(initialValue: resolvedInitialValue);
       } catch (_) {
         if (mounted) {
           _showError('Не удалось открыть окно назначенной процедуры.');
@@ -828,34 +956,33 @@ class _BochkiShellState extends State<BochkiShell> {
       }
       return;
     }
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return ProcedureSessionDialog(
-          initialValue: initialValue,
-          workdays: _procedureSessionsViewModel.workdays,
-          humans: _procedureSessionsViewModel.humans,
-          procedureKinds: _procedureSessionsViewModel.procedureKinds,
-          assistants: _procedureSessionsViewModel.assistants,
-          procedureSessions: _procedureSessionsViewModel.allProcedureSessions,
-          programSettings: _procedureSessionsViewModel.programSettings,
-          onSubmit: (procedureSession, allowConflicts) {
-            return _procedureSessionsViewModel.submitProcedureSession(
-              procedureSession,
-              allowConflicts: allowConflicts,
-            );
-          },
-          onSavedAndRendered: _confirmProcedureSessionRendered,
-          isSaving: _procedureSessionsViewModel.isSaving,
-        );
-      },
+    final editor = ProcedureSessionEditorViewModel(
+      sessions: _procedureSessionsViewModel,
+      operations: DirectProcedureSessionEditorOperations(
+        _procedureSessionsViewModel,
+        onOpenStatistics: () => _openProcedureStatistics(
+          openedFromSession: true,
+        ),
+        onClose: () async {
+          if (mounted) Navigator.of(context, rootNavigator: true).pop();
+        },
+      ),
     );
-  }
-
-  Future<void> _confirmProcedureSessionRendered(int operationId) async {
-    await WidgetsBinding.instance.endOfFrame;
-    await _procedureSessionsViewModel.logRenderedSave(operationId);
+    try {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return ProcedureSessionEditorDialog(
+            viewModel: editor,
+            initialValue: resolvedInitialValue,
+            isStatisticsOpeningAllowed: !openedFromStatistics,
+          );
+        },
+      );
+    } finally {
+      editor.dispose();
+    }
   }
 
   Future<void> _confirmDeleteProcedureSession(String procedureSessionId) async {

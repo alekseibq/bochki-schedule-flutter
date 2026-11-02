@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 
-import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -11,28 +10,48 @@ import 'package:screen_retriever/screen_retriever.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../domain/assistants/assistant.dart';
+import '../domain/assistants/assistants_validation_exception.dart';
 import '../domain/humans/human.dart';
+import '../domain/participants/participants_validation_exception.dart';
 import '../domain/procedure_kinds/procedure_kind.dart';
 import '../domain/procedure_sessions/procedure_session_raw.dart';
-import '../domain/procedure_sessions/procedure_session_rich_factory.dart';
 import '../domain/procedure_statistics/build_procedure_statistics_table_use_case.dart';
 import '../domain/procedure_statistics/procedure_statistics_table.dart';
 import '../domain/schedule_gaps/build_schedule_gaps_use_case.dart';
 import '../domain/schedule_gaps/schedule_gap.dart';
 import '../domain/workdays/workday.dart';
+import '../domain/workdays/workdays_validation_exception.dart';
 import '../app_services.dart';
 import 'app_tooltips.dart';
 import '../features/procedure_sessions/procedure_session_dialog.dart';
-import '../features/procedure_sessions/procedure_session_submit_result.dart';
+import '../features/procedure_sessions/ipc_procedure_session_editor_operations.dart';
+import '../features/procedure_sessions/procedure_session_editor_view_model.dart';
 import '../features/procedure_sessions/procedure_sessions_view_model.dart';
 import '../features/procedure_kinds/ipc_procedure_kinds_operations.dart';
 import '../features/procedure_kinds/procedure_kind_form_content.dart';
 import '../features/procedure_kinds/procedure_kinds_dialog.dart';
 import '../features/procedure_kinds/procedure_kinds_view_model.dart';
-import '../features/directory/people_directory_table.dart';
-import '../features/procedure_statistics/procedure_statistics_content.dart';
+import '../features/assistants/ipc_assistants_operations.dart';
+import '../features/assistants/assistants_content.dart';
+import '../features/assistants/assistants_dialog.dart';
+import '../features/assistants/assistants_view_model.dart';
+import '../features/participants/ipc_participants_operations.dart';
+import '../features/participants/participants_content.dart';
+import '../features/participants/participants_dialog.dart';
+import '../features/participants/participants_view_model.dart';
+import '../features/procedure_statistics/procedure_statistics_dialog.dart';
+import '../features/procedure_statistics/ipc_procedure_statistics_operations.dart';
+import '../features/procedure_statistics/procedure_statistics_view_model.dart';
 import '../features/quick_reassignments/quick_reassignments_dialog.dart';
 import '../features/quick_reassignments/quick_reassignments_view_model.dart';
+import '../features/quick_reassignments/ipc_quick_reassignments_operations.dart';
+import '../features/free_time/free_time_view_model.dart';
+import '../features/free_time/free_time_dialog.dart';
+import '../features/free_time/ipc_free_time_operations.dart';
+import '../features/workdays/ipc_workdays_operations.dart';
+import '../features/workdays/workday_form_content.dart';
+import '../features/workdays/workdays_content.dart';
+import '../features/workdays/workdays_view_model.dart';
 
 enum DesktopWindowKind {
   main,
@@ -1715,32 +1734,49 @@ final class DesktopWindowCoordinator {
     final entry =
         Map<String, dynamic>.from(values['entry'] as Map? ?? const {});
     try {
+      Map<String, dynamic>? savedEntry;
       switch (directory) {
         case 'participants':
           if (action == 'delete')
             await _services.deleteParticipantUseCase
                 .execute(values['id'] as String);
-          if (action == 'create')
-            await _services.createParticipantUseCase
+          if (action == 'create') {
+            final saved = await _services.createParticipantUseCase
                 .execute(entry['name'] as String);
-          if (action == 'update')
-            await _services.updateParticipantUseCase.execute(
+            savedEntry = {'id': saved.id, 'name': saved.name};
+          }
+          if (action == 'update') {
+            final saved = await _services.updateParticipantUseCase.execute(
                 participantId: values['id'] as String,
                 rawName: entry['name'] as String);
+            savedEntry = {'id': saved.id, 'name': saved.name};
+          }
           break;
         case 'assistants':
           if (action == 'delete')
             await _services.deleteAssistantUseCase
                 .execute(values['id'] as String);
-          if (action == 'create')
-            await _services.createAssistantUseCase.execute(
+          if (action == 'create') {
+            final saved = await _services.createAssistantUseCase.execute(
               entry['name'] as String,
             );
-          if (action == 'update')
-            await _services.updateAssistantUseCase.execute(
+            savedEntry = {
+              'id': saved.id,
+              'name': saved.name,
+              'shortName': saved.shortName
+            };
+          }
+          if (action == 'update') {
+            final saved = await _services.updateAssistantUseCase.execute(
               assistantId: values['id'] as String,
               rawName: entry['name'] as String,
             );
+            savedEntry = {
+              'id': saved.id,
+              'name': saved.name,
+              'shortName': saved.shortName
+            };
+          }
           break;
         case 'procedureKinds':
           await mutateProcedureKindDirectory(
@@ -1758,19 +1794,27 @@ final class DesktopWindowCoordinator {
                 .execute(values['id'] as String);
           } else if (action == 'create') {
             final day = _workdayFromMap({...entry, 'id': 'new'});
-            await _services.createWorkdayUseCase.execute(day);
+            savedEntry =
+                _workdayMap(await _services.createWorkdayUseCase.execute(day));
           } else if (action == 'update') {
             final day = _workdayFromMap(
               {...entry, 'id': values['id'] as String},
             );
-            await _services.updateWorkdayUseCase.execute(day);
+            savedEntry =
+                _workdayMap(await _services.updateWorkdayUseCase.execute(day));
           }
           break;
         default:
           throw ArgumentError.value(directory, 'directory');
       }
       await _notifyDirectoryChanged(directory);
-      return {'ok': true};
+      return {'ok': true, if (savedEntry != null) 'entry': savedEntry};
+    } on ParticipantsValidationException catch (error) {
+      return {'ok': false, 'error': error.message, 'validation': true};
+    } on AssistantsValidationException catch (error) {
+      return {'ok': false, 'error': error.message, 'validation': true};
+    } on WorkdaysValidationException catch (error) {
+      return {'ok': false, 'error': error.message, 'validation': true};
     } catch (error) {
       return {'ok': false, 'error': error.toString()};
     }
@@ -1958,15 +2002,7 @@ class ProcedureStatisticsWindow extends StatefulWidget {
 }
 
 class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
-  String? _dayId;
-  var _people = ProcedureStatisticsPeopleFilter.all;
-  var _mode = ProcedureStatisticsMode.participation;
-  bool _loading = true;
-  String? _error;
-  List<Workday> _workdays = const [];
-  List<Human> _humans = const [];
-  List<ProcedureKind> _kinds = const [];
-  Map<String, int> _counts = const {};
+  late final ProcedureStatisticsViewModel _viewModel;
   bool _hasModalChild = false;
   var _openedFromProcedureSession = false;
   DesktopWindowFeatureHandlerRegistration? _handlerRegistration;
@@ -1974,6 +2010,11 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
   @override
   void initState() {
     super.initState();
+    _viewModel = ProcedureStatisticsViewModel.fromOperations(
+      IpcProcedureStatisticsOperations(
+        (method, arguments) => _mainChannel.invokeMethod(method, arguments),
+      ),
+    );
     _listenForChanges();
     _loadWindowContext();
     _load();
@@ -2025,34 +2066,11 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
   @override
   void dispose() {
     _handlerRegistration?.dispose();
+    _viewModel.dispose();
     super.dispose();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final result = Map<String, dynamic>.from(
-          await _mainChannel.invokeMethod<Map>('statistics', {
-                'dayId': _dayId,
-                'peopleFilter': _people.name,
-                'mode': _mode.name,
-              }) ??
-              const {});
-      setState(() {
-        _workdays = _maps(result['workdays']).map(_workdayFromMap).toList();
-        _humans = _maps(result['people']).map(_humanFromMap).toList();
-        _kinds = _maps(result['kinds']).map(_kindFromMap).toList();
-        _counts = Map<String, int>.from(result['counts'] as Map? ?? const {});
-      });
-    } catch (_) {
-      setState(() => _error = 'Не удалось загрузить статистику процедур.');
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
+  Future<void> _load() => _viewModel.load();
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -2061,29 +2079,8 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
         home: Scaffold(
           body: AbsorbPointer(
               absorbing: _hasModalChild,
-              child: ProcedureStatisticsContent(
-                workdays: _workdays,
-                people: _humans,
-                kinds: _kinds,
-                countFor: (person, kind) =>
-                    _counts['${person.id}/${kind.id}'] ?? 0,
-                isLoading: _loading,
-                error: _error,
-                dayId: _dayId,
-                peopleFilter: _people,
-                mode: _mode,
-                onDayChanged: (value) {
-                  _dayId = value;
-                  _load();
-                },
-                onPeopleChanged: (value) {
-                  _people = value;
-                  _load();
-                },
-                onModeChanged: (value) {
-                  _mode = value;
-                  _load();
-                },
+              child: ProcedureStatisticsView(
+                viewModel: _viewModel,
                 onAdd: _openedFromProcedureSession
                     ? null
                     : openProcedureSessionFromCurrentWindow,
@@ -2099,20 +2096,18 @@ class FreeTimeWindow extends StatefulWidget {
 }
 
 class _FreeTimeWindowState extends State<FreeTimeWindow> {
-  String? _dayId;
-  var _people = ScheduleGapPeopleFilter.all;
-  var _from = 480;
-  var _to = 1200;
-  var _minimum = 30;
-  List<Workday> _workdays = const [];
-  List<Map<String, dynamic>> _gaps = const [];
-  bool _loading = true;
   bool _hasModalChild = false;
+  late final FreeTimeViewModel _viewModel;
   DesktopWindowFeatureHandlerRegistration? _handlerRegistration;
 
   @override
   void initState() {
     super.initState();
+    _viewModel = FreeTimeViewModel.fromOperations(
+      IpcFreeTimeOperations(
+        (method, arguments) => _mainChannel.invokeMethod(method, arguments),
+      ),
+    );
     _listen();
     _load();
   }
@@ -2146,167 +2141,33 @@ class _FreeTimeWindowState extends State<FreeTimeWindow> {
   @override
   void dispose() {
     _handlerRegistration?.dispose();
+    _viewModel.dispose();
     super.dispose();
   }
 
-  Future<void> _load() async {
-    if (mounted) setState(() => _loading = true);
-    final value = await _mainChannel.invokeMethod<Map>('freeTime', {
-      'dayId': _dayId,
-      'fromMinutes': _from,
-      'toMinutes': _to,
-      'peopleFilter': _people.name,
-      'minimumDurationMinutes': _minimum
-    });
-    if (mounted) {
-      setState(() {
-        _workdays = _maps(value?['workdays']).map(_workdayFromMap).toList();
-        _gaps = _maps(value?['gaps']);
-        _loading = false;
-      });
-    }
-  }
+  Future<void> _load() => _viewModel.load();
 
-  List<int> get _times =>
-      [for (var value = 480; value <= 1200; value += 30) value];
-  String _time(int value) =>
-      '${(value ~/ 60).toString().padLeft(2, '0')}:${(value % 60).toString().padLeft(2, '0')}';
   @override
   Widget build(BuildContext context) => MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(tooltipTheme: AppTooltips.theme),
-      home: Scaffold(
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(tooltipTheme: AppTooltips.theme),
+        home: Scaffold(
           body: AbsorbPointer(
-              absorbing: _hasModalChild,
-              child: Column(children: [
-                Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(children: [
-                      Expanded(
-                          child: DropdownButtonFormField<String?>(
-                              value: _dayId,
-                              decoration:
-                                  const InputDecoration(labelText: 'День'),
-                              items: [
-                                const DropdownMenuItem(
-                                    value: null, child: Text('Все дни')),
-                                ..._workdays.map((d) => DropdownMenuItem(
-                                    value: d.id, child: Text(d.name)))
-                              ],
-                              onChanged: (v) {
-                                _dayId = v;
-                                _load();
-                              })),
-                      const SizedBox(width: 12),
-                      Expanded(
-                          child: DropdownButtonFormField<int>(
-                              value: _from,
-                              decoration:
-                                  const InputDecoration(labelText: 'Время с'),
-                              items: _times
-                                  .map((v) => DropdownMenuItem(
-                                      value: v, child: Text(_time(v))))
-                                  .toList(),
-                              onChanged: (v) {
-                                if (v != null) {
-                                  _from = v;
-                                  if (_from > _to) {
-                                    final x = _from;
-                                    _from = _to;
-                                    _to = x;
-                                  }
-                                  _load();
-                                }
-                              })),
-                      const SizedBox(width: 12),
-                      Expanded(
-                          child: DropdownButtonFormField<int>(
-                              value: _to,
-                              decoration:
-                                  const InputDecoration(labelText: 'Время до'),
-                              items: _times
-                                  .map((v) => DropdownMenuItem(
-                                      value: v, child: Text(_time(v))))
-                                  .toList(),
-                              onChanged: (v) {
-                                if (v != null) {
-                                  _to = v;
-                                  if (_from > _to) {
-                                    final x = _from;
-                                    _from = _to;
-                                    _to = x;
-                                  }
-                                  _load();
-                                }
-                              })),
-                      const SizedBox(width: 12),
-                      Expanded(
-                          child: DropdownButtonFormField<
-                                  ScheduleGapPeopleFilter>(
-                              value: _people,
-                              decoration: const InputDecoration(
-                                  labelText: 'Искать для'),
-                              items: const [
-                                DropdownMenuItem(
-                                    value: ScheduleGapPeopleFilter.all,
-                                    child: Text('Участники и Сопровождающие')),
-                                DropdownMenuItem(
-                                    value: ScheduleGapPeopleFilter.participants,
-                                    child: Text('Участники')),
-                                DropdownMenuItem(
-                                    value: ScheduleGapPeopleFilter.assistants,
-                                    child: Text('Сопровождающие'))
-                              ],
-                              onChanged: (v) {
-                                if (v != null) {
-                                  _people = v;
-                                  _load();
-                                }
-                              })),
-                      const SizedBox(width: 12),
-                      Expanded(
-                          child: DropdownButtonFormField<int>(
-                              value: _minimum,
-                              decoration: const InputDecoration(
-                                  labelText: 'Показывать интервалы более'),
-                              items: [
-                                for (var v = 30; v <= 300; v += 30)
-                                  DropdownMenuItem(
-                                      value: v,
-                                      child: Text(v == 30
-                                          ? '30 мин'
-                                          : '${v ~/ 60}ч ${(v % 60).toString().padLeft(2, '0')}мин'))
-                              ],
-                              onChanged: (v) {
-                                if (v != null) {
-                                  _minimum = v;
-                                  _load();
-                                }
-                              })),
-                    ])),
-                Expanded(
-                    child: _loading
-                        ? const Center(child: CircularProgressIndicator())
-                        : _gaps.isEmpty
-                            ? const Center(
-                                child: Text('Нет данных по выбранным фильтрам'))
-                            : FreeTimeResultsTable(
-                                gaps: _gaps,
-                                onOccupy: (gap) {
-                                  final day = _workdayFromMap(
-                                      Map<String, dynamic>.from(
-                                          gap['day'] as Map));
-                                  final human = _humanFromMap(
-                                      Map<String, dynamic>.from(
-                                          gap['human'] as Map));
-                                  return openProcedureSessionFromCurrentWindow({
-                                    'dayId': day.id,
-                                    'participantId': human.id,
-                                    'startTime': gap['start'] as String,
-                                  });
-                                },
-                              )),
-              ]))));
+            absorbing: _hasModalChild,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: FreeTimeContent(
+                viewModel: _viewModel,
+                onOccupy: (gap) => openProcedureSessionFromCurrentWindow({
+                  'dayId': gap.workday.id,
+                  'participantId': gap.human.id,
+                  'startTime': gap.startTime,
+                }),
+              ),
+            ),
+          ),
+        ),
+      );
 }
 
 class QuickReassignmentsWindow extends StatefulWidget {
@@ -2319,15 +2180,15 @@ class QuickReassignmentsWindow extends StatefulWidget {
 
 class _QuickReassignmentsWindowState extends State<QuickReassignmentsWindow> {
   QuickReassignmentsViewModel? _viewModel;
-  List<double> _columnWidths = const [];
   DesktopWindowFeatureHandlerRegistration? _handlerRegistration;
 
   @override
   void initState() {
     super.initState();
     _viewModel = QuickReassignmentsViewModel(
-      loadSnapshot: _loadSnapshot,
-      mutations: _mutate,
+      operations: IpcQuickReassignmentsOperations(
+        (method, arguments) => _mainChannel.invokeMethod(method, arguments),
+      ),
     );
     _listen();
     unawaited(_viewModel!.load());
@@ -2352,61 +2213,6 @@ class _QuickReassignmentsWindowState extends State<QuickReassignmentsWindow> {
     _handlerRegistration = registration;
   }
 
-  Future<QuickReassignmentsSnapshot> _loadSnapshot() async {
-    final value = Map<String, dynamic>.from(
-      await _mainChannel.invokeMethod<Map>('quickReassignmentsSnapshot') ??
-          const {},
-    );
-    final workdays = _maps(value['workdays']).map(_workdayFromMap).toList();
-    final humans = _maps(value['humans']).map(_humanFromMap).toList();
-    final assistants =
-        _maps(value['assistants']).map(_assistantFromMap).toList();
-    final kinds = _maps(value['procedureKinds']).map(_kindFromMap).toList();
-    final raw = _maps(value['procedureSessions']).map(_sessionFromMap).toList();
-    final settings = Map<String, dynamic>.from(value['settings'] as Map);
-    final richFactory = const ProcedureSessionRichFactory();
-    final entries = raw
-        .map((item) => richFactory.create(
-              raw: item,
-              workdays: workdays,
-              humans: humans,
-              procedureKinds: kinds,
-              assistants: assistants,
-            ))
-        .toList(growable: false);
-    _columnWidths =
-        (value['quickReassignmentsColumnWidths'] as List? ?? const [])
-            .whereType<num>()
-            .map((width) => width.toDouble())
-            .toList(growable: false);
-    if (mounted) setState(() {});
-    return QuickReassignmentsSnapshot(
-      workdays: workdays,
-      humans: humans,
-      assistants: assistants,
-      procedureKinds: kinds,
-      programSettings: ProgramSettings(
-        minimumTime: ProgramSettingsTime.fromJson(settings['minimumTime']),
-        maximumTime: ProgramSettingsTime.fromJson(settings['maximumTime']),
-      ),
-      entries: entries,
-    );
-  }
-
-  Future<void> _mutate(List<ProcedureSessionRaw> replacements) =>
-      _mainChannel.invokeMethod<void>(
-        'quickReassignmentsMutate',
-        replacements.map(_sessionMap).toList(growable: false),
-      );
-
-  Future<void> _saveColumnWidths(List<double> widths) async {
-    _columnWidths = widths;
-    await _mainChannel.invokeMethod<void>(
-      'updateQuickReassignmentsColumnWidths',
-      widths,
-    );
-  }
-
   @override
   void dispose() {
     _handlerRegistration?.dispose();
@@ -2425,10 +2231,13 @@ class _QuickReassignmentsWindowState extends State<QuickReassignmentsWindow> {
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
           child: Column(children: [
             Expanded(
-              child: QuickReassignmentsContent(
-                viewModel: viewModel,
-                columnWidths: _columnWidths,
-                onColumnWidthsChanged: _saveColumnWidths,
+              child: AnimatedBuilder(
+                animation: viewModel,
+                builder: (_, __) => QuickReassignmentsContent(
+                  viewModel: viewModel,
+                  columnWidths: viewModel.columnWidths,
+                  onColumnWidthsChanged: viewModel.saveColumnWidths,
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -2446,69 +2255,6 @@ class _QuickReassignmentsWindowState extends State<QuickReassignmentsWindow> {
   }
 }
 
-class FreeTimeResultsTable extends StatefulWidget {
-  const FreeTimeResultsTable({
-    required this.gaps,
-    required this.onOccupy,
-    super.key,
-  });
-
-  final List<Map<String, dynamic>> gaps;
-  final Future<void> Function(Map<String, dynamic> gap) onOccupy;
-
-  @override
-  State<FreeTimeResultsTable> createState() => _FreeTimeResultsTableState();
-}
-
-class _FreeTimeResultsTableState extends State<FreeTimeResultsTable> {
-  final _verticalScrollController = ScrollController();
-
-  @override
-  void dispose() {
-    _verticalScrollController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => Scrollbar(
-        controller: _verticalScrollController,
-        thumbVisibility: true,
-        child: SingleChildScrollView(
-          controller: _verticalScrollController,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columns: const [
-                DataColumn(label: Text('День')),
-                DataColumn(label: Text('Человек')),
-                DataColumn(label: Text('Начало')),
-                DataColumn(label: Text('Конец')),
-                DataColumn(label: Text('Длительность')),
-                DataColumn(label: Text('')),
-              ],
-              rows: widget.gaps.map((gap) {
-                final day = _workdayFromMap(
-                    Map<String, dynamic>.from(gap['day'] as Map));
-                final human = _humanFromMap(
-                    Map<String, dynamic>.from(gap['human'] as Map));
-                return DataRow(cells: [
-                  DataCell(Text(day.name)),
-                  DataCell(Text(human.name)),
-                  DataCell(Text(gap['start'] as String)),
-                  DataCell(Text(gap['end'] as String)),
-                  DataCell(Text(gap['duration'] as String)),
-                  DataCell(FilledButton.tonal(
-                    onPressed: () => widget.onOccupy(gap),
-                    child: const Text('Занять участника'),
-                  )),
-                ]);
-              }).toList(),
-            ),
-          ),
-        ),
-      );
-}
-
 class ProcedureSessionWindow extends StatefulWidget {
   const ProcedureSessionWindow({super.key});
   @override
@@ -2516,7 +2262,7 @@ class ProcedureSessionWindow extends StatefulWidget {
 }
 
 class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
-  Map<String, dynamic>? _snapshot;
+  ProcedureSessionEditorViewModel? _editor;
   var _formVersion = 0;
   var _openedFromProcedureStatistics = false;
   DesktopWindowFeatureHandlerRegistration? _handlerRegistration;
@@ -2548,7 +2294,7 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
 
   Future<dynamic> _handleWindowMethod(MethodCall call) async {
     if (call.method == 'directory_changed') {
-      await _load();
+      await _refreshSnapshot();
       return null;
     }
     if (call.method == 'procedure_session_show' ||
@@ -2570,78 +2316,67 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
   @override
   void dispose() {
     _handlerRegistration?.dispose();
+    _editor?.dispose();
     super.dispose();
   }
 
   Future<void> _load() async {
-    final value =
-        await _mainChannel.invokeMethod<Map>('procedureSessionSnapshot');
-    if (mounted) {
-      setState(() {
-        _snapshot = Map<String, dynamic>.from(value!);
-        _formVersion += 1;
-      });
-    }
+    final operations = _createOperations();
+    final snapshot = await operations.loadSnapshot();
+    if (!mounted) return;
+    final editor = ProcedureSessionEditorViewModel.fromSnapshot(
+      snapshot: snapshot,
+      operations: operations,
+    );
+    final previous = _editor;
+    setState(() {
+      _editor = editor;
+      _formVersion += 1;
+    });
+    previous?.dispose();
   }
+
+  Future<void> _refreshSnapshot() async {
+    final editor = _editor;
+    if (editor == null) {
+      await _load();
+      return;
+    }
+    final operations = _createOperations();
+    final snapshot = await operations.loadSnapshot();
+    if (!mounted || !identical(editor, _editor)) return;
+    editor.replaceSnapshot(snapshot);
+  }
+
+  IpcProcedureSessionEditorOperations _createOperations() =>
+      IpcProcedureSessionEditorOperations(
+        (method, arguments) => _mainChannel.invokeMethod(method, arguments),
+        onOpenStatistics: openProcedureStatisticsFromCurrentWindow,
+        onClose: closeCurrentDesktopWindow,
+      );
 
   @override
   Widget build(BuildContext context) {
-    final snapshot = _snapshot;
-    if (snapshot == null) {
+    final editor = _editor;
+    if (editor == null) {
       return const MaterialApp(
           debugShowCheckedModeBanner: false,
           home: Scaffold(body: Center(child: CircularProgressIndicator())));
     }
-    final settings = Map<String, dynamic>.from(snapshot['settings'] as Map);
     return MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: ThemeData(tooltipTheme: AppTooltips.theme),
         home: Scaffold(
             body: Center(
-                child: ProcedureSessionDialog(
-          key: ValueKey(_formVersion),
-          initialValue: _sessionFromMap(
-              Map<String, dynamic>.from(snapshot['draft'] as Map)),
-          workdays: _maps(snapshot['workdays']).map(_workdayFromMap).toList(),
-          humans: _maps(snapshot['humans']).map(_humanFromMap).toList(),
-          procedureKinds:
-              _maps(snapshot['procedureKinds']).map(_kindFromMap).toList(),
-          assistants:
-              _maps(snapshot['assistants']).map(_assistantFromMap).toList(),
-          procedureSessions: _maps(snapshot['procedureSessions'])
-              .map(_sessionFromMap)
-              .toList(),
-          programSettings: ProgramSettings(
-              minimumTime:
-                  ProgramSettingsTime.fromJson(settings['minimumTime']),
-              maximumTime:
-                  ProgramSettingsTime.fromJson(settings['maximumTime'])),
-          onSubmit: (session, allowConflicts) async {
-            final response = await _mainChannel.invokeMethod<Map>(
-                'submitProcedureSession', {
-              'session': _sessionMap(session),
-              'allowConflicts': allowConflicts
-            });
-            if (response == null) {
-              return const ProcedureSessionSubmitResult.error(
-                  'Не удалось сохранить назначенную процедуру.');
-            }
-            final value = Map<String, dynamic>.from(response);
-            return value['didSave'] as bool
-                ? ProcedureSessionSubmitResult.saved(
-                    value['operationId'] as int)
-                : (value['conflictMessages'] as List).isNotEmpty
-                    ? ProcedureSessionSubmitResult.conflicts(
-                        (value['conflictMessages'] as List).cast<String>())
-                    : ProcedureSessionSubmitResult.error(
-                        value['errorMessage'] as String);
-          },
-          onSavedAndRendered: (operationId) => _mainChannel.invokeMethod<void>(
-              'procedureSessionRendered', operationId),
-          onClose: closeCurrentDesktopWindow,
-          onOpenStatistics: openProcedureStatisticsFromCurrentWindow,
-          isStatisticsOpeningAllowed: !_openedFromProcedureStatistics,
-        ))));
+                child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: ProcedureSessionEditorContent(
+                      key: ValueKey(_formVersion),
+                      viewModel: editor,
+                      initialValue: editor.createDraft(),
+                      isStatisticsOpeningAllowed:
+                          !_openedFromProcedureStatistics,
+                    )))));
   }
 }
 
@@ -2655,18 +2390,8 @@ Map<String, dynamic> _humanMap(Human h) => {
       'isParticipant': h.isParticipant,
       'isAssistant': h.isAssistant
     };
-Human _humanFromMap(Map<String, dynamic> m) => Human(
-    id: m['id'] as String,
-    name: m['name'] as String,
-    shortName: m['shortName'] as String,
-    isParticipant: m['isParticipant'] as bool,
-    isAssistant: m['isAssistant'] as bool);
 Map<String, dynamic> _assistantMap(Assistant a) =>
     {'id': a.id, 'name': a.name, 'shortName': a.shortName};
-Assistant _assistantFromMap(Map<String, dynamic> m) => Assistant(
-    id: m['id'] as String,
-    name: m['name'] as String,
-    shortName: m['shortName'] as String);
 Map<String, dynamic> _workdayMap(Workday d) =>
     {'id': d.id, 'name': d.name, 'date': _formatCalendarDate(d.calendarDate)};
 Workday _workdayFromMap(Map<String, dynamic> m) => Workday(
@@ -2679,14 +2404,6 @@ String _formatCalendarDate(DateTime value) {
   final month = value.month.toString().padLeft(2, '0');
   final day = value.day.toString().padLeft(2, '0');
   return '$year-$month-$day';
-}
-
-String _formatWorkdayDate(String value) {
-  final date = DateTime.tryParse(value);
-  if (date == null) return value;
-  final day = date.day.toString().padLeft(2, '0');
-  final month = date.month.toString().padLeft(2, '0');
-  return '$day.$month.${date.year}';
 }
 
 Map<String, dynamic> _kindMap(ProcedureKind k) => {
@@ -2795,39 +2512,6 @@ class DirectoryChildWindowScaffold extends StatelessWidget {
       );
 }
 
-class PeopleDirectoryFooter extends StatelessWidget {
-  const PeopleDirectoryFooter({
-    required this.isSaving,
-    required this.onClose,
-    super.key,
-  });
-
-  final bool isSaving;
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) => DecoratedBox(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: Color(0xFFD0D7DE))),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Align(
-            key: const Key('people_directory_footer'),
-            alignment: Alignment.center,
-            child: FilledButton(
-              key: const Key('people_directory_ok_button'),
-              onPressed: isSaving ? null : onClose,
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24),
-                child: Text('ОК'),
-              ),
-            ),
-          ),
-        ),
-      );
-}
-
 class DirectoryChildWindow extends StatefulWidget {
   const DirectoryChildWindow({super.key});
 
@@ -2839,20 +2523,19 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
   DesktopWindowKind? _kind;
   String? _entryId;
   int _procedureKindFormSession = 0;
-  List<Map<String, dynamic>> _entries = const [];
+  int _workdayFormSession = 0;
   List<double> _procedureKindsColumnWidths = const [];
   List<double> _workdaysColumnWidths = const [];
   bool _loading = true;
-  bool _saving = false;
   bool _hasModalChild = false;
-  String? _error;
-  final _name = TextEditingController();
-  final _shortName = TextEditingController();
-  final _date = TextEditingController();
   ProcedureKindsViewModel? _procedureKindsViewModel;
+  WorkdaysViewModel? _workdaysViewModel;
+  ParticipantsViewModel? _participantsViewModel;
+  AssistantsViewModel? _assistantsViewModel;
   DesktopWindowFeatureHandlerRegistration? _handlerRegistration;
   DesktopWindowCloseRequestHandlerRegistration? _closeRequestRegistration;
-  final _peopleDirectoryTableKey = GlobalKey<PeopleDirectoryTableState>();
+  final _participantsContentKey = GlobalKey<ParticipantsContentState>();
+  final _assistantsContentKey = GlobalKey<AssistantsContentState>();
 
   bool get _isEditor =>
       _kind == DesktopWindowKind.procedureKindEditor ||
@@ -2885,6 +2568,20 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
         Map<String, dynamic>.from(jsonDecode(controller.arguments) as Map);
     _kind = DesktopWindowKind.values.byName(args['kind'] as String);
     _entryId = args['entryId'] as String?;
+    if (_kind == DesktopWindowKind.participants) {
+      _participantsViewModel = ParticipantsViewModel.fromOperations(
+        IpcParticipantsOperations(
+          (method, arguments) => _mainChannel.invokeMethod(method, arguments),
+        ),
+      );
+    }
+    if (_kind == DesktopWindowKind.assistants) {
+      _assistantsViewModel = AssistantsViewModel.fromOperations(
+        IpcAssistantsOperations(
+          (method, arguments) => _mainChannel.invokeMethod(method, arguments),
+        ),
+      );
+    }
     if (_kind == DesktopWindowKind.procedureKinds ||
         _kind == DesktopWindowKind.procedureKindEditor) {
       _procedureKindsViewModel = ProcedureKindsViewModel(
@@ -2893,10 +2590,30 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
         ),
       );
     }
+    if (_kind == DesktopWindowKind.workdays ||
+        _kind == DesktopWindowKind.workdayEditor) {
+      _workdaysViewModel = WorkdaysViewModel.fromOperations(
+        IpcWorkdaysOperations(
+          (method, arguments) => _mainChannel.invokeMethod(method, arguments),
+        ),
+      );
+    }
     final registration =
         registerCurrentDesktopWindowFeatureHandler((call) async {
       switch (call.method) {
         case 'directory_changed':
+          if ((_workdaysViewModel?.isSaving ?? false) ||
+              (_procedureKindsViewModel?.isSaving ?? false)) {
+            return null;
+          }
+          if (_participantsViewModel case final viewModel?) {
+            if (!viewModel.isSaving) await viewModel.loadParticipants();
+            return null;
+          }
+          if (_assistantsViewModel case final viewModel?) {
+            if (!viewModel.isSaving) await viewModel.loadAssistants();
+            return null;
+          }
           if (_procedureKindsViewModel case final viewModel?) {
             await viewModel.loadProcedureKinds();
           }
@@ -2908,6 +2625,10 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
           if (_kind == DesktopWindowKind.procedureKindEditor) {
             _procedureKindFormSession += 1;
             _procedureKindsViewModel?.clearFormError();
+          }
+          if (_kind == DesktopWindowKind.workdayEditor) {
+            _workdayFormSession += 1;
+            _workdaysViewModel?.clearFormError();
           }
           await _load();
           return null;
@@ -2940,12 +2661,10 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
     if (_kind == null) return;
     setState(() {
       _loading = true;
-      _error = null;
     });
     try {
       final result = Map<String, dynamic>.from(await _mainChannel.invokeMethod(
           'directorySnapshot', _directory) as Map);
-      _entries = _maps(result['entries']);
       _procedureKindsColumnWidths =
           (result['procedureKindsColumnWidths'] as List? ?? const [])
               .whereType<num>()
@@ -2959,14 +2678,17 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
       if (_procedureKindsViewModel case final viewModel?) {
         await viewModel.loadProcedureKinds();
       }
-      if (_isEditor) {
-        final entry = _entryId == null
-            ? null
-            : _entries.where((item) => item['id'] == _entryId).firstOrNull;
-        _fillEditor(entry);
+      if (_workdaysViewModel case final viewModel?) {
+        await viewModel.loadWorkdays();
+      }
+      if (_participantsViewModel case final viewModel?) {
+        await viewModel.loadParticipants();
+      }
+      if (_assistantsViewModel case final viewModel?) {
+        await viewModel.loadAssistants();
       }
     } catch (_) {
-      _error = 'Не удалось загрузить данные.';
+      // The child keeps its current state when the main window is unavailable.
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -2990,55 +2712,21 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
   void dispose() {
     _handlerRegistration?.dispose();
     _closeRequestRegistration?.dispose();
-    _name.dispose();
-    _shortName.dispose();
-    _date.dispose();
     _procedureKindsViewModel?.dispose();
+    _workdaysViewModel?.dispose();
+    _participantsViewModel?.dispose();
+    _assistantsViewModel?.dispose();
     super.dispose();
   }
 
   Future<bool> _requestPeopleDirectoryClose() async {
-    return _peopleDirectoryTableKey.currentState?.requestClose() ?? true;
-  }
-
-  Future<void> _closePeopleDirectory() async {
-    await closeCurrentDesktopWindow();
-  }
-
-  void _fillEditor(Map<String, dynamic>? entry) {
-    _name.text = entry?['name'] as String? ?? '';
-    _shortName.text = entry?['shortName'] as String? ?? '';
-    _date.text = entry?['date'] as String? ??
-        (_kind == DesktopWindowKind.workdayEditor ? _nextWorkdayDate() : '');
-  }
-
-  Future<void> _mutate(String action,
-      {String? id, Map<String, dynamic>? entry}) async {
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-    try {
-      final result = Map<String, dynamic>.from(
-          await _mainChannel.invokeMethod('directoryMutate', {
-        'directory': _directory,
-        'action': action,
-        if (id != null) 'id': id,
-        'entry': entry ?? <String, dynamic>{},
-      }) as Map);
-      if (result['ok'] != true) throw StateError(result['error']);
-      if (_isEditor) {
-        await closeCurrentDesktopWindow();
-        return;
-      }
-      await _load();
-    } catch (error) {
-      if (mounted)
-        setState(
-            () => _error = error.toString().replaceFirst('Bad state: ', ''));
-    } finally {
-      if (mounted) setState(() => _saving = false);
+    if (_kind == DesktopWindowKind.participants) {
+      return await _participantsContentKey.currentState?.requestClose() ?? true;
     }
+    if (_kind == DesktopWindowKind.assistants) {
+      return await _assistantsContentKey.currentState?.requestClose() ?? true;
+    }
+    return true;
   }
 
   Future<void> _openEditor(String editorKind, [String? id]) async {
@@ -3108,421 +2796,64 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
       };
 
   Widget _directoryList(BuildContext contentContext) {
-    if (_isPeopleDirectory) {
-      return Column(
-        children: [
-          Expanded(
-            child: PeopleDirectoryTable(
-              key: _peopleDirectoryTableKey,
-              type: _kind == DesktopWindowKind.participants
-                  ? PeopleDirectoryType.participants
-                  : PeopleDirectoryType.assistants,
-              entries: _entries
-                  .map(
-                    (entry) => PeopleDirectoryEntry(
-                      id: entry['id'] as String,
-                      name: entry['name'] as String,
-                    ),
-                  )
-                  .toList(growable: false),
-              onMutate: _mutatePeople,
-              onCountReferences: (id) => _mainChannel.invokeMethod<int>(
-                'directoryReferences',
-                {'directory': _directory, 'id': id},
-              ).then((value) => value ?? 0),
-              onChanged: _load,
-            ),
-          ),
-          PeopleDirectoryFooter(
-            isSaving: _saving,
-            onClose: () => unawaited(_closePeopleDirectory()),
-          ),
-        ],
+    if (_kind == DesktopWindowKind.participants) {
+      return ParticipantsContent(
+        key: _participantsContentKey,
+        viewModel: _participantsViewModel!,
+        config: ParticipantsDialog.participantConfig,
+        windowMode: true,
+        onClose: closeCurrentDesktopWindow,
+      );
+    }
+    if (_kind == DesktopWindowKind.assistants) {
+      return AssistantsContent(
+        key: _assistantsContentKey,
+        viewModel: _assistantsViewModel!,
+        config: AssistantsDialog.assistantConfig,
+        windowMode: true,
+        onClose: closeCurrentDesktopWindow,
       );
     }
     if (_isWorkdaysDirectory) return _workdaysList(contentContext);
     throw StateError('Unsupported directory window kind: $_kind');
   }
 
-  Widget _workdaysList(BuildContext contentContext) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: FilledButton.tonal(
-              onPressed: _saving
-                  ? null
-                  : () => _openEditor(DesktopWindowKind.workdayEditor.name),
-              child: const Text('Создать'),
-            ),
+  Widget _workdaysList(BuildContext contentContext) => WorkdaysContent(
+        viewModel: _workdaysViewModel!,
+        columnWidths: _workdaysColumnWidths,
+        onColumnWidthsChanged: _saveWorkdaysColumnWidths,
+        onOpenCreate: () =>
+            unawaited(_openEditor(DesktopWindowKind.workdayEditor.name)),
+        onOpenEdit: (workday) => unawaited(
+            _openEditor(DesktopWindowKind.workdayEditor.name, workday.id)),
+        onOpenReorder: (workday) => unawaited(showDialog<void>(
+          context: contentContext,
+          builder: (context) => AlertDialog(
+            key: const Key('workday_reorder_dialog'),
+            title: Text('Перестановки: ${workday.name}'),
+            content: const Text(
+                'Заглушка. Здесь позже будет управление перестановками строк расписания.'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Закрыть'))
+            ],
           ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: _WorkdaysTable(
-              entries: _entries,
-              columnWidths: _workdaysColumnWidths,
-              onColumnWidthsChanged: _saveWorkdaysColumnWidths,
-              saving: _saving,
-              onEdit: (id) => _openEditor(
-                DesktopWindowKind.workdayEditor.name,
-                id,
-              ),
-              onDelete: (entry) => _deleteWorkday(contentContext, entry),
-            ),
-          ),
-        ],
+        )),
       );
 
-  Future<void> _deleteWorkday(
-    BuildContext contentContext,
-    Map<String, dynamic> entry,
-  ) async {
-    final name = entry['name'] as String;
-    final confirmed = await showDialog<bool>(
-      context: contentContext,
-      builder: (context) => AlertDialog(
-        title: const Text('Удалить день?'),
-        content: Text('День "$name" будет скрыт из списка.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Нет'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Продолжить'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-
-    final referencesCount = await _mainChannel.invokeMethod<int>(
-          'workdayReferences',
-          entry['id'] as String,
-        ) ??
-        0;
-    if (!mounted) return;
-    if (referencesCount > 0) {
-      await showDialog<void>(
-        context: contentContext,
-        builder: (context) => AlertDialog(
-          title: const Text('Невозможно удалить день'),
-          content: Text(
-            'День "$name" используется в $referencesCount '
-            '${_assignedProcedureWord(referencesCount)}. '
-            'Сначала удалите или переназначьте эти процедуры.',
-          ),
-          actions: [
-            FilledButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Понятно'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-    await _mutate('delete', id: entry['id'] as String);
-  }
-
-  Future<void> _selectWorkdayDate(BuildContext contentContext) async {
-    if (_saving) return;
-    final initialDate = DateTime.tryParse(_date.text) ?? DateTime.now();
-    final selectedDate = await showDatePicker(
-      context: contentContext,
-      initialDate: initialDate,
-      firstDate: DateTime(1900),
-      lastDate: DateTime(2100, 12, 31),
-    );
-    if (selectedDate == null || !mounted) return;
-    setState(() => _date.text = _formatCalendarDate(selectedDate));
-  }
-
-  String _nextWorkdayDate() {
-    final dates = _entries
-        .map((entry) => DateTime.tryParse(entry['date'] as String? ?? ''))
-        .whereType<DateTime>();
-    if (dates.isEmpty) {
-      return _formatCalendarDate(
-        DateTime.now().add(const Duration(days: 1)),
-      );
-    }
-    final latest = dates.reduce(
-      (left, right) => left.isAfter(right) ? left : right,
-    );
-    return _formatCalendarDate(latest.add(const Duration(days: 1)));
-  }
-
-  String _assignedProcedureWord(int count) {
-    final remainder100 = count % 100;
-    if (remainder100 >= 11 && remainder100 <= 14) {
-      return 'назначенных процедур';
-    }
-    return switch (count % 10) {
-      1 => 'назначенная процедура',
-      2 || 3 || 4 => 'назначенные процедуры',
-      _ => 'назначенных процедур',
-    };
-  }
-
-  Future<String?> _mutatePeople(
-    String action, {
-    String? id,
-    String? name,
-  }) async {
-    try {
-      final result = Map<String, dynamic>.from(
-        await _mainChannel.invokeMethod('directoryMutate', {
-          'directory': _directory,
-          'action': action,
-          if (id != null) 'id': id,
-          'entry': {
-            if (name != null) 'name': name,
-          },
-        }) as Map,
-      );
-      return result['ok'] == true
-          ? null
-          : result['error'] as String? ?? 'Не удалось сохранить изменения.';
-    } catch (_) {
-      return 'Не удалось сохранить изменения.';
-    }
-  }
-
-  Widget _editor(BuildContext contentContext) =>
-      Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        TextField(
-            controller: _name,
-            enabled: !_saving,
-            decoration: const InputDecoration(labelText: 'Название')),
-        const SizedBox(height: 12),
-        const Text('Дата'),
-        const SizedBox(height: 4),
-        OutlinedButton.icon(
-          onPressed: _saving ? null : () => _selectWorkdayDate(contentContext),
-          icon: const Icon(Icons.calendar_month),
-          label: Text(
-            _date.text.isEmpty
-                ? 'Выберите дату'
-                : _formatWorkdayDate(_date.text),
-          ),
-        ),
-        if (_error != null)
-          Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Text(_error!, style: const TextStyle(color: Colors.red))),
-        const Spacer(),
-        Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-          TextButton(
-              onPressed: _saving ? null : () => closeCurrentDesktopWindow(),
-              child: const Text('Отмена')),
-          const SizedBox(width: 12),
-          FilledButton(
-              onPressed: _saving
-                  ? null
-                  : () => _mutate(_entryId == null ? 'create' : 'update',
-                      id: _entryId, entry: _editorEntry),
-              child: Text(_entryId == null ? 'Создать' : 'Сохранить')),
-        ]),
-      ]);
-
-  Map<String, dynamic> get _editorEntry =>
-      {'name': _name.text, 'date': _date.text};
-}
-
-class _WorkdaysTable extends StatefulWidget {
-  const _WorkdaysTable({
-    required this.entries,
-    required this.columnWidths,
-    required this.onColumnWidthsChanged,
-    required this.saving,
-    required this.onEdit,
-    required this.onDelete,
-  });
-
-  final List<Map<String, dynamic>> entries;
-  final List<double> columnWidths;
-  final Future<void> Function(List<double>) onColumnWidthsChanged;
-  final bool saving;
-  final Future<void> Function(String id) onEdit;
-  final Future<void> Function(Map<String, dynamic> entry) onDelete;
-
-  @override
-  State<_WorkdaysTable> createState() => _WorkdaysTableState();
-}
-
-class _WorkdaysTableState extends State<_WorkdaysTable> {
-  static const _columns = [
-    _DirectoryTableColumn('Название', 260, 120),
-    _DirectoryTableColumn('Дата', 160, 100),
-    _DirectoryTableColumn('Изменить', 100, 72),
-    _DirectoryTableColumn('Удалить', 90, 72),
-  ];
-  late List<double> _widths;
-
-  @override
-  void initState() {
-    super.initState();
-    _widths = widget.columnWidths.length == _columns.length
-        ? List<double>.from(widget.columnWidths)
-        : _columns.map((column) => column.initialWidth).toList();
-  }
-
-  void _resize(int index, double delta) {
-    final current = _widths[index];
-    if (index == _columns.length - 1) {
-      final actual = delta.clamp(
-        _columns[index].minimumWidth - current,
-        double.infinity,
-      );
-      if (actual == 0) return;
-      setState(() => _widths[index] = current + actual);
-    } else {
-      final next = _widths[index + 1];
-      final actual = delta.clamp(
-        _columns[index].minimumWidth - current,
-        next - _columns[index + 1].minimumWidth,
-      );
-      if (actual == 0) return;
-      setState(() {
-        _widths[index] = current + actual;
-        _widths[index + 1] = next - actual;
-      });
-    }
-    unawaited(widget.onColumnWidthsChanged(List<double>.from(_widths)));
-  }
-
-  @override
-  Widget build(BuildContext context) => DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFFD0D7DE)),
-          borderRadius: BorderRadius.circular(12),
-          color: Colors.white,
-        ),
-        child: LayoutBuilder(builder: (context, constraints) {
-          final width = _widths.fold<double>(0, (sum, value) => sum + value);
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width:
-                  width < constraints.maxWidth ? constraints.maxWidth : width,
-              child: Column(children: [
-                Container(
-                  key: const Key('workdays_table_header'),
-                  height: 32,
-                  color: const Color(0xFFF2F5F8),
-                  child: Row(children: [
-                    for (var index = 0; index < _columns.length; index++)
-                      _DirectoryResizableHeaderCell(
-                        width: _widths[index],
-                        label: _columns[index].label,
-                        resizeHandleKey: Key('workdays_column_resizer_$index'),
-                        onResize: (delta) => _resize(index, delta),
-                      ),
-                  ]),
-                ),
-                const Divider(height: 1, color: Color(0xFFD7DFE8)),
-                Expanded(
-                    child: ListView.separated(
-                  itemCount: widget.entries.length,
-                  separatorBuilder: (_, __) =>
-                      const Divider(height: 1, color: Color(0xFFD7DFE8)),
-                  itemBuilder: (_, index) => _row(widget.entries[index]),
-                )),
-              ]),
-            ),
-          );
-        }),
-      );
-
-  Widget _row(Map<String, dynamic> entry) {
-    final id = entry['id'] as String;
-    return SizedBox(
-      height: 30,
-      child: Row(children: [
-        _DirectoryTableCell(_widths[0], Text(entry['name'] as String)),
-        _DirectoryTableCell(
-          _widths[1],
-          Text(_formatWorkdayDate(entry['date'] as String)),
-        ),
-        _DirectoryTableCell(
-          _widths[2],
-          TextButton(
-            onPressed:
-                widget.saving ? null : () => unawaited(widget.onEdit(id)),
-            child: const Text('Изм.'),
-          ),
-        ),
-        _DirectoryTableCell(
-          _widths[3],
-          TextButton(
-            onPressed:
-                widget.saving ? null : () => unawaited(widget.onDelete(entry)),
-            child: const Text('Удл.'),
-          ),
-        ),
-      ]),
+  Widget _editor(BuildContext contentContext) {
+    final viewModel = _workdaysViewModel!;
+    final entry = _entryId == null
+        ? viewModel.suggestDraftWorkday()
+        : viewModel.workdays.firstWhere((workday) => workday.id == _entryId);
+    return WorkdayFormContent(
+      key: ValueKey(_workdayFormSession),
+      viewModel: viewModel,
+      initialWorkday: entry,
+      isEditing: _entryId != null,
+      onSaved: (_) => unawaited(closeCurrentDesktopWindow()),
+      onCancel: () => unawaited(closeCurrentDesktopWindow()),
     );
   }
-}
-
-class _DirectoryTableColumn {
-  const _DirectoryTableColumn(this.label, this.initialWidth, this.minimumWidth);
-  final String label;
-  final double initialWidth;
-  final double minimumWidth;
-}
-
-class _DirectoryTableCell extends StatelessWidget {
-  const _DirectoryTableCell(this.width, this.child);
-  final double width;
-  final Widget child;
-  @override
-  Widget build(BuildContext context) => SizedBox(
-        width: width,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Align(alignment: Alignment.centerLeft, child: child),
-        ),
-      );
-}
-
-class _DirectoryResizableHeaderCell extends StatelessWidget {
-  const _DirectoryResizableHeaderCell({
-    required this.width,
-    required this.label,
-    required this.resizeHandleKey,
-    required this.onResize,
-  });
-  final double width;
-  final String label;
-  final Key resizeHandleKey;
-  final ValueChanged<double> onResize;
-  @override
-  Widget build(BuildContext context) => SizedBox(
-        width: width,
-        child: Stack(children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(label,
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: MouseRegion(
-              cursor: SystemMouseCursors.resizeColumn,
-              child: GestureDetector(
-                key: resizeHandleKey,
-                behavior: HitTestBehavior.opaque,
-                onHorizontalDragUpdate: (details) => onResize(details.delta.dx),
-                child: const SizedBox(width: 8, height: double.infinity),
-              ),
-            ),
-          ),
-        ]),
-      );
 }

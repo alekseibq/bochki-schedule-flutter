@@ -14,9 +14,76 @@ import '../../domain/procedure_sessions/conflict_resource_type.dart';
 import '../../domain/procedure_sessions/schedule_conflict_type.dart';
 import '../../domain/workdays/workday.dart';
 import '../../presentation/app_tooltips.dart';
+import 'procedure_session_editor_view_model.dart';
 import 'procedure_session_submit_result.dart';
 
-class ProcedureSessionDialog extends StatefulWidget {
+/// Binds the shared editor form to the host-independent ViewModel.
+class ProcedureSessionEditorContent extends StatelessWidget {
+  const ProcedureSessionEditorContent({
+    required this.viewModel,
+    required this.initialValue,
+    this.isStatisticsOpeningAllowed = true,
+    super.key,
+  });
+
+  final ProcedureSessionEditorViewModel viewModel;
+  final ProcedureSessionRaw initialValue;
+  final bool isStatisticsOpeningAllowed;
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: viewModel,
+        builder: (context, _) => ProcedureSessionFormContent(
+          initialValue: initialValue,
+          workdays: viewModel.workdays,
+          humans: viewModel.humans,
+          procedureKinds: viewModel.procedureKinds,
+          assistants: viewModel.assistants,
+          procedureSessions: viewModel.procedureSessions,
+          programSettings: viewModel.programSettings,
+          onSubmit: (value, allowConflicts) =>
+              viewModel.submit(value, allowConflicts: allowConflicts),
+          onSavedAndRendered: viewModel.logRenderedSave,
+          isSaving: viewModel.isSaving,
+          onClose: viewModel.close,
+          onOpenStatistics: viewModel.openStatistics,
+          isStatisticsOpeningAllowed: isStatisticsOpeningAllowed,
+        ),
+      );
+}
+
+class ProcedureSessionEditorDialog extends StatelessWidget {
+  const ProcedureSessionEditorDialog({
+    required this.viewModel,
+    required this.initialValue,
+    this.isStatisticsOpeningAllowed = true,
+    super.key,
+  });
+
+  final ProcedureSessionEditorViewModel viewModel;
+  final ProcedureSessionRaw initialValue;
+  final bool isStatisticsOpeningAllowed;
+
+  @override
+  Widget build(BuildContext context) {
+    final isEditing = initialValue.id != 'draft';
+    return AlertDialog(
+      key: Key(isEditing
+          ? 'procedure_session_edit_dialog'
+          : 'procedure_session_create_dialog'),
+      title: Text(isEditing
+          ? 'Редактирование назначенной процедуры'
+          : 'Новая назначенная процедура'),
+      content: ProcedureSessionEditorContent(
+        viewModel: viewModel,
+        initialValue: initialValue,
+        isStatisticsOpeningAllowed: isStatisticsOpeningAllowed,
+      ),
+    );
+  }
+}
+
+class ProcedureSessionDialog extends StatelessWidget {
   const ProcedureSessionDialog({
     required this.initialValue,
     required this.workdays,
@@ -54,10 +121,75 @@ class ProcedureSessionDialog extends StatefulWidget {
   bool get isEditing => initialValue.id != 'draft';
 
   @override
-  State<ProcedureSessionDialog> createState() => _ProcedureSessionDialogState();
+  Widget build(BuildContext context) => AlertDialog(
+        key: Key(isEditing
+            ? 'procedure_session_edit_dialog'
+            : 'procedure_session_create_dialog'),
+        title: Text(isEditing
+            ? 'Редактирование назначенной процедуры'
+            : 'Новая назначенная процедура'),
+        content: ProcedureSessionFormContent(
+          initialValue: initialValue,
+          workdays: workdays,
+          humans: humans,
+          procedureKinds: procedureKinds,
+          assistants: assistants,
+          procedureSessions: procedureSessions,
+          programSettings: programSettings,
+          onSubmit: onSubmit,
+          onOpenStatistics: onOpenStatistics,
+          isStatisticsOpeningAllowed: isStatisticsOpeningAllowed,
+          onSavedAndRendered: onSavedAndRendered,
+          onClose: onClose,
+          isSaving: isSaving,
+        ),
+      );
 }
 
-class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
+class ProcedureSessionFormContent extends StatefulWidget {
+  const ProcedureSessionFormContent({
+    required this.initialValue,
+    required this.workdays,
+    required this.humans,
+    required this.procedureKinds,
+    required this.assistants,
+    this.procedureSessions = const [],
+    required this.programSettings,
+    required this.onSubmit,
+    this.onOpenStatistics,
+    this.isStatisticsOpeningAllowed = true,
+    this.onSavedAndRendered,
+    this.onClose,
+    this.isSaving = false,
+    super.key,
+  });
+
+  final ProcedureSessionRaw initialValue;
+  final List<Workday> workdays;
+  final List<Human> humans;
+  final List<ProcedureKind> procedureKinds;
+  final List<Assistant> assistants;
+  final List<ProcedureSessionRaw> procedureSessions;
+  final ProgramSettings programSettings;
+  final Future<ProcedureSessionSubmitResult> Function(
+    ProcedureSessionRaw procedureSession,
+    bool allowConflicts,
+  ) onSubmit;
+  final Future<void> Function()? onOpenStatistics;
+  final bool isStatisticsOpeningAllowed;
+  final Future<void> Function(int operationId)? onSavedAndRendered;
+  final FutureOr<void> Function()? onClose;
+  final bool isSaving;
+
+  bool get isEditing => initialValue.id != 'draft';
+
+  @override
+  State<ProcedureSessionFormContent> createState() =>
+      _ProcedureSessionFormContentState();
+}
+
+class _ProcedureSessionFormContentState
+    extends State<ProcedureSessionFormContent> {
   late String _dayId;
   late String? _participantId;
   late String _procedureKindId;
@@ -469,303 +601,303 @@ class _ProcedureSessionDialogState extends State<ProcedureSessionDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      key: Key(
-        widget.isEditing
-            ? 'procedure_session_edit_dialog'
-            : 'procedure_session_create_dialog',
-      ),
-      title: Text(
-        widget.isEditing
-            ? 'Редактирование назначенной процедуры'
-            : 'Новая назначенная процедура',
-      ),
-      content: SizedBox(
-        width: 760,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: OutlinedButton(
-                  key: const Key('procedure_statistics_button'),
-                  onPressed: _isBusy ||
-                          !widget.isStatisticsOpeningAllowed ||
-                          widget.onOpenStatistics == null
-                      ? null
-                      : () => widget.onOpenStatistics!.call(),
-                  child: const Text('Открыть статистику процедур'),
-                ),
-              ),
-              const SizedBox(height: 16),
-              _DialogRow(
-                label: 'Процедура',
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        key:
-                            const Key('procedure_session_procedure_kind_field'),
-                        value: _procedureKindId,
-                        isExpanded: true,
-                        items: _buildProcedureKindItems(),
-                        onChanged: _isBusy
-                            ? null
-                            : (value) {
-                                if (value == null) {
-                                  return;
-                                }
-                                setState(() {
-                                  _procedureKindId = value;
-                                  if (!requiresAssistant) {
-                                    _assistantId = null;
-                                  }
-                                  _clearError();
-                                });
-                              },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    _infoTooltip(
-                      key: const Key('procedure_session_procedure_kind_info'),
-                      data: _procedureTooltip,
-                      emptyMessage: '',
-                      hasConflict: _selectedProcedureHasConflict,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              _DialogRow(
-                label: 'Участник',
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        key: const Key('procedure_session_participant_field'),
-                        value: _participantId,
-                        hint: const Text('Выберите участника'),
-                        isExpanded: true,
-                        items: _buildParticipantItems(),
-                        onChanged: _isBusy
-                            ? null
-                            : (value) {
-                                if (value == null) {
-                                  return;
-                                }
-                                setState(() {
-                                  _participantId = value;
-                                  _clearError();
-                                });
-                              },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    _infoTooltip(
-                      key: const Key('procedure_session_participant_info'),
-                      data: _personTooltip(_participantId),
-                      emptyMessage: 'Выберите участника',
-                      hasConflict: _selectedParticipantHasConflict,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                _scheduleHint,
-                key: const Key('procedure_session_schedule_hint'),
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 12),
-              Row(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: SizedBox(
+            width: 760,
+            child: SingleChildScrollView(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: _DialogRow(
-                      label: 'Время начала',
-                      child: Row(
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton(
+                      key: const Key('procedure_statistics_button'),
+                      onPressed: _isBusy ||
+                              !widget.isStatisticsOpeningAllowed ||
+                              widget.onOpenStatistics == null
+                          ? null
+                          : () => widget.onOpenStatistics!.call(),
+                      child: const Text('Открыть статистику процедур'),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _DialogRow(
+                    label: 'Процедура',
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            key: const Key(
+                                'procedure_session_procedure_kind_field'),
+                            value: _procedureKindId,
+                            isExpanded: true,
+                            items: _buildProcedureKindItems(),
+                            onChanged: _isBusy
+                                ? null
+                                : (value) {
+                                    if (value == null) {
+                                      return;
+                                    }
+                                    setState(() {
+                                      _procedureKindId = value;
+                                      if (!requiresAssistant) {
+                                        _assistantId = null;
+                                      }
+                                      _clearError();
+                                    });
+                                  },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _infoTooltip(
+                          key: const Key(
+                              'procedure_session_procedure_kind_info'),
+                          data: _procedureTooltip,
+                          emptyMessage: '',
+                          hasConflict: _selectedProcedureHasConflict,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _DialogRow(
+                    label: 'Участник',
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            key: const Key(
+                                'procedure_session_participant_field'),
+                            value: _participantId,
+                            hint: const Text('Выберите участника'),
+                            isExpanded: true,
+                            items: _buildParticipantItems(),
+                            onChanged: _isBusy
+                                ? null
+                                : (value) {
+                                    if (value == null) {
+                                      return;
+                                    }
+                                    setState(() {
+                                      _participantId = value;
+                                      _clearError();
+                                    });
+                                  },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _infoTooltip(
+                          key: const Key('procedure_session_participant_info'),
+                          data: _personTooltip(_participantId),
+                          emptyMessage: 'Выберите участника',
+                          hasConflict: _selectedParticipantHasConflict,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    _scheduleHint,
+                    key: const Key('procedure_session_schedule_hint'),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: _DialogRow(
+                          label: 'Время начала',
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 88,
+                                child: DropdownButtonFormField<String>(
+                                  key:
+                                      const Key('procedure_session_hour_field'),
+                                  value: _hour,
+                                  isExpanded: true,
+                                  items: [
+                                    for (final hour in _hours)
+                                      DropdownMenuItem<String>(
+                                        value: hour,
+                                        child: Text(hour),
+                                      ),
+                                  ],
+                                  onChanged: _isBusy
+                                      ? null
+                                      : (value) {
+                                          if (value == null) {
+                                            return;
+                                          }
+                                          setState(() {
+                                            _hour = value;
+                                            _clearError();
+                                          });
+                                        },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              SizedBox(
+                                width: 88,
+                                child: DropdownButtonFormField<String>(
+                                  key: const Key(
+                                      'procedure_session_minute_field'),
+                                  value: _minute,
+                                  isExpanded: true,
+                                  items: [
+                                    for (final minute in _availableMinutes)
+                                      DropdownMenuItem<String>(
+                                        value: minute,
+                                        child: Text(minute),
+                                      ),
+                                  ],
+                                  onChanged: _isBusy
+                                      ? null
+                                      : (value) {
+                                          if (value == null) {
+                                            return;
+                                          }
+                                          setState(() {
+                                            _minute = value;
+                                            _clearError();
+                                          });
+                                        },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 24),
+                      Expanded(
+                        child: _DialogRow(
+                          label: 'День',
+                          child: DropdownButtonFormField<String>(
+                            key: const Key('procedure_session_day_field'),
+                            value: _dayId,
+                            isExpanded: true,
+                            items: _buildWorkdayItems(),
+                            onChanged: _isBusy
+                                ? null
+                                : (value) {
+                                    if (value == null) {
+                                      return;
+                                    }
+                                    setState(() {
+                                      _dayId = value;
+                                      _clearError();
+                                    });
+                                  },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _DialogRow(
+                    label: 'Сопровождающий',
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            key: const Key('procedure_session_assistant_field'),
+                            value: _assistantId,
+                            isExpanded: true,
+                            hint: Text(requiresAssistant
+                                ? 'Выберите сопровождающего'
+                                : 'Не требуется'),
+                            items: _buildAssistantItems(),
+                            onChanged: !requiresAssistant || _isBusy
+                                ? null
+                                : (value) {
+                                    setState(() {
+                                      _assistantId = value;
+                                      _clearError();
+                                    });
+                                  },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _infoTooltip(
+                          key: const Key('procedure_session_assistant_info'),
+                          data: _personTooltip(_assistantId),
+                          emptyMessage: 'Выберите сопровождающего',
+                          hasConflict: _selectedAssistantHasConflict,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'Дополнительная информация',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFD0D7DE)),
+                      color: const Color(0xFFF8FAFC),
+                    ),
+                    child: Text('Время окончания процедуры: $_finishTime'),
+                  ),
+                  if (_conflictMessages.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFD08A26)),
+                        color: const Color(0xFFFFF7E8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          SizedBox(
-                            width: 88,
-                            child: DropdownButtonFormField<String>(
-                              key: const Key('procedure_session_hour_field'),
-                              value: _hour,
-                              isExpanded: true,
-                              items: [
-                                for (final hour in _hours)
-                                  DropdownMenuItem<String>(
-                                    value: hour,
-                                    child: Text(hour),
-                                  ),
-                              ],
-                              onChanged: _isBusy
-                                  ? null
-                                  : (value) {
-                                      if (value == null) {
-                                        return;
-                                      }
-                                      setState(() {
-                                        _hour = value;
-                                        _clearError();
-                                      });
-                                    },
-                            ),
+                          const Text(
+                            'Обнаружены конфликты. Повторное сохранение выполнит запись.',
+                            style: TextStyle(fontWeight: FontWeight.w600),
                           ),
-                          const SizedBox(width: 8),
-                          SizedBox(
-                            width: 88,
-                            child: DropdownButtonFormField<String>(
-                              key: const Key('procedure_session_minute_field'),
-                              value: _minute,
-                              isExpanded: true,
-                              items: [
-                                for (final minute in _availableMinutes)
-                                  DropdownMenuItem<String>(
-                                    value: minute,
-                                    child: Text(minute),
-                                  ),
-                              ],
-                              onChanged: _isBusy
-                                  ? null
-                                  : (value) {
-                                      if (value == null) {
-                                        return;
-                                      }
-                                      setState(() {
-                                        _minute = value;
-                                        _clearError();
-                                      });
-                                    },
-                            ),
-                          ),
+                          const SizedBox(height: 8),
+                          for (final message in _conflictMessages) ...[
+                            Text(message),
+                            const SizedBox(height: 6),
+                          ],
                         ],
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 24),
-                  Expanded(
-                    child: _DialogRow(
-                      label: 'День',
-                      child: DropdownButtonFormField<String>(
-                        key: const Key('procedure_session_day_field'),
-                        value: _dayId,
-                        isExpanded: true,
-                        items: _buildWorkdayItems(),
-                        onChanged: _isBusy
-                            ? null
-                            : (value) {
-                                if (value == null) {
-                                  return;
-                                }
-                                setState(() {
-                                  _dayId = value;
-                                  _clearError();
-                                });
-                              },
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _DialogRow(
-                label: 'Сопровождающий',
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        key: const Key('procedure_session_assistant_field'),
-                        value: _assistantId,
-                        isExpanded: true,
-                        hint: Text(requiresAssistant
-                            ? 'Выберите сопровождающего'
-                            : 'Не требуется'),
-                        items: _buildAssistantItems(),
-                        onChanged: !requiresAssistant || _isBusy
-                            ? null
-                            : (value) {
-                                setState(() {
-                                  _assistantId = value;
-                                  _clearError();
-                                });
-                              },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    _infoTooltip(
-                      key: const Key('procedure_session_assistant_info'),
-                      data: _personTooltip(_assistantId),
-                      emptyMessage: 'Выберите сопровождающего',
-                      hasConflict: _selectedAssistantHasConflict,
+                  ],
+                  if (_formErrorText != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      _formErrorText!,
+                      style: const TextStyle(color: Colors.red),
                     ),
                   ],
-                ),
+                ],
               ),
-              const SizedBox(height: 18),
-              const Text(
-                'Дополнительная информация',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFD0D7DE)),
-                  color: const Color(0xFFF8FAFC),
-                ),
-                child: Text('Время окончания процедуры: $_finishTime'),
-              ),
-              if (_conflictMessages.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFD08A26)),
-                    color: const Color(0xFFFFF7E8),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Обнаружены конфликты. Повторное сохранение выполнит запись.',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 8),
-                      for (final message in _conflictMessages) ...[
-                        Text(message),
-                        const SizedBox(height: 6),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-              if (_formErrorText != null) ...[
-                const SizedBox(height: 12),
-                Text(
-                  _formErrorText!,
-                  style: const TextStyle(color: Colors.red),
-                ),
-              ],
-            ],
+            ),
           ),
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: _isBusy ? null : () => unawaited(_close()),
-          child: const Text('Отмена'),
-        ),
-        FilledButton(
-          key: const Key('procedure_session_save_button'),
-          onPressed: _isBusy ? null : _submit,
-          child: const Text('Сохранить'),
-        ),
+        const SizedBox(height: 16),
+        Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+          TextButton(
+            onPressed: _isBusy ? null : () => unawaited(_close()),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            key: const Key('procedure_session_save_button'),
+            onPressed: _isBusy ? null : _submit,
+            child: const Text('Сохранить'),
+          ),
+        ]),
       ],
     );
   }

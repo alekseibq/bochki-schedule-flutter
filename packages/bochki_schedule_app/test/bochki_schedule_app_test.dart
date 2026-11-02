@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:bochki_schedule_app/bochki_schedule_app.dart';
 import 'package:bochki_schedule_app/src/data/ui_settings/ui_settings_repository.dart';
+import 'package:bochki_schedule_app/src/domain/procedure_statistics/build_procedure_statistics_table_use_case.dart';
+import 'package:bochki_schedule_app/src/domain/schedule_gaps/build_schedule_gaps_use_case.dart';
 import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
 import 'package:flutter/gestures.dart';
@@ -10,6 +12,82 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets(
+      'fallback free time opens a prefilled editor and refreshes after save',
+      (tester) async {
+    tester.view.physicalSize = const Size(1600, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final context = _buildTestContext(
+      enableFreeTime: true,
+      participants: [Participant(id: '1', name: 'Иван')],
+      procedureKinds: [
+        ProcedureKind(
+            id: '1',
+            patternId: ProcedureKindPatterns.single.patternId,
+            name: 'Бочка',
+            participantBusyTime: 30)
+      ],
+      workdays: [
+        Workday(id: '1', name: 'День', calendarDate: DateTime(2026, 1, 1))
+      ],
+    );
+    await tester.pumpWidget(BochkiScheduleApp(
+        services: context.services, enableDesktopWindows: false));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('reports_menu_button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Свободное время').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Свободное время'), findsWidgets);
+    expect(find.text('Не удалось загрузить свободное время.'), findsNothing);
+    expect(find.text('Нет данных по выбранным фильтрам'), findsNothing);
+    await tester.tap(find.text('Занять участника'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('procedure_session_create_dialog')),
+        findsOneWidget);
+    await tester.tap(find.byKey(const Key('procedure_session_save_button')));
+    await tester.pumpAndSettle();
+    expect(
+        context.procedureSessionsRepository.sessions.single.startTime, '08:00');
+    expect(
+        context.procedureSessionsRepository.sessions.single.participantId, '1');
+    expect(find.text('08:30'), findsWidgets);
+  });
+
+  testWidgets('fallback editor opens statistics without a recursive editor',
+      (tester) async {
+    tester.view.physicalSize = const Size(1600, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final context = _buildTestContext(
+      participants: [Participant(id: '1', name: 'Иван')],
+      procedureKinds: [
+        ProcedureKind(
+            id: '1',
+            patternId: ProcedureKindPatterns.single.patternId,
+            name: 'Бочка',
+            participantBusyTime: 30)
+      ],
+      workdays: [
+        Workday(id: '1', name: 'День', calendarDate: DateTime(2026, 1, 1))
+      ],
+    );
+    await tester.pumpWidget(BochkiScheduleApp(
+        services: context.services, enableDesktopWindows: false));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('add_procedure_session_button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('procedure_statistics_button')));
+    await tester.pumpAndSettle();
+    final addButton = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Добавить запись'));
+    expect(addButton.onPressed, isNull);
+    expect(find.byKey(const Key('procedure_statistics_day')), findsOneWidget);
+  });
+
   test('package exports compile', () {
     expect(BochkiScheduleApp, isNotNull);
   });
@@ -1622,12 +1700,13 @@ void main() {
     await tester.pumpAndSettle();
 
     final firstRow = find.byKey(const Key('participant_row_1'));
-    await _doubleMouseClick(tester, firstRow);
+    await tester.tap(firstRow);
+    await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('participant_name_field')),
       'Иван Петров',
     );
-    await _mouseClick(tester, find.byKey(const Key('participant_row_2')));
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
 
     expect(find.text('Иван Петров'), findsOneWidget);
@@ -1682,12 +1761,13 @@ void main() {
     await tester.pumpAndSettle();
 
     final firstRow = find.byKey(const Key('assistant_row_1'));
-    await _doubleMouseClick(tester, firstRow);
+    await tester.tap(firstRow);
+    await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('assistant_name_field')),
       'Иван Петров',
     );
-    await _mouseClick(tester, find.byKey(const Key('assistant_row_2')));
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
 
     expect(find.text('Иван Петров'), findsOneWidget);
@@ -2030,7 +2110,7 @@ void main() {
       '  День   22 ',
     );
     final dateField = find.byKey(const Key('workday_date_field'));
-    expect(tester.widget<TextField>(dateField).readOnly, isTrue);
+    expect(tester.widget<OutlinedButton>(dateField), isNotNull);
     await tester.tap(dateField);
     await tester.pumpAndSettle();
     expect(find.byType(CalendarDatePicker), findsOneWidget);
@@ -2094,6 +2174,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('workday_reorder_dialog')), findsNothing);
 
+    await tester.ensureVisible(find.byKey(const Key('workday_delete_2')));
     await tester.tap(find.byKey(const Key('workday_delete_2')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Продолжить'));
@@ -2105,7 +2186,7 @@ void main() {
     );
   });
 
-  testWidgets('single click selects row without opening inline edit', (
+  testWidgets('single click opens inline edit for row', (
     tester,
   ) async {
     final context = _buildTestContext(
@@ -2122,7 +2203,7 @@ void main() {
     await _mouseClick(tester, row);
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('participant_name_field')), findsNothing);
+    expect(find.byKey(const Key('participant_name_field')), findsOneWidget);
   });
 
   testWidgets('row becomes selected on mouse down before tap completes', (
@@ -2464,6 +2545,7 @@ Future<void> _openProgramSettingsDialog(WidgetTester tester) async {
 }
 
 _TestContext _buildTestContext({
+  bool enableFreeTime = false,
   List<Participant>? participants,
   List<Assistant>? assistants,
   List<ProcedureKind>? procedureKinds,
@@ -2576,6 +2658,25 @@ _TestContext _buildTestContext({
           UpdateProgramSettingsUseCase(programSettingsRepository),
       listProcedureSessionsUseCase: listProcedureSessionsUseCase,
       listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,
+      buildProcedureStatisticsTableUseCase:
+          BuildProcedureStatisticsTableUseCase(
+        listWorkdaysUseCase: ListWorkdaysUseCase(workdaysRepository),
+        listHumansUseCase: ListHumansUseCase(humansRepository),
+        listProcedureKindsUseCase:
+            ListProcedureKindsUseCase(procedureKindsRepository),
+        listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,
+      ),
+      buildScheduleGapsUseCase: enableFreeTime
+          ? BuildScheduleGapsUseCase(
+              listWorkdaysUseCase: ListWorkdaysUseCase(workdaysRepository),
+              listHumansUseCase: ListHumansUseCase(humansRepository),
+              listProcedureKindsUseCase:
+                  ListProcedureKindsUseCase(procedureKindsRepository),
+              listProcedureSessionsUseCase: listProcedureSessionsUseCase,
+              getProgramSettingsUseCase:
+                  GetProgramSettingsUseCase(programSettingsRepository),
+            )
+          : null,
       listProcedureSessionsWithConflictsUseCase:
           ListProcedureSessionsWithConflictsUseCase(
         listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,

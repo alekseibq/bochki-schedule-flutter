@@ -6,9 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../domain/named_directory/named_directory_entry.dart';
-import 'directory_table_state.dart';
-import 'named_directory_dialog_config.dart';
-import 'named_directory_view_model.dart';
+import 'participants_table_state.dart';
+import 'participants_dialog_config.dart';
+import 'participants_view_model.dart';
+import '../../domain/participants/participant.dart';
 
 const double _indicatorColumnWidth = 40;
 const Color _tableDividerColor = Color(0xFFD7DFE8);
@@ -16,48 +17,51 @@ const Color _rowBorderColor = Color(0xFFD8E1EA);
 const double _contextMenuWidth = 144;
 const double _contextMenuItemHeight = 44;
 
-class NamedDirectoryDialog<T extends NamedDirectoryEntry>
-    extends StatefulWidget {
-  const NamedDirectoryDialog({
+class ParticipantsContent extends StatefulWidget {
+  const ParticipantsContent({
     required this.viewModel,
     required this.config,
+    this.windowMode = false,
+    this.onClose,
     super.key,
   });
 
-  final NamedDirectoryViewModel<T> viewModel;
-  final NamedDirectoryDialogConfig<T> config;
+  final ParticipantsViewModel viewModel;
+  final ParticipantsDialogConfig<Participant> config;
+  final bool windowMode;
+  final Future<void> Function()? onClose;
 
   @override
-  State<NamedDirectoryDialog<T>> createState() =>
-      _NamedDirectoryDialogState<T>();
+  State<ParticipantsContent> createState() => ParticipantsContentState();
 }
 
-class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
-    extends State<NamedDirectoryDialog<T>>
-    implements NamedDirectoryDialogController<T> {
+class ParticipantsContentState extends State<ParticipantsContent>
+    implements ParticipantsDialogController<Participant> {
   final TextEditingController _nameController = TextEditingController();
   final FocusNode _editorFocusNode = FocusNode();
   final FocusNode _tableFocusNode = FocusNode();
   final GlobalKey _tableAreaKey = GlobalKey();
-  final DirectoryTableReducer _reducer = const DirectoryTableReducer();
+  final ParticipantsTableReducer _reducer = const ParticipantsTableReducer();
 
-  DirectoryTableState _tableState = const DirectoryTableNoSelection();
+  ParticipantsTableState _tableState = const ParticipantsTableNoSelection();
   String _editingColumnId = 'name';
   Future<bool>? _pendingSubmit;
 
-  NamedDirectoryDialogConfig<T> get _config => widget.config;
-  List<DirectoryRowActionSpec<T>> get _contextMenuActions => _config.rowActions
-      .where((action) =>
-          action.placement == DirectoryRowActionPlacement.contextMenu)
-      .toList(growable: false);
-  List<DirectoryRowActionSpec<T>> get _rowButtonActions => _config.rowActions
-      .where(
-          (action) => action.placement == DirectoryRowActionPlacement.rowButton)
-      .toList(growable: false);
+  ParticipantsDialogConfig<Participant> get _config => widget.config;
+  List<ParticipantsRowActionSpec<Participant>> get _contextMenuActions =>
+      _config.rowActions
+          .where((action) =>
+              action.placement == ParticipantsRowActionPlacement.contextMenu)
+          .toList(growable: false);
+  List<ParticipantsRowActionSpec<Participant>> get _rowButtonActions =>
+      _config.rowActions
+          .where((action) =>
+              action.placement == ParticipantsRowActionPlacement.rowButton)
+          .toList(growable: false);
 
-  List<DirectoryTableRowData> get _rows => [
+  List<ParticipantsTableRowData> get _rows => [
         for (final entry in widget.viewModel.entries)
-          DirectoryTableRowData(
+          ParticipantsTableRowData(
             id: entry.id,
             editValue: entry.name,
           ),
@@ -76,13 +80,13 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
     super.dispose();
   }
 
-  bool _isEditingEntry(T entry) {
+  bool _isEditingEntry(Participant entry) {
     final tableState = _tableState;
-    return tableState is DirectoryTableEditRow &&
+    return tableState is ParticipantsTableEditRow &&
         tableState.entryId == entry.id;
   }
 
-  bool _isSelectedEntry(T entry) {
+  bool _isSelectedEntry(Participant entry) {
     return _tableState.selectedEntryId == entry.id;
   }
 
@@ -102,10 +106,10 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
     });
   }
 
-  void _syncControllerFromState(DirectoryTableState state) {
+  void _syncControllerFromState(ParticipantsTableState state) {
     final nextText = switch (state) {
-      DirectoryTableEditRow(:final currentValue) => currentValue,
-      DirectoryTableEditNewRow(:final currentValue) => currentValue,
+      ParticipantsTableEditRow(:final currentValue) => currentValue,
+      ParticipantsTableEditNewRow(:final currentValue) => currentValue,
       _ => '',
     };
 
@@ -120,7 +124,7 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
   }
 
   void _setTableState(
-    DirectoryTableState nextState, {
+    ParticipantsTableState nextState, {
     bool clearFormError = false,
   }) {
     if (!mounted) {
@@ -148,7 +152,7 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
   }
 
   @override
-  T? findEntryById(String entryId) {
+  Participant? findEntryById(String entryId) {
     for (final entry in widget.viewModel.entries) {
       if (entry.id == entryId) {
         return entry;
@@ -179,7 +183,7 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
     );
   }
 
-  Future<bool> _submit(DirectoryTableSubmitRequest request) {
+  Future<bool> _submit(ParticipantsTableSubmitRequest request) {
     if (_pendingSubmit != null) {
       return _pendingSubmit!;
     }
@@ -187,9 +191,9 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
     final viewModel = widget.viewModel;
     final submitFuture = () async {
       final isSuccess = switch (request.mode) {
-        DirectoryTableSubmitMode.create =>
+        ParticipantsTableSubmitMode.create =>
           await viewModel.createEntry(request.rawValue),
-        DirectoryTableSubmitMode.update => await viewModel.updateEntry(
+        ParticipantsTableSubmitMode.update => await viewModel.updateEntry(
             entryId: request.entryId!,
             rawName: request.rawValue,
             fieldId: _editingColumnId,
@@ -205,7 +209,7 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
           _reducer.resolveSubmitSuccess(
             target: request.successTarget,
             rows: _rows,
-            createdEntryId: request.mode == DirectoryTableSubmitMode.create
+            createdEntryId: request.mode == ParticipantsTableSubmitMode.create
                 ? _findEntryIdByName(request.rawValue)
                 : null,
           ),
@@ -227,7 +231,7 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
   }
 
   void _dispatch(
-    DirectoryTableEvent event, {
+    ParticipantsTableEvent event, {
     bool clearFormError = false,
   }) {
     final viewModel = widget.viewModel;
@@ -252,25 +256,33 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
     }
   }
 
-  Future<void> _saveAndClose() async {
+  Future<bool> requestClose() async {
     final viewModel = widget.viewModel;
     if (viewModel.isLoading || viewModel.isSaving) {
-      return;
+      return false;
     }
 
     final transition = _reducer.reduce(
       state: _tableState,
-      event: const DirectoryTableEvent.clickOutside(),
+      event: const ParticipantsTableEvent.clickOutside(),
       rows: _rows,
     );
     _setTableState(transition.state);
 
     final submitRequest = transition.submitRequest;
     if (submitRequest != null && !await _submit(submitRequest)) {
-      return;
+      return false;
     }
 
-    if (mounted) {
+    return mounted;
+  }
+
+  Future<void> _saveAndClose() async {
+    if (!await requestClose() || !mounted) return;
+    final onClose = widget.onClose;
+    if (onClose != null) {
+      await onClose();
+    } else {
       Navigator.of(context).pop();
     }
   }
@@ -283,20 +295,20 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
     return renderObject.globalToLocal(globalPosition);
   }
 
-  void _handleEntryTapDown(T entry) {
+  void _handleEntryTapDown(Participant entry) {
     if (_tableState.isEditing) {
       return;
     }
 
     final tableState = _tableState;
-    if (tableState is DirectoryTableSelectedRow &&
+    if (tableState is ParticipantsTableSelectedRow &&
         tableState.entryId == entry.id &&
         !tableState.isContextMenuOpen) {
       return;
     }
 
     _setTableState(
-      DirectoryTableSelectedRow(entryId: entry.id),
+      ParticipantsTableSelectedRow(entryId: entry.id),
     );
   }
 
@@ -305,18 +317,19 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
     _editingColumnId = 'name';
     _setTableState(
       _reducer.resolveSubmitSuccess(
-        target: DirectoryTableSuccessTarget.editRow(entryId),
+        target: ParticipantsTableSuccessTarget.editRow(entryId),
         rows: _rows,
       ),
       clearFormError: true,
     );
   }
 
-  void _beginEditCell(T entry, DirectoryColumnSpec<T> column) {
+  void _beginEditCell(
+      Participant entry, ParticipantsColumnSpec<Participant> column) {
     final value = column.editValue?.call(entry) ?? column.cellText(entry);
     _editingColumnId = column.id;
     _setTableState(
-      DirectoryTableEditRow(
+      ParticipantsTableEditRow(
         entryId: entry.id,
         initialValue: value,
         currentValue: value,
@@ -326,7 +339,7 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
   }
 
   @override
-  Future<void> deleteEntry(T entry) async {
+  Future<void> deleteEntry(Participant entry) async {
     final previousEntries = widget.viewModel.entries;
     final deletedIndex = previousEntries.indexWhere(
       (candidate) => candidate.id == entry.id,
@@ -399,13 +412,13 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
 
     final nextEntries = widget.viewModel.entries;
     if (nextEntries.isEmpty) {
-      _setTableState(const DirectoryTableNoSelection());
+      _setTableState(const ParticipantsTableNoSelection());
       return;
     }
 
     final nextSelectionIndex = deletedIndex.clamp(0, nextEntries.length - 1);
     _setTableState(
-      DirectoryTableSelectedRow(
+      ParticipantsTableSelectedRow(
         entryId: nextEntries[nextSelectionIndex].id,
       ),
     );
@@ -430,20 +443,20 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
     }
 
     if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-      _dispatch(const DirectoryTableEvent.pressArrowDown());
+      _dispatch(const ParticipantsTableEvent.pressArrowDown());
       return true;
     }
     if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-      _dispatch(const DirectoryTableEvent.pressArrowUp());
+      _dispatch(const ParticipantsTableEvent.pressArrowUp());
       return true;
     }
     if (event.logicalKey == LogicalKeyboardKey.escape) {
-      _dispatch(const DirectoryTableEvent.pressEscape());
+      _dispatch(const ParticipantsTableEvent.pressEscape());
       return true;
     }
     if (_isEnterKey(event.logicalKey) ||
         event.logicalKey == LogicalKeyboardKey.f2) {
-      _dispatch(const DirectoryTableEvent.pressEnter());
+      _dispatch(const ParticipantsTableEvent.pressEnter());
       return true;
     }
 
@@ -468,7 +481,7 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
   Widget _buildHeaderRow(BuildContext context, int count) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => _dispatch(const DirectoryTableEvent.clickOutside()),
+      onTap: () => _dispatch(const ParticipantsTableEvent.clickOutside()),
       child: Container(
         color: const Color(0xFFD7E8FB),
         padding: const EdgeInsets.symmetric(vertical: 10),
@@ -568,26 +581,26 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
     return const SizedBox.shrink();
   }
 
-  Widget _buildNameEditor(NamedDirectoryViewModel<T> viewModel) {
+  Widget _buildNameEditor(ParticipantsViewModel viewModel) {
     return Focus(
       onKeyEvent: (node, event) {
         if (event is! KeyDownEvent) {
           return KeyEventResult.ignored;
         }
         if (event.logicalKey == LogicalKeyboardKey.escape) {
-          _dispatch(const DirectoryTableEvent.pressEscape());
+          _dispatch(const ParticipantsTableEvent.pressEscape());
           return KeyEventResult.handled;
         }
         if (_isEnterKey(event.logicalKey)) {
-          _dispatch(const DirectoryTableEvent.pressEnter());
+          _dispatch(const ParticipantsTableEvent.pressEnter());
           return KeyEventResult.handled;
         }
         if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-          _dispatch(const DirectoryTableEvent.pressArrowUp());
+          _dispatch(const ParticipantsTableEvent.pressArrowUp());
           return KeyEventResult.handled;
         }
         if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-          _dispatch(const DirectoryTableEvent.pressArrowDown());
+          _dispatch(const ParticipantsTableEvent.pressArrowDown());
           return KeyEventResult.handled;
         }
         return KeyEventResult.ignored;
@@ -609,19 +622,20 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
         ),
         textInputAction: TextInputAction.done,
         onChanged: (value) => _dispatch(
-          DirectoryTableEvent.textChanged(value),
+          ParticipantsTableEvent.textChanged(value),
           clearFormError: true,
         ),
-        onSubmitted: (_) => _dispatch(const DirectoryTableEvent.pressEnter()),
+        onSubmitted: (_) =>
+            _dispatch(const ParticipantsTableEvent.pressEnter()),
       ),
     );
   }
 
   List<Widget> _buildDisplayColumns(
     BuildContext context,
-    T entry, {
+    Participant entry, {
     required bool isEditing,
-    required NamedDirectoryViewModel<T> viewModel,
+    required ParticipantsViewModel viewModel,
   }) {
     return [
       for (final column in _config.columns)
@@ -629,7 +643,7 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
           flex: column.flex,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onDoubleTap: viewModel.isSaving || isEditing
+            onTap: viewModel.isSaving || isEditing
                 ? null
                 : () => _beginEditCell(entry, column),
             child: Padding(
@@ -646,7 +660,7 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
     ];
   }
 
-  Widget _buildRowButtons(T entry) {
+  Widget _buildRowButtons(Participant entry) {
     if (_rowButtonActions.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -666,8 +680,8 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
 
   Widget _buildEntryRow(
     BuildContext context,
-    NamedDirectoryViewModel<T> viewModel,
-    T entry,
+    ParticipantsViewModel viewModel,
+    Participant entry,
   ) {
     final isEditing = _isEditingEntry(entry);
     final isSelected = _isSelectedEntry(entry);
@@ -688,16 +702,13 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
             },
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: viewModel.isSaving || !_tableState.isEditing
-            ? null
-            : () => _dispatch(DirectoryTableEvent.clickRow(entry.id)),
-        onDoubleTap: viewModel.isSaving
+        onTap: viewModel.isSaving
             ? null
             : () => _beginEditCell(entry, _config.columns.first),
         onSecondaryTapDown: viewModel.isSaving
             ? null
             : (details) => _dispatch(
-                  DirectoryTableEvent.rightClickRow(
+                  ParticipantsTableEvent.rightClickRow(
                     entryId: entry.id,
                     position: _toTableLocalPosition(details.globalPosition),
                   ),
@@ -731,6 +742,22 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
                           isEditing: isEditing,
                           viewModel: viewModel,
                         ),
+                        if (!isEditing) ...[
+                          TextButton(
+                            key: Key('participant_edit_${entry.id}'),
+                            onPressed: viewModel.isSaving
+                                ? null
+                                : () => beginEdit(entry.id),
+                            child: const Text('изм.'),
+                          ),
+                          TextButton(
+                            key: Key('participant_delete_${entry.id}'),
+                            onPressed: viewModel.isSaving
+                                ? null
+                                : () => unawaited(deleteEntry(entry)),
+                            child: const Text('удл.'),
+                          ),
+                        ],
                         if (_rowButtonActions.isNotEmpty)
                           _buildRowButtons(entry),
                       ],
@@ -747,9 +774,9 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
 
   Widget _buildAddRow(
     BuildContext context,
-    NamedDirectoryViewModel<T> viewModel,
+    ParticipantsViewModel viewModel,
   ) {
-    final isEditing = _tableState is DirectoryTableEditNewRow;
+    final isEditing = _tableState is ParticipantsTableEditNewRow;
     final backgroundColor =
         isEditing ? const Color(0xFFDDEAF8) : const Color(0xFFE8F0F6);
 
@@ -759,12 +786,12 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
       onTap: viewModel.isSaving
           ? null
           : () => _dispatch(
-                const DirectoryTableEvent.clickNewRow(),
+                const ParticipantsTableEvent.clickNewRow(),
                 clearFormError: true,
               ),
       onSecondaryTapDown: viewModel.isSaving
           ? null
-          : (_) => _dispatch(const DirectoryTableEvent.rightClickNewRow()),
+          : (_) => _dispatch(const ParticipantsTableEvent.rightClickNewRow()),
       child: Container(
         decoration: const BoxDecoration(
           border: Border(
@@ -807,7 +834,7 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
 
   Widget _buildContextMenu(Size size) {
     final tableState = _tableState;
-    if (tableState is! DirectoryTableSelectedRow ||
+    if (tableState is! ParticipantsTableSelectedRow ||
         tableState.contextMenuPosition == null) {
       return const SizedBox.shrink();
     }
@@ -861,7 +888,7 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
 
   Widget _buildTableArea(
     BuildContext context,
-    NamedDirectoryViewModel<T> viewModel,
+    ParticipantsViewModel viewModel,
   ) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -872,7 +899,7 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () =>
-                    _dispatch(const DirectoryTableEvent.clickOutside()),
+                    _dispatch(const ParticipantsTableEvent.clickOutside()),
                 child: const DecoratedBox(
                   decoration: BoxDecoration(
                     color: Color(0xFFF9FBFD),
@@ -906,104 +933,107 @@ class _NamedDirectoryDialogState<T extends NamedDirectoryEntry>
       builder: (context, child) {
         final viewModel = widget.viewModel;
 
-        return Dialog(
-          key: Key(_config.dialogKey),
-          insetPadding: const EdgeInsets.all(24),
-          clipBehavior: Clip.antiAlias,
-          child: Focus(
-            autofocus: true,
-            focusNode: _tableFocusNode,
-            onKeyEvent: (node, event) => _handleTableKeyEvent(event)
-                ? KeyEventResult.handled
-                : KeyEventResult.ignored,
-            child: SizedBox(
-              width: 720,
-              height: 560,
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(20, 14, 8, 14),
+        final content = Focus(
+          autofocus: true,
+          focusNode: _tableFocusNode,
+          onKeyEvent: (node, event) => _handleTableKeyEvent(event)
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored,
+          child: SizedBox(
+            width: 720,
+            height: 560,
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 8, 14),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF4F7FA),
+                    border: Border(
+                      bottom: BorderSide(color: Color(0xFFD0D7DE)),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => _dispatch(
+                            const ParticipantsTableEvent.clickOutside(),
+                          ),
+                          child: Text(
+                            _config.dialogTitle,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Закрыть',
+                        onPressed: () => unawaited(_saveAndClose()),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: viewModel.isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : viewModel.loadErrorMessage != null
+                          ? _NamedDirectoryLoadError(
+                              message: viewModel.loadErrorMessage!,
+                              retryButtonText: _config.retryButtonText,
+                              onRetry: viewModel.loadEntries,
+                            )
+                          : Column(
+                              children: [
+                                _buildHeaderRow(
+                                  context,
+                                  viewModel.entries.length,
+                                ),
+                                Expanded(
+                                  child: _buildTableArea(context, viewModel),
+                                ),
+                              ],
+                            ),
+                ),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () =>
+                      _dispatch(const ParticipantsTableEvent.clickOutside()),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
                     decoration: const BoxDecoration(
                       color: Color(0xFFF4F7FA),
                       border: Border(
-                        bottom: BorderSide(color: Color(0xFFD0D7DE)),
+                        top: BorderSide(color: Color(0xFFD0D7DE)),
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () => _dispatch(
-                              const DirectoryTableEvent.clickOutside(),
-                            ),
-                            child: Text(
-                              _config.dialogTitle,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleLarge
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: 'Закрыть',
-                          onPressed: () => Navigator.of(context).pop(),
-                          icon: const Icon(Icons.close),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: viewModel.isLoading
-                        ? const Center(child: CircularProgressIndicator())
-                        : viewModel.loadErrorMessage != null
-                            ? _NamedDirectoryLoadError(
-                                message: viewModel.loadErrorMessage!,
-                                retryButtonText: _config.retryButtonText,
-                                onRetry: viewModel.loadEntries,
-                              )
-                            : Column(
-                                children: [
-                                  _buildHeaderRow(
-                                    context,
-                                    viewModel.entries.length,
-                                  ),
-                                  Expanded(
-                                    child: _buildTableArea(context, viewModel),
-                                  ),
-                                ],
-                              ),
-                  ),
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () =>
-                        _dispatch(const DirectoryTableEvent.clickOutside()),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFF4F7FA),
-                        border: Border(
-                          top: BorderSide(color: Color(0xFFD0D7DE)),
-                        ),
-                      ),
-                      child: Align(
-                        key: const Key('named_directory_dialog_footer'),
-                        alignment: Alignment.center,
-                        child: FilledButton(
-                          onPressed: viewModel.isSaving
-                              ? null
-                              : () => unawaited(_saveAndClose()),
-                          child: Text(_config.okButtonText),
-                        ),
+                    child: Align(
+                      key: const Key('named_directory_dialog_footer'),
+                      alignment: Alignment.center,
+                      child: FilledButton(
+                        onPressed: viewModel.isSaving
+                            ? null
+                            : () => unawaited(_saveAndClose()),
+                        child: Text(_config.okButtonText),
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );
+        return widget.windowMode
+            ? content
+            : Dialog(
+                key: Key(_config.dialogKey),
+                insetPadding: const EdgeInsets.all(24),
+                clipBehavior: Clip.antiAlias,
+                child: content,
+              );
       },
     );
   }
