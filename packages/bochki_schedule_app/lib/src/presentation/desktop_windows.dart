@@ -42,6 +42,7 @@ import '../features/participants/participants_content.dart';
 import '../features/participants/participants_dialog.dart';
 import '../features/participants/participants_view_model.dart';
 import '../features/procedure_statistics/procedure_statistics_dialog.dart';
+import '../features/procedure_statistics/ipc_procedure_statistics_operations.dart';
 import '../features/procedure_statistics/procedure_statistics_view_model.dart';
 import '../features/quick_reassignments/quick_reassignments_dialog.dart';
 import '../features/quick_reassignments/quick_reassignments_view_model.dart';
@@ -2011,24 +2012,11 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
   @override
   void initState() {
     super.initState();
-    _viewModel =
-        ProcedureStatisticsViewModel.fromLoader((dayId, people, mode) async {
-      final result = Map<String, dynamic>.from(
-          await _mainChannel.invokeMethod<Map>('statistics', {
-                'dayId': dayId,
-                'peopleFilter': people.name,
-                'mode': mode.name,
-              }) ??
-              const {});
-      return ProcedureStatisticsSnapshot(
-        workdays: _maps(result['workdays']).map(_workdayFromMap).toList(),
-        table: ProcedureStatisticsTable(
-          people: _maps(result['people']).map(_humanFromMap).toList(),
-          kinds: _maps(result['kinds']).map(_kindFromMap).toList(),
-          counts: Map<String, int>.from(result['counts'] as Map? ?? const {}),
-        ),
-      );
-    });
+    _viewModel = ProcedureStatisticsViewModel.fromOperations(
+      IpcProcedureStatisticsOperations(
+        (method, arguments) => _mainChannel.invokeMethod(method, arguments),
+      ),
+    );
     _listenForChanges();
     _loadWindowContext();
     _load();

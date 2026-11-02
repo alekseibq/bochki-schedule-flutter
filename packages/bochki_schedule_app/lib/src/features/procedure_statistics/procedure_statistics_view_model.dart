@@ -3,19 +3,18 @@ import '../../domain/procedure_statistics/build_procedure_statistics_table_use_c
 import '../../domain/procedure_statistics/procedure_statistics_table.dart';
 import '../../domain/workdays/list_workdays_use_case.dart';
 import '../../domain/workdays/workday.dart';
+import 'procedure_statistics_operations.dart';
 
 final class ProcedureStatisticsViewModel extends ChangeNotifier {
   ProcedureStatisticsViewModel(
       {required BuildProcedureStatisticsTableUseCase buildUseCase,
       required ListWorkdaysUseCase listWorkdaysUseCase})
-      : _load = ((dayId, people, mode) async => ProcedureStatisticsSnapshot(
-              workdays: await listWorkdaysUseCase.execute(),
-              table: await buildUseCase.execute(
-                  dayId: dayId, peopleFilter: people, mode: mode),
-            ));
-  ProcedureStatisticsViewModel.fromLoader(this._load);
-  final Future<ProcedureStatisticsSnapshot> Function(
-      String?, ProcedureStatisticsPeopleFilter, ProcedureStatisticsMode) _load;
+      : _operations = UseCaseProcedureStatisticsOperations(
+          buildUseCase: buildUseCase,
+          listWorkdaysUseCase: listWorkdaysUseCase,
+        );
+  ProcedureStatisticsViewModel.fromOperations(this._operations);
+  final ProcedureStatisticsOperations _operations;
   List<Workday> workdays = const [];
   ProcedureStatisticsTable? table;
   bool isLoading = false;
@@ -35,7 +34,8 @@ final class ProcedureStatisticsViewModel extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      final snapshot = await _load(selectedDay, selectedPeople, selectedMode);
+      final snapshot = await _operations.load(
+          dayId: selectedDay, peopleFilter: selectedPeople, mode: selectedMode);
       if (_disposed || version != _loadVersion) return;
       workdays = snapshot.workdays;
       table = snapshot.table;
@@ -70,11 +70,4 @@ final class ProcedureStatisticsViewModel extends ChangeNotifier {
     _disposed = true;
     super.dispose();
   }
-}
-
-final class ProcedureStatisticsSnapshot {
-  const ProcedureStatisticsSnapshot(
-      {required this.workdays, required this.table});
-  final List<Workday> workdays;
-  final ProcedureStatisticsTable table;
 }
