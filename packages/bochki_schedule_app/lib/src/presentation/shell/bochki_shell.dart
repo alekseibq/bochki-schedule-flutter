@@ -12,6 +12,7 @@ import '../../features/print_presets/print_preset_params_dialog.dart';
 import '../../features/print_presets/print_preset_params_view_model.dart';
 import '../../features/procedure_sessions/procedure_session_dialog.dart';
 import '../../features/procedure_sessions/procedure_session_editor_operations.dart';
+import '../../features/procedure_sessions/procedure_session_editor_view_model.dart';
 import '../../features/procedure_sessions/procedure_sessions_view_model.dart';
 import '../../features/procedure_statistics/procedure_statistics_dialog.dart';
 import '../../features/procedure_statistics/procedure_statistics_view_model.dart';
@@ -841,6 +842,10 @@ class _BochkiShellState extends State<BochkiShell> {
   }) async {
     final editorOperations =
         DirectProcedureSessionEditorOperations(_procedureSessionsViewModel);
+    final editor = ProcedureSessionEditorViewModel(
+      sessions: _procedureSessionsViewModel,
+      operations: editorOperations,
+    );
     final initialValue = isEditing
         ? _procedureSessionsViewModel.entries
             .firstWhere((entry) => entry.id == procedureSessionId!)
@@ -857,28 +862,31 @@ class _BochkiShellState extends State<BochkiShell> {
       }
       return;
     }
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return ProcedureSessionDialog(
-          initialValue: initialValue,
-          workdays: _procedureSessionsViewModel.workdays,
-          humans: _procedureSessionsViewModel.humans,
-          procedureKinds: _procedureSessionsViewModel.procedureKinds,
-          assistants: _procedureSessionsViewModel.assistants,
-          procedureSessions: _procedureSessionsViewModel.allProcedureSessions,
-          programSettings: _procedureSessionsViewModel.programSettings,
-          onSubmit: (procedureSession, allowConflicts) =>
-              editorOperations.submit(
-            procedureSession,
-            allowConflicts: allowConflicts,
-          ),
-          onSavedAndRendered: editorOperations.logRenderedSave,
-          isSaving: _procedureSessionsViewModel.isSaving,
-        );
-      },
-    );
+    try {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return ProcedureSessionDialog(
+            initialValue: initialValue,
+            workdays: editor.workdays,
+            humans: editor.humans,
+            procedureKinds: editor.procedureKinds,
+            assistants: editor.assistants,
+            procedureSessions: editor.procedureSessions,
+            programSettings: editor.programSettings,
+            onSubmit: (procedureSession, allowConflicts) => editor.submit(
+              procedureSession,
+              allowConflicts: allowConflicts,
+            ),
+            onSavedAndRendered: editor.logRenderedSave,
+            isSaving: editor.isSaving,
+          );
+        },
+      );
+    } finally {
+      editor.dispose();
+    }
   }
 
   Future<void> _confirmDeleteProcedureSession(String procedureSessionId) async {
