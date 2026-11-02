@@ -19,6 +19,9 @@ import '../../features/procedure_statistics/procedure_statistics_dialog.dart';
 import '../../features/procedure_statistics/procedure_statistics_view_model.dart';
 import '../../features/quick_reassignments/quick_reassignments_dialog.dart';
 import '../../features/quick_reassignments/quick_reassignments_view_model.dart';
+import '../../features/free_time/free_time_dialog.dart';
+import '../../features/free_time/free_time_view_model.dart';
+import '../../domain/procedure_sessions/procedure_session_raw.dart';
 import '../../domain/procedure_sessions/schedule_conflict_target.dart';
 import '../app_tooltips.dart';
 import '../../features/procedure_kinds/procedure_kinds_dialog.dart';
@@ -538,7 +541,37 @@ class _BochkiShellState extends State<BochkiShell> {
     }
   }
 
-  Future<void> _openFreeTime() async => _desktopWindows?.openFreeTime();
+  Future<void> _openFreeTime() async {
+    final coordinator = _desktopWindows;
+    if (coordinator != null) return coordinator.openFreeTime();
+    final build = widget.services.buildScheduleGapsUseCase;
+    if (build == null) return;
+    final viewModel = FreeTimeViewModel(
+      buildScheduleGapsUseCase: build,
+      listWorkdaysUseCase: widget.services.listWorkdaysUseCase,
+    );
+    try {
+      unawaited(viewModel.load());
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => FreeTimeDialog(
+          viewModel: viewModel,
+          onOccupy: (gap) => _openProcedureSessionDialog(
+            isEditing: false,
+            initialValue: _procedureSessionsViewModel.createDraft().copyWith(
+                  dayId: gap.workday.id,
+                  participantId: gap.human.id,
+                  startTime: gap.startTime,
+                ),
+          ),
+        ),
+      );
+    } finally {
+      viewModel.dispose();
+    }
+  }
 
   Future<void> _openQuickReassignments() async {
     final useCase = widget.services.quickReassignmentsUseCase;
@@ -876,6 +909,7 @@ class _BochkiShellState extends State<BochkiShell> {
   Future<void> _openProcedureSessionDialog({
     required bool isEditing,
     String? procedureSessionId,
+    ProcedureSessionRaw? initialValue,
   }) async {
     final editorOperations =
         DirectProcedureSessionEditorOperations(_procedureSessionsViewModel);
@@ -883,15 +917,16 @@ class _BochkiShellState extends State<BochkiShell> {
       sessions: _procedureSessionsViewModel,
       operations: editorOperations,
     );
-    final initialValue = isEditing
-        ? _procedureSessionsViewModel.entries
-            .firstWhere((entry) => entry.id == procedureSessionId!)
-            .raw
-        : _procedureSessionsViewModel.createDraft();
+    final resolvedInitialValue = initialValue ??
+        (isEditing
+            ? _procedureSessionsViewModel.entries
+                .firstWhere((entry) => entry.id == procedureSessionId!)
+                .raw
+            : _procedureSessionsViewModel.createDraft());
     final coordinator = _desktopWindows;
     if (coordinator != null) {
       try {
-        await coordinator.openSession(initialValue: initialValue);
+        await coordinator.openSession(initialValue: resolvedInitialValue);
       } catch (_) {
         if (mounted) {
           _showError('Не удалось открыть окно назначенной процедуры.');
@@ -905,7 +940,7 @@ class _BochkiShellState extends State<BochkiShell> {
         barrierDismissible: false,
         builder: (context) {
           return ProcedureSessionDialog(
-            initialValue: initialValue,
+            initialValue: resolvedInitialValue,
             workdays: editor.workdays,
             humans: editor.humans,
             procedureKinds: editor.procedureKinds,
