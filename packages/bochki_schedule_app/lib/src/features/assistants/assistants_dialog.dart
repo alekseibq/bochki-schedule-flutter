@@ -1,19 +1,19 @@
 import '../../domain/assistants/assistant.dart';
-import '../directory/named_directory_dialog.dart';
 import '../directory/named_directory_dialog_config.dart';
 
+import 'assistants_content.dart';
 import 'assistants_view_model.dart';
 
-class AssistantsDialog extends NamedDirectoryDialog<Assistant> {
+class AssistantsDialog extends AssistantsContent {
   const AssistantsDialog({
     required AssistantsViewModel viewModel,
     super.key,
   }) : super(
           viewModel: viewModel,
-          config: _config,
+          config: assistantConfig,
         );
 
-  static const NamedDirectoryDialogConfig<Assistant> _config =
+  static const NamedDirectoryDialogConfig<Assistant> assistantConfig =
       NamedDirectoryDialogConfig<Assistant>(
     dialogKey: 'assistants_directory_dialog',
     tableDividerKey: 'assistants_table_divider',

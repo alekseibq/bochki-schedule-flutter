@@ -33,7 +33,10 @@ import '../features/procedure_kinds/ipc_procedure_kinds_operations.dart';
 import '../features/procedure_kinds/procedure_kind_form_content.dart';
 import '../features/procedure_kinds/procedure_kinds_dialog.dart';
 import '../features/procedure_kinds/procedure_kinds_view_model.dart';
-import '../features/directory/people_directory_table.dart';
+import '../features/assistants/ipc_assistants_operations.dart';
+import '../features/assistants/assistants_content.dart';
+import '../features/assistants/assistants_dialog.dart';
+import '../features/assistants/assistants_view_model.dart';
 import '../features/participants/ipc_participants_operations.dart';
 import '../features/participants/participants_content.dart';
 import '../features/participants/participants_dialog.dart';
@@ -2695,7 +2698,6 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
   String? _entryId;
   int _procedureKindFormSession = 0;
   int _workdayFormSession = 0;
-  List<Map<String, dynamic>> _entries = const [];
   List<double> _procedureKindsColumnWidths = const [];
   List<double> _workdaysColumnWidths = const [];
   bool _loading = true;
@@ -2703,10 +2705,11 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
   ProcedureKindsViewModel? _procedureKindsViewModel;
   WorkdaysViewModel? _workdaysViewModel;
   ParticipantsViewModel? _participantsViewModel;
+  AssistantsViewModel? _assistantsViewModel;
   DesktopWindowFeatureHandlerRegistration? _handlerRegistration;
   DesktopWindowCloseRequestHandlerRegistration? _closeRequestRegistration;
-  final _peopleDirectoryTableKey = GlobalKey<PeopleDirectoryTableState>();
   final _participantsContentKey = GlobalKey<ParticipantsContentState>();
+  final _assistantsContentKey = GlobalKey<AssistantsContentState>();
 
   bool get _isEditor =>
       _kind == DesktopWindowKind.procedureKindEditor ||
@@ -2746,6 +2749,13 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
         ),
       );
     }
+    if (_kind == DesktopWindowKind.assistants) {
+      _assistantsViewModel = AssistantsViewModel.fromOperations(
+        IpcAssistantsOperations(
+          (method, arguments) => _mainChannel.invokeMethod(method, arguments),
+        ),
+      );
+    }
     if (_kind == DesktopWindowKind.procedureKinds ||
         _kind == DesktopWindowKind.procedureKindEditor) {
       _procedureKindsViewModel = ProcedureKindsViewModel(
@@ -2768,6 +2778,10 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
         case 'directory_changed':
           if (_participantsViewModel case final viewModel?) {
             if (!viewModel.isSaving) await viewModel.loadParticipants();
+            return null;
+          }
+          if (_assistantsViewModel case final viewModel?) {
+            if (!viewModel.isSaving) await viewModel.loadAssistants();
             return null;
           }
           if (_procedureKindsViewModel case final viewModel?) {
@@ -2821,7 +2835,6 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
     try {
       final result = Map<String, dynamic>.from(await _mainChannel.invokeMethod(
           'directorySnapshot', _directory) as Map);
-      _entries = _maps(result['entries']);
       _procedureKindsColumnWidths =
           (result['procedureKindsColumnWidths'] as List? ?? const [])
               .whereType<num>()
@@ -2840,6 +2853,9 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
       }
       if (_participantsViewModel case final viewModel?) {
         await viewModel.loadParticipants();
+      }
+      if (_assistantsViewModel case final viewModel?) {
+        await viewModel.loadAssistants();
       }
     } catch (_) {
       // The child keeps its current state when the main window is unavailable.
@@ -2869,6 +2885,7 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
     _procedureKindsViewModel?.dispose();
     _workdaysViewModel?.dispose();
     _participantsViewModel?.dispose();
+    _assistantsViewModel?.dispose();
     super.dispose();
   }
 
@@ -2876,11 +2893,10 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
     if (_kind == DesktopWindowKind.participants) {
       return await _participantsContentKey.currentState?.requestClose() ?? true;
     }
-    return _peopleDirectoryTableKey.currentState?.requestClose() ?? true;
-  }
-
-  Future<void> _closePeopleDirectory() async {
-    await closeCurrentDesktopWindow();
+    if (_kind == DesktopWindowKind.assistants) {
+      return await _assistantsContentKey.currentState?.requestClose() ?? true;
+    }
+    return true;
   }
 
   Future<void> _openEditor(String editorKind, [String? id]) async {
@@ -2959,36 +2975,13 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
         onClose: closeCurrentDesktopWindow,
       );
     }
-    if (_isPeopleDirectory) {
-      return Column(
-        children: [
-          Expanded(
-            child: PeopleDirectoryTable(
-              key: _peopleDirectoryTableKey,
-              type: _kind == DesktopWindowKind.participants
-                  ? PeopleDirectoryType.participants
-                  : PeopleDirectoryType.assistants,
-              entries: _entries
-                  .map(
-                    (entry) => PeopleDirectoryEntry(
-                      id: entry['id'] as String,
-                      name: entry['name'] as String,
-                    ),
-                  )
-                  .toList(growable: false),
-              onMutate: _mutatePeople,
-              onCountReferences: (id) => _mainChannel.invokeMethod<int>(
-                'directoryReferences',
-                {'directory': _directory, 'id': id},
-              ).then((value) => value ?? 0),
-              onChanged: _load,
-            ),
-          ),
-          PeopleDirectoryFooter(
-            isSaving: false,
-            onClose: () => unawaited(_closePeopleDirectory()),
-          ),
-        ],
+    if (_kind == DesktopWindowKind.assistants) {
+      return AssistantsContent(
+        key: _assistantsContentKey,
+        viewModel: _assistantsViewModel!,
+        config: AssistantsDialog.assistantConfig,
+        windowMode: true,
+        onClose: closeCurrentDesktopWindow,
       );
     }
     if (_isWorkdaysDirectory) return _workdaysList(contentContext);
@@ -3018,30 +3011,6 @@ class _DirectoryChildWindowState extends State<DirectoryChildWindow> {
           ),
         )),
       );
-
-  Future<String?> _mutatePeople(
-    String action, {
-    String? id,
-    String? name,
-  }) async {
-    try {
-      final result = Map<String, dynamic>.from(
-        await _mainChannel.invokeMethod('directoryMutate', {
-          'directory': _directory,
-          'action': action,
-          if (id != null) 'id': id,
-          'entry': {
-            if (name != null) 'name': name,
-          },
-        }) as Map,
-      );
-      return result['ok'] == true
-          ? null
-          : result['error'] as String? ?? 'Не удалось сохранить изменения.';
-    } catch (_) {
-      return 'Не удалось сохранить изменения.';
-    }
-  }
 
   Widget _editor(BuildContext contentContext) {
     final viewModel = _workdaysViewModel!;
