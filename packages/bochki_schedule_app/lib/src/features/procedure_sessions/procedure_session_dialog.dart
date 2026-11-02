@@ -14,7 +14,75 @@ import '../../domain/procedure_sessions/conflict_resource_type.dart';
 import '../../domain/procedure_sessions/schedule_conflict_type.dart';
 import '../../domain/workdays/workday.dart';
 import '../../presentation/app_tooltips.dart';
+import 'procedure_session_editor_view_model.dart';
 import 'procedure_session_submit_result.dart';
+
+/// Binds the shared editor form to the host-independent ViewModel.
+class ProcedureSessionEditorContent extends StatelessWidget {
+  const ProcedureSessionEditorContent({
+    required this.viewModel,
+    required this.initialValue,
+    this.onClose,
+    this.onOpenStatistics,
+    this.isStatisticsOpeningAllowed = true,
+    super.key,
+  });
+
+  final ProcedureSessionEditorViewModel viewModel;
+  final ProcedureSessionRaw initialValue;
+  final FutureOr<void> Function()? onClose;
+  final Future<void> Function()? onOpenStatistics;
+  final bool isStatisticsOpeningAllowed;
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: viewModel,
+        builder: (context, _) => ProcedureSessionFormContent(
+          initialValue: initialValue,
+          workdays: viewModel.workdays,
+          humans: viewModel.humans,
+          procedureKinds: viewModel.procedureKinds,
+          assistants: viewModel.assistants,
+          procedureSessions: viewModel.procedureSessions,
+          programSettings: viewModel.programSettings,
+          onSubmit: (value, allowConflicts) =>
+              viewModel.submit(value, allowConflicts: allowConflicts),
+          onSavedAndRendered: viewModel.logRenderedSave,
+          isSaving: viewModel.isSaving,
+          onClose: onClose,
+          onOpenStatistics: onOpenStatistics,
+          isStatisticsOpeningAllowed: isStatisticsOpeningAllowed,
+        ),
+      );
+}
+
+class ProcedureSessionEditorDialog extends StatelessWidget {
+  const ProcedureSessionEditorDialog({
+    required this.viewModel,
+    required this.initialValue,
+    super.key,
+  });
+
+  final ProcedureSessionEditorViewModel viewModel;
+  final ProcedureSessionRaw initialValue;
+
+  @override
+  Widget build(BuildContext context) {
+    final isEditing = initialValue.id != 'draft';
+    return AlertDialog(
+      key: Key(isEditing
+          ? 'procedure_session_edit_dialog'
+          : 'procedure_session_create_dialog'),
+      title: Text(isEditing
+          ? 'Редактирование назначенной процедуры'
+          : 'Новая назначенная процедура'),
+      content: ProcedureSessionEditorContent(
+        viewModel: viewModel,
+        initialValue: initialValue,
+      ),
+    );
+  }
+}
 
 class ProcedureSessionDialog extends StatelessWidget {
   const ProcedureSessionDialog({

@@ -2639,21 +2639,10 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
             body: Center(
                 child: Padding(
                     padding: const EdgeInsets.all(24),
-                    child: ProcedureSessionFormContent(
+                    child: ProcedureSessionEditorContent(
                       key: ValueKey(_formVersion),
+                      viewModel: editor,
                       initialValue: editor.createDraft(),
-                      workdays: editor.workdays,
-                      humans: editor.humans,
-                      procedureKinds: editor.procedureKinds,
-                      assistants: editor.assistants,
-                      procedureSessions: editor.procedureSessions,
-                      programSettings: editor.programSettings,
-                      onSubmit: (session, allowConflicts) => editor.submit(
-                        session,
-                        allowConflicts: allowConflicts,
-                      ),
-                      onSavedAndRendered: editor.logRenderedSave,
-                      isSaving: editor.isSaving,
                       onClose: closeCurrentDesktopWindow,
                       onOpenStatistics:
                           openProcedureStatisticsFromCurrentWindow,

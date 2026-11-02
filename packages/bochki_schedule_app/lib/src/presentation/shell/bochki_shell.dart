@@ -949,20 +949,9 @@ class _BochkiShellState extends State<BochkiShell> {
         context: context,
         barrierDismissible: false,
         builder: (context) {
-          return ProcedureSessionDialog(
+          return ProcedureSessionEditorDialog(
+            viewModel: editor,
             initialValue: resolvedInitialValue,
-            workdays: editor.workdays,
-            humans: editor.humans,
-            procedureKinds: editor.procedureKinds,
-            assistants: editor.assistants,
-            procedureSessions: editor.procedureSessions,
-            programSettings: editor.programSettings,
-            onSubmit: (procedureSession, allowConflicts) => editor.submit(
-              procedureSession,
-              allowConflicts: allowConflicts,
-            ),
-            onSavedAndRendered: editor.logRenderedSave,
-            isSaving: editor.isSaving,
           );
         },
       );
