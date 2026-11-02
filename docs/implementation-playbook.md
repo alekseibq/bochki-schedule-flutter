@@ -67,6 +67,9 @@ port -> data adapter -> ProjectDocument sync -> project.json`. Виджеты н
 - В production UI, вынесенный в дочернее окно, открывается через
   `DesktopWindowCoordinator`. Dialog-вариант такого flow — только fallback для
   widget-тестов; не добавляйте его как альтернативный production-путь.
+- У feature с child window должен быть один `...Content` / `...FormContent` и
+  feature-specific ViewModel/operations-контракт. Native host и fallback
+  dialog только размещают content и используют IPC либо direct adapter.
 
 ## Терминология
 

@@ -12,6 +12,8 @@ import '../../features/print_presets/print_preset_params_dialog.dart';
 import '../../features/print_presets/print_preset_params_view_model.dart';
 import '../../features/procedure_sessions/procedure_session_dialog.dart';
 import '../../features/procedure_sessions/procedure_sessions_view_model.dart';
+import '../../features/procedure_statistics/procedure_statistics_dialog.dart';
+import '../../features/procedure_statistics/procedure_statistics_view_model.dart';
 import '../../domain/procedure_sessions/schedule_conflict_target.dart';
 import '../app_tooltips.dart';
 import '../../features/procedure_kinds/procedure_kinds_dialog.dart';
@@ -499,7 +501,31 @@ class _BochkiShellState extends State<BochkiShell> {
   }
 
   Future<void> _openProcedureStatistics() async {
-    await _desktopWindows?.openStatistics();
+    final coordinator = _desktopWindows;
+    if (coordinator != null) {
+      await coordinator.openStatistics();
+      return;
+    }
+    final build = widget.services.buildProcedureStatisticsTableUseCase;
+    if (build == null) return;
+    final viewModel = ProcedureStatisticsViewModel(
+      buildUseCase: build,
+      listWorkdaysUseCase: widget.services.listWorkdaysUseCase,
+    );
+    try {
+      unawaited(viewModel.load());
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => ProcedureStatisticsDialog(
+          viewModel: viewModel,
+          onAdd: () => _openProcedureSessionDialog(isEditing: false),
+        ),
+      );
+    } finally {
+      viewModel.dispose();
+    }
   }
 
   Future<void> _openFreeTime() async => _desktopWindows?.openFreeTime();
