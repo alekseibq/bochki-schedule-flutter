@@ -1700,12 +1700,13 @@ void main() {
     await tester.pumpAndSettle();
 
     final firstRow = find.byKey(const Key('participant_row_1'));
-    await _doubleMouseClick(tester, firstRow);
+    await tester.tap(firstRow);
+    await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('participant_name_field')),
       'Иван Петров',
     );
-    await _mouseClick(tester, find.byKey(const Key('participant_row_2')));
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
 
     expect(find.text('Иван Петров'), findsOneWidget);
@@ -1760,12 +1761,13 @@ void main() {
     await tester.pumpAndSettle();
 
     final firstRow = find.byKey(const Key('assistant_row_1'));
-    await _doubleMouseClick(tester, firstRow);
+    await tester.tap(firstRow);
+    await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('assistant_name_field')),
       'Иван Петров',
     );
-    await _mouseClick(tester, find.byKey(const Key('assistant_row_2')));
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
 
     expect(find.text('Иван Петров'), findsOneWidget);
@@ -2184,7 +2186,7 @@ void main() {
     );
   });
 
-  testWidgets('single click selects row without opening inline edit', (
+  testWidgets('single click opens inline edit for row', (
     tester,
   ) async {
     final context = _buildTestContext(
@@ -2201,7 +2203,7 @@ void main() {
     await _mouseClick(tester, row);
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('participant_name_field')), findsNothing);
+    expect(find.byKey(const Key('participant_name_field')), findsOneWidget);
   });
 
   testWidgets('row becomes selected on mouse down before tap completes', (
