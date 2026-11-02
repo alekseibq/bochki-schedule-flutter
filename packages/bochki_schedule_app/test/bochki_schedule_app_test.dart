@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:bochki_schedule_app/bochki_schedule_app.dart';
 import 'package:bochki_schedule_app/src/data/ui_settings/ui_settings_repository.dart';
+import 'package:bochki_schedule_app/src/domain/procedure_statistics/build_procedure_statistics_table_use_case.dart';
 import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
 import 'package:flutter/gestures.dart';
@@ -10,6 +11,37 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('fallback editor opens statistics without a recursive editor',
+      (tester) async {
+    tester.view.physicalSize = const Size(1600, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final context = _buildTestContext(
+      participants: [Participant(id: '1', name: 'Иван')],
+      procedureKinds: [
+        ProcedureKind(
+            id: '1',
+            patternId: ProcedureKindPatterns.single.patternId,
+            name: 'Бочка',
+            participantBusyTime: 30)
+      ],
+      workdays: [
+        Workday(id: '1', name: 'День', calendarDate: DateTime(2026, 1, 1))
+      ],
+    );
+    await tester.pumpWidget(BochkiScheduleApp(services: context.services));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('add_procedure_session_button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('procedure_statistics_button')));
+    await tester.pumpAndSettle();
+    final addButton = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Добавить запись'));
+    expect(addButton.onPressed, isNull);
+    expect(find.byKey(const Key('procedure_statistics_day')), findsOneWidget);
+  });
+
   test('package exports compile', () {
     expect(BochkiScheduleApp, isNotNull);
   });
@@ -2577,6 +2609,14 @@ _TestContext _buildTestContext({
           UpdateProgramSettingsUseCase(programSettingsRepository),
       listProcedureSessionsUseCase: listProcedureSessionsUseCase,
       listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,
+      buildProcedureStatisticsTableUseCase:
+          BuildProcedureStatisticsTableUseCase(
+        listWorkdaysUseCase: ListWorkdaysUseCase(workdaysRepository),
+        listHumansUseCase: ListHumansUseCase(humansRepository),
+        listProcedureKindsUseCase:
+            ListProcedureKindsUseCase(procedureKindsRepository),
+        listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,
+      ),
       listProcedureSessionsWithConflictsUseCase:
           ListProcedureSessionsWithConflictsUseCase(
         listRichProcedureSessionsUseCase: listRichProcedureSessionsUseCase,

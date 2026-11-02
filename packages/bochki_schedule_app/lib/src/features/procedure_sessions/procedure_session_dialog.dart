@@ -60,11 +60,15 @@ class ProcedureSessionEditorDialog extends StatelessWidget {
   const ProcedureSessionEditorDialog({
     required this.viewModel,
     required this.initialValue,
+    this.onOpenStatistics,
+    this.isStatisticsOpeningAllowed = true,
     super.key,
   });
 
   final ProcedureSessionEditorViewModel viewModel;
   final ProcedureSessionRaw initialValue;
+  final Future<void> Function()? onOpenStatistics;
+  final bool isStatisticsOpeningAllowed;
 
   @override
   Widget build(BuildContext context) {
@@ -79,6 +83,8 @@ class ProcedureSessionEditorDialog extends StatelessWidget {
       content: ProcedureSessionEditorContent(
         viewModel: viewModel,
         initialValue: initialValue,
+        onOpenStatistics: onOpenStatistics,
+        isStatisticsOpeningAllowed: isStatisticsOpeningAllowed,
       ),
     );
   }

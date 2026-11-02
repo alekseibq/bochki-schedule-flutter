@@ -4,9 +4,9 @@ import 'procedure_statistics_view_model.dart';
 
 class ProcedureStatisticsDialog extends StatelessWidget {
   const ProcedureStatisticsDialog(
-      {required this.viewModel, required this.onAdd, super.key});
+      {required this.viewModel, this.onAdd, super.key});
   final ProcedureStatisticsViewModel viewModel;
-  final Future<void> Function() onAdd;
+  final Future<void> Function()? onAdd;
   @override
   Widget build(BuildContext context) => Dialog(
       child: SizedBox(

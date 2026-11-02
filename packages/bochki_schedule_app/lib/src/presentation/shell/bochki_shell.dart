@@ -525,7 +525,8 @@ class _BochkiShellState extends State<BochkiShell> {
     }
   }
 
-  Future<void> _openProcedureStatistics() async {
+  Future<void> _openProcedureStatistics(
+      {bool openedFromSession = false}) async {
     final coordinator = _desktopWindows;
     if (coordinator != null) {
       await coordinator.openStatistics();
@@ -545,7 +546,12 @@ class _BochkiShellState extends State<BochkiShell> {
         barrierDismissible: false,
         builder: (_) => ProcedureStatisticsDialog(
           viewModel: viewModel,
-          onAdd: () => _openProcedureSessionDialog(isEditing: false),
+          onAdd: openedFromSession
+              ? null
+              : () => _openProcedureSessionDialog(
+                    isEditing: false,
+                    openedFromStatistics: true,
+                  ),
         ),
       );
     } finally {
@@ -934,6 +940,7 @@ class _BochkiShellState extends State<BochkiShell> {
     required bool isEditing,
     String? procedureSessionId,
     ProcedureSessionRaw? initialValue,
+    bool openedFromStatistics = false,
   }) async {
     final resolvedInitialValue = initialValue ??
         (isEditing
@@ -965,6 +972,9 @@ class _BochkiShellState extends State<BochkiShell> {
           return ProcedureSessionEditorDialog(
             viewModel: editor,
             initialValue: resolvedInitialValue,
+            onOpenStatistics: () =>
+                _openProcedureStatistics(openedFromSession: true),
+            isStatisticsOpeningAllowed: !openedFromStatistics,
           );
         },
       );
