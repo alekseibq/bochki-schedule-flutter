@@ -34,7 +34,8 @@ import '../features/procedure_kinds/procedure_kind_form_content.dart';
 import '../features/procedure_kinds/procedure_kinds_dialog.dart';
 import '../features/procedure_kinds/procedure_kinds_view_model.dart';
 import '../features/directory/people_directory_table.dart';
-import '../features/procedure_statistics/procedure_statistics_content.dart';
+import '../features/procedure_statistics/procedure_statistics_dialog.dart';
+import '../features/procedure_statistics/procedure_statistics_view_model.dart';
 import '../features/quick_reassignments/quick_reassignments_dialog.dart';
 import '../features/quick_reassignments/quick_reassignments_view_model.dart';
 import '../features/free_time/free_time_view_model.dart';
@@ -1992,15 +1993,7 @@ class ProcedureStatisticsWindow extends StatefulWidget {
 }
 
 class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
-  String? _dayId;
-  var _people = ProcedureStatisticsPeopleFilter.all;
-  var _mode = ProcedureStatisticsMode.participation;
-  bool _loading = true;
-  String? _error;
-  List<Workday> _workdays = const [];
-  List<Human> _humans = const [];
-  List<ProcedureKind> _kinds = const [];
-  Map<String, int> _counts = const {};
+  late final ProcedureStatisticsViewModel _viewModel;
   bool _hasModalChild = false;
   var _openedFromProcedureSession = false;
   DesktopWindowFeatureHandlerRegistration? _handlerRegistration;
@@ -2008,6 +2001,24 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
   @override
   void initState() {
     super.initState();
+    _viewModel =
+        ProcedureStatisticsViewModel.fromLoader((dayId, people, mode) async {
+      final result = Map<String, dynamic>.from(
+          await _mainChannel.invokeMethod<Map>('statistics', {
+                'dayId': dayId,
+                'peopleFilter': people.name,
+                'mode': mode.name,
+              }) ??
+              const {});
+      return ProcedureStatisticsSnapshot(
+        workdays: _maps(result['workdays']).map(_workdayFromMap).toList(),
+        table: ProcedureStatisticsTable(
+          people: _maps(result['people']).map(_humanFromMap).toList(),
+          kinds: _maps(result['kinds']).map(_kindFromMap).toList(),
+          counts: Map<String, int>.from(result['counts'] as Map? ?? const {}),
+        ),
+      );
+    });
     _listenForChanges();
     _loadWindowContext();
     _load();
@@ -2059,34 +2070,11 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
   @override
   void dispose() {
     _handlerRegistration?.dispose();
+    _viewModel.dispose();
     super.dispose();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final result = Map<String, dynamic>.from(
-          await _mainChannel.invokeMethod<Map>('statistics', {
-                'dayId': _dayId,
-                'peopleFilter': _people.name,
-                'mode': _mode.name,
-              }) ??
-              const {});
-      setState(() {
-        _workdays = _maps(result['workdays']).map(_workdayFromMap).toList();
-        _humans = _maps(result['people']).map(_humanFromMap).toList();
-        _kinds = _maps(result['kinds']).map(_kindFromMap).toList();
-        _counts = Map<String, int>.from(result['counts'] as Map? ?? const {});
-      });
-    } catch (_) {
-      setState(() => _error = 'Не удалось загрузить статистику процедур.');
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
+  Future<void> _load() => _viewModel.load();
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -2095,29 +2083,8 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
         home: Scaffold(
           body: AbsorbPointer(
               absorbing: _hasModalChild,
-              child: ProcedureStatisticsContent(
-                workdays: _workdays,
-                people: _humans,
-                kinds: _kinds,
-                countFor: (person, kind) =>
-                    _counts['${person.id}/${kind.id}'] ?? 0,
-                isLoading: _loading,
-                error: _error,
-                dayId: _dayId,
-                peopleFilter: _people,
-                mode: _mode,
-                onDayChanged: (value) {
-                  _dayId = value;
-                  _load();
-                },
-                onPeopleChanged: (value) {
-                  _people = value;
-                  _load();
-                },
-                onModeChanged: (value) {
-                  _mode = value;
-                  _load();
-                },
+              child: ProcedureStatisticsView(
+                viewModel: _viewModel,
                 onAdd: _openedFromProcedureSession
                     ? null
                     : openProcedureSessionFromCurrentWindow,

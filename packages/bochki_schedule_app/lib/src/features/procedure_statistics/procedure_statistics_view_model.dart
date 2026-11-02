@@ -8,10 +8,14 @@ final class ProcedureStatisticsViewModel extends ChangeNotifier {
   ProcedureStatisticsViewModel(
       {required BuildProcedureStatisticsTableUseCase buildUseCase,
       required ListWorkdaysUseCase listWorkdaysUseCase})
-      : _build = buildUseCase,
-        _days = listWorkdaysUseCase;
-  final BuildProcedureStatisticsTableUseCase _build;
-  final ListWorkdaysUseCase _days;
+      : _load = ((dayId, people, mode) async => ProcedureStatisticsSnapshot(
+              workdays: await listWorkdaysUseCase.execute(),
+              table: await buildUseCase.execute(
+                  dayId: dayId, peopleFilter: people, mode: mode),
+            ));
+  ProcedureStatisticsViewModel.fromLoader(this._load);
+  final Future<ProcedureStatisticsSnapshot> Function(
+      String?, ProcedureStatisticsPeopleFilter, ProcedureStatisticsMode) _load;
   List<Workday> workdays = const [];
   ProcedureStatisticsTable? table;
   bool isLoading = false;
@@ -20,19 +24,29 @@ final class ProcedureStatisticsViewModel extends ChangeNotifier {
   ProcedureStatisticsPeopleFilter peopleFilter =
       ProcedureStatisticsPeopleFilter.all;
   ProcedureStatisticsMode mode = ProcedureStatisticsMode.participation;
+  int _loadVersion = 0;
+  bool _disposed = false;
   Future<void> load() async {
+    final version = ++_loadVersion;
+    final selectedDay = dayId;
+    final selectedPeople = peopleFilter;
+    final selectedMode = mode;
     isLoading = true;
     error = null;
     notifyListeners();
     try {
-      workdays = await _days.execute();
-      table = await _build.execute(
-          dayId: dayId, peopleFilter: peopleFilter, mode: mode);
+      final snapshot = await _load(selectedDay, selectedPeople, selectedMode);
+      if (_disposed || version != _loadVersion) return;
+      workdays = snapshot.workdays;
+      table = snapshot.table;
     } catch (_) {
+      if (_disposed || version != _loadVersion) return;
       error = 'Не удалось загрузить статистику процедур.';
     } finally {
-      isLoading = false;
-      notifyListeners();
+      if (!_disposed && version == _loadVersion) {
+        isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -50,4 +64,17 @@ final class ProcedureStatisticsViewModel extends ChangeNotifier {
     mode = value;
     await load();
   }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+}
+
+final class ProcedureStatisticsSnapshot {
+  const ProcedureStatisticsSnapshot(
+      {required this.workdays, required this.table});
+  final List<Workday> workdays;
+  final ProcedureStatisticsTable table;
 }
