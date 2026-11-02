@@ -33,6 +33,8 @@ import '../features/directory/people_directory_table.dart';
 import '../features/procedure_statistics/procedure_statistics_content.dart';
 import '../features/quick_reassignments/quick_reassignments_dialog.dart';
 import '../features/quick_reassignments/quick_reassignments_view_model.dart';
+import '../features/free_time/free_time_view_model.dart';
+import '../features/free_time/ipc_free_time_operations.dart';
 
 enum DesktopWindowKind {
   main,
@@ -2108,11 +2110,17 @@ class _FreeTimeWindowState extends State<FreeTimeWindow> {
   List<Map<String, dynamic>> _gaps = const [];
   bool _loading = true;
   bool _hasModalChild = false;
+  late final FreeTimeViewModel _viewModel;
   DesktopWindowFeatureHandlerRegistration? _handlerRegistration;
 
   @override
   void initState() {
     super.initState();
+    _viewModel = FreeTimeViewModel.fromOperations(
+      IpcFreeTimeOperations(
+        (method, arguments) => _mainChannel.invokeMethod(method, arguments),
+      ),
+    );
     _listen();
     _load();
   }
@@ -2146,23 +2154,23 @@ class _FreeTimeWindowState extends State<FreeTimeWindow> {
   @override
   void dispose() {
     _handlerRegistration?.dispose();
+    _viewModel.dispose();
     super.dispose();
   }
 
   Future<void> _load() async {
-    if (mounted) setState(() => _loading = true);
-    final value = await _mainChannel.invokeMethod<Map>('freeTime', {
-      'dayId': _dayId,
-      'fromMinutes': _from,
-      'toMinutes': _to,
-      'peopleFilter': _people.name,
-      'minimumDurationMinutes': _minimum
-    });
+    _viewModel
+      ..dayId = _dayId
+      ..fromMinutes = _from
+      ..toMinutes = _to
+      ..people = _people
+      ..minimumDurationMinutes = _minimum;
+    await _viewModel.load();
     if (mounted) {
       setState(() {
-        _workdays = _maps(value?['workdays']).map(_workdayFromMap).toList();
-        _gaps = _maps(value?['gaps']);
-        _loading = false;
+        _workdays = _viewModel.workdays;
+        _gaps = _viewModel.gaps.map(_freeTimeGapMap).toList(growable: false);
+        _loading = _viewModel.isLoading;
       });
     }
   }
@@ -2634,6 +2642,12 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
 List<Map<String, dynamic>> _maps(dynamic value) => (value as List? ?? const [])
     .map((e) => Map<String, dynamic>.from(e as Map))
     .toList();
+Map<String, dynamic> _freeTimeGapMap(ScheduleGap gap) => {
+      'day': _workdayMap(gap.workday),
+      'human': _humanMap(gap.human),
+      'start': gap.startTime,
+      'end': gap.endTime,
+    };
 Map<String, dynamic> _humanMap(Human h) => {
       'id': h.id,
       'name': h.name,
