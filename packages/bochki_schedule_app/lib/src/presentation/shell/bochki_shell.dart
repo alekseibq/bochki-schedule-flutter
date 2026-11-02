@@ -34,6 +34,7 @@ import '../../features/assistants/assistants_operations.dart';
 import '../../features/assistants/assistants_view_model.dart';
 import '../../features/workdays/workdays_dialog.dart';
 import '../../features/workdays/workdays_view_model.dart';
+import '../../features/workdays/workdays_operations.dart';
 import '../desktop_windows.dart';
 
 enum DirectorySection {
@@ -350,11 +351,21 @@ class _BochkiShellState extends State<BochkiShell> {
       _workdaysDialogOpen = true;
     });
 
-    final viewModel = WorkdaysViewModel(
-      listWorkdaysUseCase: widget.services.listWorkdaysUseCase,
-      createWorkdayUseCase: widget.services.createWorkdayUseCase,
-      updateWorkdayUseCase: widget.services.updateWorkdayUseCase,
-      deleteWorkdayUseCase: widget.services.deleteWorkdayUseCase,
+    final viewModel = WorkdaysViewModel.fromOperations(
+      UseCaseWorkdaysOperations(
+        listWorkdaysUseCase: widget.services.listWorkdaysUseCase,
+        createWorkdayUseCase: widget.services.createWorkdayUseCase,
+        updateWorkdayUseCase: widget.services.updateWorkdayUseCase,
+        deleteWorkdayUseCase: widget.services.deleteWorkdayUseCase,
+        loadColumnWidths: () async =>
+            widget.services.uiSettingsRepository.settings.workdaysColumnWidths,
+        saveColumnWidths: (widths) =>
+            widget.services.uiSettingsRepository.update(
+          widget.services.uiSettingsRepository.settings.copyWith(
+            workdaysColumnWidths: widths,
+          ),
+        ),
+      ),
     );
 
     try {
