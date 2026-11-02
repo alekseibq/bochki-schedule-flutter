@@ -2385,40 +2385,21 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
   }
 
   Future<void> _load() async {
-    final value =
-        await _mainChannel.invokeMethod<Map>('procedureSessionSnapshot');
-    if (mounted) {
-      final snapshot = Map<String, dynamic>.from(value!);
-      final settings = Map<String, dynamic>.from(snapshot['settings'] as Map);
-      final editor = ProcedureSessionEditorViewModel.fromSnapshot(
-        snapshot: ProcedureSessionEditorSnapshot(
-          draft: _sessionFromMap(
-              Map<String, dynamic>.from(snapshot['draft'] as Map)),
-          workdays: _maps(snapshot['workdays']).map(_workdayFromMap).toList(),
-          humans: _maps(snapshot['humans']).map(_humanFromMap).toList(),
-          procedureKinds:
-              _maps(snapshot['procedureKinds']).map(_kindFromMap).toList(),
-          assistants:
-              _maps(snapshot['assistants']).map(_assistantFromMap).toList(),
-          procedureSessions: _maps(snapshot['procedureSessions'])
-              .map(_sessionFromMap)
-              .toList(),
-          programSettings: ProgramSettings(
-            minimumTime: ProgramSettingsTime.fromJson(settings['minimumTime']),
-            maximumTime: ProgramSettingsTime.fromJson(settings['maximumTime']),
-          ),
-        ),
-        operations: IpcProcedureSessionEditorOperations(
-          (method, arguments) => _mainChannel.invokeMethod(method, arguments),
-        ),
-      );
-      final previous = _editor;
-      setState(() {
-        _editor = editor;
-        _formVersion += 1;
-      });
-      previous?.dispose();
-    }
+    final operations = IpcProcedureSessionEditorOperations(
+      (method, arguments) => _mainChannel.invokeMethod(method, arguments),
+    );
+    final snapshot = await operations.loadSnapshot();
+    if (!mounted) return;
+    final editor = ProcedureSessionEditorViewModel.fromSnapshot(
+      snapshot: snapshot,
+      operations: operations,
+    );
+    final previous = _editor;
+    setState(() {
+      _editor = editor;
+      _formVersion += 1;
+    });
+    previous?.dispose();
   }
 
   @override
