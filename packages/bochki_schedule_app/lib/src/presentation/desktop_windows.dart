@@ -35,6 +35,7 @@ import '../features/procedure_statistics/procedure_statistics_content.dart';
 import '../features/quick_reassignments/quick_reassignments_dialog.dart';
 import '../features/quick_reassignments/quick_reassignments_view_model.dart';
 import '../features/free_time/free_time_view_model.dart';
+import '../features/free_time/free_time_dialog.dart';
 import '../features/free_time/ipc_free_time_operations.dart';
 import '../features/workdays/ipc_workdays_operations.dart';
 import '../features/workdays/workday_form_content.dart';
@@ -2106,14 +2107,6 @@ class FreeTimeWindow extends StatefulWidget {
 }
 
 class _FreeTimeWindowState extends State<FreeTimeWindow> {
-  String? _dayId;
-  var _people = ScheduleGapPeopleFilter.all;
-  var _from = 480;
-  var _to = 1200;
-  var _minimum = 30;
-  List<Workday> _workdays = const [];
-  List<Map<String, dynamic>> _gaps = const [];
-  bool _loading = true;
   bool _hasModalChild = false;
   late final FreeTimeViewModel _viewModel;
   DesktopWindowFeatureHandlerRegistration? _handlerRegistration;
@@ -2163,163 +2156,29 @@ class _FreeTimeWindowState extends State<FreeTimeWindow> {
     super.dispose();
   }
 
-  Future<void> _load() async {
-    _viewModel
-      ..dayId = _dayId
-      ..fromMinutes = _from
-      ..toMinutes = _to
-      ..people = _people
-      ..minimumDurationMinutes = _minimum;
-    await _viewModel.load();
-    if (mounted) {
-      setState(() {
-        _workdays = _viewModel.workdays;
-        _gaps = _viewModel.gaps.map(_freeTimeGapMap).toList(growable: false);
-        _loading = _viewModel.isLoading;
-      });
-    }
-  }
+  Future<void> _load() => _viewModel.load();
 
-  List<int> get _times =>
-      [for (var value = 480; value <= 1200; value += 30) value];
-  String _time(int value) =>
-      '${(value ~/ 60).toString().padLeft(2, '0')}:${(value % 60).toString().padLeft(2, '0')}';
   @override
   Widget build(BuildContext context) => MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(tooltipTheme: AppTooltips.theme),
-      home: Scaffold(
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(tooltipTheme: AppTooltips.theme),
+        home: Scaffold(
           body: AbsorbPointer(
-              absorbing: _hasModalChild,
-              child: Column(children: [
-                Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(children: [
-                      Expanded(
-                          child: DropdownButtonFormField<String?>(
-                              value: _dayId,
-                              decoration:
-                                  const InputDecoration(labelText: 'День'),
-                              items: [
-                                const DropdownMenuItem(
-                                    value: null, child: Text('Все дни')),
-                                ..._workdays.map((d) => DropdownMenuItem(
-                                    value: d.id, child: Text(d.name)))
-                              ],
-                              onChanged: (v) {
-                                _dayId = v;
-                                _load();
-                              })),
-                      const SizedBox(width: 12),
-                      Expanded(
-                          child: DropdownButtonFormField<int>(
-                              value: _from,
-                              decoration:
-                                  const InputDecoration(labelText: 'Время с'),
-                              items: _times
-                                  .map((v) => DropdownMenuItem(
-                                      value: v, child: Text(_time(v))))
-                                  .toList(),
-                              onChanged: (v) {
-                                if (v != null) {
-                                  _from = v;
-                                  if (_from > _to) {
-                                    final x = _from;
-                                    _from = _to;
-                                    _to = x;
-                                  }
-                                  _load();
-                                }
-                              })),
-                      const SizedBox(width: 12),
-                      Expanded(
-                          child: DropdownButtonFormField<int>(
-                              value: _to,
-                              decoration:
-                                  const InputDecoration(labelText: 'Время до'),
-                              items: _times
-                                  .map((v) => DropdownMenuItem(
-                                      value: v, child: Text(_time(v))))
-                                  .toList(),
-                              onChanged: (v) {
-                                if (v != null) {
-                                  _to = v;
-                                  if (_from > _to) {
-                                    final x = _from;
-                                    _from = _to;
-                                    _to = x;
-                                  }
-                                  _load();
-                                }
-                              })),
-                      const SizedBox(width: 12),
-                      Expanded(
-                          child: DropdownButtonFormField<
-                                  ScheduleGapPeopleFilter>(
-                              value: _people,
-                              decoration: const InputDecoration(
-                                  labelText: 'Искать для'),
-                              items: const [
-                                DropdownMenuItem(
-                                    value: ScheduleGapPeopleFilter.all,
-                                    child: Text('Участники и Сопровождающие')),
-                                DropdownMenuItem(
-                                    value: ScheduleGapPeopleFilter.participants,
-                                    child: Text('Участники')),
-                                DropdownMenuItem(
-                                    value: ScheduleGapPeopleFilter.assistants,
-                                    child: Text('Сопровождающие'))
-                              ],
-                              onChanged: (v) {
-                                if (v != null) {
-                                  _people = v;
-                                  _load();
-                                }
-                              })),
-                      const SizedBox(width: 12),
-                      Expanded(
-                          child: DropdownButtonFormField<int>(
-                              value: _minimum,
-                              decoration: const InputDecoration(
-                                  labelText: 'Показывать интервалы более'),
-                              items: [
-                                for (var v = 30; v <= 300; v += 30)
-                                  DropdownMenuItem(
-                                      value: v,
-                                      child: Text(v == 30
-                                          ? '30 мин'
-                                          : '${v ~/ 60}ч ${(v % 60).toString().padLeft(2, '0')}мин'))
-                              ],
-                              onChanged: (v) {
-                                if (v != null) {
-                                  _minimum = v;
-                                  _load();
-                                }
-                              })),
-                    ])),
-                Expanded(
-                    child: _loading
-                        ? const Center(child: CircularProgressIndicator())
-                        : _gaps.isEmpty
-                            ? const Center(
-                                child: Text('Нет данных по выбранным фильтрам'))
-                            : FreeTimeResultsTable(
-                                gaps: _gaps,
-                                onOccupy: (gap) {
-                                  final day = _workdayFromMap(
-                                      Map<String, dynamic>.from(
-                                          gap['day'] as Map));
-                                  final human = _humanFromMap(
-                                      Map<String, dynamic>.from(
-                                          gap['human'] as Map));
-                                  return openProcedureSessionFromCurrentWindow({
-                                    'dayId': day.id,
-                                    'participantId': human.id,
-                                    'startTime': gap['start'] as String,
-                                  });
-                                },
-                              )),
-              ]))));
+            absorbing: _hasModalChild,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: FreeTimeContent(
+                viewModel: _viewModel,
+                onOccupy: (gap) => openProcedureSessionFromCurrentWindow({
+                  'dayId': gap.workday.id,
+                  'participantId': gap.human.id,
+                  'startTime': gap.startTime,
+                }),
+              ),
+            ),
+          ),
+        ),
+      );
 }
 
 class QuickReassignmentsWindow extends StatefulWidget {
@@ -2655,12 +2514,6 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
 List<Map<String, dynamic>> _maps(dynamic value) => (value as List? ?? const [])
     .map((e) => Map<String, dynamic>.from(e as Map))
     .toList();
-Map<String, dynamic> _freeTimeGapMap(ScheduleGap gap) => {
-      'day': _workdayMap(gap.workday),
-      'human': _humanMap(gap.human),
-      'start': gap.startTime,
-      'end': gap.endTime,
-    };
 Map<String, dynamic> _humanMap(Human h) => {
       'id': h.id,
       'name': h.name,

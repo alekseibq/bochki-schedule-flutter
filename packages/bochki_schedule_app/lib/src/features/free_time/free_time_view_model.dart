@@ -29,26 +29,42 @@ final class FreeTimeViewModel extends ChangeNotifier {
   List<ScheduleGap> gaps = const [];
   bool isLoading = true;
   String? error;
+  int _loadVersion = 0;
+  bool _disposed = false;
 
   Future<void> load() async {
+    final version = ++_loadVersion;
+    final query = ScheduleGapsQuery(
+      dayId: dayId,
+      fromMinutes: fromMinutes,
+      toMinutes: toMinutes,
+      peopleFilter: people,
+      minimumDurationMinutes: minimumDurationMinutes,
+    );
     isLoading = true;
     error = null;
     notifyListeners();
     try {
-      workdays = await _operations.listWorkdays();
-      gaps = await _operations.build(ScheduleGapsQuery(
-        dayId: dayId,
-        fromMinutes: fromMinutes,
-        toMinutes: toMinutes,
-        peopleFilter: people,
-        minimumDurationMinutes: minimumDurationMinutes,
-      ));
+      final loadedWorkdays = await _operations.listWorkdays();
+      final loadedGaps = await _operations.build(query);
+      if (_disposed || version != _loadVersion) return;
+      workdays = loadedWorkdays;
+      gaps = loadedGaps;
     } catch (_) {
+      if (_disposed || version != _loadVersion) return;
       error = 'Не удалось загрузить свободное время.';
     } finally {
-      isLoading = false;
-      notifyListeners();
+      if (!_disposed && version == _loadVersion) {
+        isLoading = false;
+        notifyListeners();
+      }
     }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 
   Future<void> setDay(String? value) async {

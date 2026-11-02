@@ -64,6 +64,14 @@ class FreeTimeContent extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Expanded(
+                child: _timeFilter(
+                    'Время с', viewModel.fromMinutes, viewModel.setFrom)),
+            const SizedBox(width: 12),
+            Expanded(
+                child: _timeFilter(
+                    'Время до', viewModel.toMinutes, viewModel.setTo)),
+            const SizedBox(width: 12),
+            Expanded(
               child: DropdownButtonFormField<ScheduleGapPeopleFilter>(
                 value: viewModel.people,
                 decoration: const InputDecoration(labelText: 'Искать для'),
@@ -83,10 +91,47 @@ class FreeTimeContent extends StatelessWidget {
                 },
               ),
             ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: DropdownButtonFormField<int>(
+                value: viewModel.minimumDurationMinutes,
+                decoration: const InputDecoration(
+                    labelText: 'Показывать интервалы более'),
+                items: [
+                  for (var value = 30; value <= 300; value += 30)
+                    DropdownMenuItem(
+                        value: value,
+                        child: Text(value == 30
+                            ? '30 мин'
+                            : '${value ~/ 60}ч ${(value % 60).toString().padLeft(2, '0')}мин')),
+                ],
+                onChanged: (value) {
+                  if (value != null) viewModel.setMinimumDuration(value);
+                },
+              ),
+            ),
           ]),
           const SizedBox(height: 12),
           Expanded(child: _body()),
         ]),
+      );
+
+  Widget _timeFilter(
+          String label, int selected, Future<void> Function(int) onChanged) =>
+      DropdownButtonFormField<int>(
+        value: selected,
+        decoration: InputDecoration(labelText: label),
+        items: [
+          for (var value = 480; value <= 1200; value += 30)
+            DropdownMenuItem(
+              value: value,
+              child: Text(
+                  '${(value ~/ 60).toString().padLeft(2, '0')}:${(value % 60).toString().padLeft(2, '0')}'),
+            ),
+        ],
+        onChanged: (value) {
+          if (value != null) onChanged(value);
+        },
       );
 
   Widget _body() {
@@ -95,21 +140,61 @@ class FreeTimeContent extends StatelessWidget {
     if (viewModel.error != null) return Center(child: Text(viewModel.error!));
     if (viewModel.gaps.isEmpty)
       return const Center(child: Text('Нет данных по выбранным фильтрам'));
-    return ListView.separated(
-      itemCount: viewModel.gaps.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
-      itemBuilder: (_, index) {
-        final gap = viewModel.gaps[index];
-        return ListTile(
-          title: Text('${gap.workday.name}: ${gap.human.name}'),
-          subtitle:
-              Text('${gap.startTime}–${gap.endTime} (${gap.durationLabel})'),
-          trailing: FilledButton(
-            onPressed: () => onOccupy(gap),
-            child: const Text('Занять'),
-          ),
-        );
-      },
-    );
+    return _FreeTimeResults(gaps: viewModel.gaps, onOccupy: onOccupy);
   }
+}
+
+class _FreeTimeResults extends StatefulWidget {
+  const _FreeTimeResults({required this.gaps, required this.onOccupy});
+  final List<ScheduleGap> gaps;
+  final Future<void> Function(ScheduleGap) onOccupy;
+
+  @override
+  State<_FreeTimeResults> createState() => _FreeTimeResultsState();
+}
+
+class _FreeTimeResultsState extends State<_FreeTimeResults> {
+  final _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scrollbar(
+        controller: _scroll,
+        thumbVisibility: true,
+        child: SingleChildScrollView(
+          controller: _scroll,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              columns: const [
+                DataColumn(label: Text('День')),
+                DataColumn(label: Text('Человек')),
+                DataColumn(label: Text('Начало')),
+                DataColumn(label: Text('Конец')),
+                DataColumn(label: Text('Длительность')),
+                DataColumn(label: Text('')),
+              ],
+              rows: [
+                for (final gap in widget.gaps)
+                  DataRow(cells: [
+                    DataCell(Text(gap.workday.name)),
+                    DataCell(Text(gap.human.name)),
+                    DataCell(Text(gap.startTime)),
+                    DataCell(Text(gap.endTime)),
+                    DataCell(Text(gap.durationLabel)),
+                    DataCell(FilledButton.tonal(
+                      onPressed: () => widget.onOccupy(gap),
+                      child: const Text('Занять участника'),
+                    )),
+                  ]),
+              ],
+            ),
+          ),
+        ),
+      );
 }
