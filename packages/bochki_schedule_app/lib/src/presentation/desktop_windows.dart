@@ -1723,32 +1723,49 @@ final class DesktopWindowCoordinator {
     final entry =
         Map<String, dynamic>.from(values['entry'] as Map? ?? const {});
     try {
+      Map<String, dynamic>? savedEntry;
       switch (directory) {
         case 'participants':
           if (action == 'delete')
             await _services.deleteParticipantUseCase
                 .execute(values['id'] as String);
-          if (action == 'create')
-            await _services.createParticipantUseCase
+          if (action == 'create') {
+            final saved = await _services.createParticipantUseCase
                 .execute(entry['name'] as String);
-          if (action == 'update')
-            await _services.updateParticipantUseCase.execute(
+            savedEntry = {'id': saved.id, 'name': saved.name};
+          }
+          if (action == 'update') {
+            final saved = await _services.updateParticipantUseCase.execute(
                 participantId: values['id'] as String,
                 rawName: entry['name'] as String);
+            savedEntry = {'id': saved.id, 'name': saved.name};
+          }
           break;
         case 'assistants':
           if (action == 'delete')
             await _services.deleteAssistantUseCase
                 .execute(values['id'] as String);
-          if (action == 'create')
-            await _services.createAssistantUseCase.execute(
+          if (action == 'create') {
+            final saved = await _services.createAssistantUseCase.execute(
               entry['name'] as String,
             );
-          if (action == 'update')
-            await _services.updateAssistantUseCase.execute(
+            savedEntry = {
+              'id': saved.id,
+              'name': saved.name,
+              'shortName': saved.shortName
+            };
+          }
+          if (action == 'update') {
+            final saved = await _services.updateAssistantUseCase.execute(
               assistantId: values['id'] as String,
               rawName: entry['name'] as String,
             );
+            savedEntry = {
+              'id': saved.id,
+              'name': saved.name,
+              'shortName': saved.shortName
+            };
+          }
           break;
         case 'procedureKinds':
           await mutateProcedureKindDirectory(
@@ -1778,7 +1795,7 @@ final class DesktopWindowCoordinator {
           throw ArgumentError.value(directory, 'directory');
       }
       await _notifyDirectoryChanged(directory);
-      return {'ok': true};
+      return {'ok': true, if (savedEntry != null) 'entry': savedEntry};
     } catch (error) {
       return {'ok': false, 'error': error.toString()};
     }

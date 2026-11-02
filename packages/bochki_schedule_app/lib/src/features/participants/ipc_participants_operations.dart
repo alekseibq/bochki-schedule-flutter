@@ -24,14 +24,12 @@ final class IpcParticipantsOperations implements ParticipantsOperations {
 
   @override
   Future<Participant> create(String name) async {
-    await _mutate('create', entry: {'name': name});
-    return Participant(id: 'created', name: name);
+    return _fromMap(await _mutate('create', entry: {'name': name}));
   }
 
   @override
   Future<Participant> update(String id, String name) async {
-    await _mutate('update', id: id, entry: {'name': name});
-    return Participant(id: id, name: name);
+    return _fromMap(await _mutate('update', id: id, entry: {'name': name}));
   }
 
   @override
@@ -42,9 +40,11 @@ final class IpcParticipantsOperations implements ParticipantsOperations {
       0;
 
   @override
-  Future<void> delete(String id) => _mutate('delete', id: id);
+  Future<void> delete(String id) async {
+    await _mutate('delete', id: id);
+  }
 
-  Future<void> _mutate(
+  Future<Map<String, dynamic>> _mutate(
     String action, {
     String? id,
     Map<String, dynamic>? entry,
@@ -61,6 +61,7 @@ final class IpcParticipantsOperations implements ParticipantsOperations {
       throw StateError(
           result['error'] as String? ?? 'Не удалось сохранить изменения.');
     }
+    return Map<String, dynamic>.from(result['entry'] as Map? ?? const {});
   }
 
   Participant _fromMap(Map<String, dynamic> map) => Participant(

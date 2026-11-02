@@ -23,14 +23,12 @@ final class IpcAssistantsOperations implements AssistantsOperations {
 
   @override
   Future<Assistant> create(String name) async {
-    await _mutate('create', entry: {'name': name});
-    return Assistant(id: 'created', name: name, shortName: '');
+    return _fromMap(await _mutate('create', entry: {'name': name}));
   }
 
   @override
   Future<Assistant> update(String id, String name) async {
-    await _mutate('update', id: id, entry: {'name': name});
-    return Assistant(id: id, name: name, shortName: '');
+    return _fromMap(await _mutate('update', id: id, entry: {'name': name}));
   }
 
   @override
@@ -41,9 +39,11 @@ final class IpcAssistantsOperations implements AssistantsOperations {
       0;
 
   @override
-  Future<void> delete(String id) => _mutate('delete', id: id);
+  Future<void> delete(String id) async {
+    await _mutate('delete', id: id);
+  }
 
-  Future<void> _mutate(String action,
+  Future<Map<String, dynamic>> _mutate(String action,
       {String? id, Map<String, dynamic>? entry}) async {
     final result = Map<String, dynamic>.from(await _invoke('directoryMutate', {
       'directory': 'assistants',
@@ -55,6 +55,7 @@ final class IpcAssistantsOperations implements AssistantsOperations {
       throw StateError(
           result['error'] as String? ?? 'Не удалось сохранить изменения.');
     }
+    return Map<String, dynamic>.from(result['entry'] as Map? ?? const {});
   }
 
   Assistant _fromMap(Map<String, dynamic> map) => Assistant(
