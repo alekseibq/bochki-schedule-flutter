@@ -2030,7 +2030,7 @@ void main() {
       '  День   22 ',
     );
     final dateField = find.byKey(const Key('workday_date_field'));
-    expect(tester.widget<TextField>(dateField).readOnly, isTrue);
+    expect(tester.widget<OutlinedButton>(dateField), isNotNull);
     await tester.tap(dateField);
     await tester.pumpAndSettle();
     expect(find.byType(CalendarDatePicker), findsOneWidget);
