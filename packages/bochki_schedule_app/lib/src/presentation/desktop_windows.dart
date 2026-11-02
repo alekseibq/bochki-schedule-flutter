@@ -11,7 +11,9 @@ import 'package:screen_retriever/screen_retriever.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../domain/assistants/assistant.dart';
+import '../domain/assistants/assistants_validation_exception.dart';
 import '../domain/humans/human.dart';
+import '../domain/participants/participants_validation_exception.dart';
 import '../domain/procedure_kinds/procedure_kind.dart';
 import '../domain/procedure_sessions/procedure_session_raw.dart';
 import '../domain/procedure_sessions/procedure_session_rich_factory.dart';
@@ -20,6 +22,7 @@ import '../domain/procedure_statistics/procedure_statistics_table.dart';
 import '../domain/schedule_gaps/build_schedule_gaps_use_case.dart';
 import '../domain/schedule_gaps/schedule_gap.dart';
 import '../domain/workdays/workday.dart';
+import '../domain/workdays/workdays_validation_exception.dart';
 import '../app_services.dart';
 import 'app_tooltips.dart';
 import '../features/procedure_sessions/procedure_session_dialog.dart';
@@ -1796,6 +1799,12 @@ final class DesktopWindowCoordinator {
       }
       await _notifyDirectoryChanged(directory);
       return {'ok': true, if (savedEntry != null) 'entry': savedEntry};
+    } on ParticipantsValidationException catch (error) {
+      return {'ok': false, 'error': error.message, 'validation': true};
+    } on AssistantsValidationException catch (error) {
+      return {'ok': false, 'error': error.message, 'validation': true};
+    } on WorkdaysValidationException catch (error) {
+      return {'ok': false, 'error': error.message, 'validation': true};
     } catch (error) {
       return {'ok': false, 'error': error.toString()};
     }

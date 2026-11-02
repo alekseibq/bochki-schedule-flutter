@@ -1,4 +1,5 @@
 import '../../domain/assistants/assistant.dart';
+import '../../domain/assistants/assistants_validation_exception.dart';
 import 'assistants_operations.dart';
 
 typedef AssistantsIpcInvoker = Future<Object?> Function(
@@ -52,6 +53,9 @@ final class IpcAssistantsOperations implements AssistantsOperations {
       'entry': entry ?? const <String, dynamic>{},
     }) as Map);
     if (result['ok'] != true) {
+      if (result['validation'] == true) {
+        throw AssistantsValidationException(result['error'] as String);
+      }
       throw StateError(
           result['error'] as String? ?? 'Не удалось сохранить изменения.');
     }

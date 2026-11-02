@@ -1,4 +1,5 @@
 import '../../domain/workdays/workday.dart';
+import '../../domain/workdays/workdays_validation_exception.dart';
 import 'workdays_operations.dart';
 
 typedef WorkdaysIpcInvoker = Future<Object?> Function(
@@ -61,6 +62,9 @@ final class IpcWorkdaysOperations implements WorkdaysOperations {
       'entry': entry ?? const <String, dynamic>{},
     }) as Map);
     if (result['ok'] != true) {
+      if (result['validation'] == true) {
+        throw WorkdaysValidationException(result['error'] as String);
+      }
       throw StateError(
           result['error'] as String? ?? 'Не удалось сохранить изменения.');
     }

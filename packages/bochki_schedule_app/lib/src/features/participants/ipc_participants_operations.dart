@@ -1,4 +1,5 @@
 import '../../domain/participants/participant.dart';
+import '../../domain/participants/participants_validation_exception.dart';
 import 'participants_operations.dart';
 
 typedef ParticipantsIpcInvoker = Future<Object?> Function(
@@ -58,6 +59,9 @@ final class IpcParticipantsOperations implements ParticipantsOperations {
       }) as Map,
     );
     if (result['ok'] != true) {
+      if (result['validation'] == true) {
+        throw ParticipantsValidationException(result['error'] as String);
+      }
       throw StateError(
           result['error'] as String? ?? 'Не удалось сохранить изменения.');
     }
