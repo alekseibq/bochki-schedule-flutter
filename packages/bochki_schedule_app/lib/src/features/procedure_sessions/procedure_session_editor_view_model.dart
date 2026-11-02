@@ -32,7 +32,7 @@ final class ProcedureSessionEditorViewModel extends ChangeNotifier {
         _operations = operations;
 
   final ProcedureSessionsViewModel? _sessions;
-  final ProcedureSessionEditorSnapshot? _snapshot;
+  ProcedureSessionEditorSnapshot? _snapshot;
   final ProcedureSessionEditorOperations _operations;
 
   List<Workday> get workdays => _sessions?.workdays ?? _snapshot!.workdays;
@@ -49,6 +49,17 @@ final class ProcedureSessionEditorViewModel extends ChangeNotifier {
 
   ProcedureSessionRaw createDraft() =>
       _sessions?.createDraft() ?? _snapshot!.draft;
+
+  /// Refreshes lookup and schedule data in an IPC-hosted editor without
+  /// replacing its form widget. The form owns the user's in-progress field
+  /// values, so recreating the ViewModel here would discard an unsaved edit.
+  void replaceSnapshot(ProcedureSessionEditorSnapshot snapshot) {
+    if (_sessions != null) {
+      throw StateError('A direct editor is refreshed by its sessions model.');
+    }
+    _snapshot = snapshot;
+    notifyListeners();
+  }
 
   Future<ProcedureSessionSubmitResult> submit(
     ProcedureSessionRaw value, {

@@ -2357,7 +2357,7 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
 
   Future<dynamic> _handleWindowMethod(MethodCall call) async {
     if (call.method == 'directory_changed') {
-      await _load();
+      await _refreshSnapshot();
       return null;
     }
     if (call.method == 'procedure_session_show' ||
@@ -2399,6 +2399,20 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
       _formVersion += 1;
     });
     previous?.dispose();
+  }
+
+  Future<void> _refreshSnapshot() async {
+    final editor = _editor;
+    if (editor == null) {
+      await _load();
+      return;
+    }
+    final operations = IpcProcedureSessionEditorOperations(
+      (method, arguments) => _mainChannel.invokeMethod(method, arguments),
+    );
+    final snapshot = await operations.loadSnapshot();
+    if (!mounted || !identical(editor, _editor)) return;
+    editor.replaceSnapshot(snapshot);
   }
 
   @override

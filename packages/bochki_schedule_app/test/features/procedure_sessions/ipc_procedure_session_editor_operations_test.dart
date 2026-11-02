@@ -1,4 +1,5 @@
 import 'package:bochki_schedule_app/src/features/procedure_sessions/ipc_procedure_session_editor_operations.dart';
+import 'package:bochki_schedule_app/src/features/procedure_sessions/procedure_session_editor_view_model.dart';
 import 'package:bochki_schedule_app/src/domain/procedure_sessions/procedure_session_raw.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -93,5 +94,70 @@ void main() {
       'allowConflicts': false,
     });
     expect(calls[1], ('procedureSessionRendered', 7));
+  });
+
+  test('refreshes an IPC snapshot without replacing the editor ViewModel',
+      () async {
+    final operations = IpcProcedureSessionEditorOperations(
+      (method, arguments) async => {
+        'draft': {
+          'id': 'draft',
+          'dayId': '1',
+          'participantId': '2',
+          'startTime': '09:00',
+          'procedureKindId': '3',
+          'assistantId': null,
+        },
+        'workdays': [
+          {'id': '1', 'name': 'День', 'date': '2026-01-02'},
+        ],
+        'humans': [
+          {
+            'id': '2',
+            'name': 'Анна',
+            'shortName': 'А.',
+            'isParticipant': true,
+            'isAssistant': false,
+          },
+        ],
+        'assistants': [],
+        'procedureKinds': [
+          {
+            'id': '3',
+            'patternId': 'single',
+            'name': 'Процедура',
+            'shortName': 'П',
+            'participantBusyTime': 30,
+          },
+        ],
+        'procedureSessions': [],
+        'settings': {
+          'minimumTime': {'hour': 8, 'minute': 0},
+          'maximumTime': {'hour': 20, 'minute': 0},
+        },
+      },
+    );
+    final initial = await operations.loadSnapshot();
+    final viewModel = ProcedureSessionEditorViewModel.fromSnapshot(
+      snapshot: initial,
+      operations: operations,
+    );
+    var notifications = 0;
+    viewModel.addListener(() => notifications++);
+
+    viewModel.replaceSnapshot(ProcedureSessionEditorSnapshot(
+      draft: initial.draft,
+      workdays: const [],
+      humans: initial.humans,
+      procedureKinds: initial.procedureKinds,
+      assistants: initial.assistants,
+      procedureSessions: initial.procedureSessions,
+      programSettings: initial.programSettings,
+    ));
+
+    expect(viewModel.createDraft(), same(initial.draft));
+    expect(viewModel.workdays, isEmpty);
+    expect(notifications, 1);
+    viewModel.dispose();
   });
 }
