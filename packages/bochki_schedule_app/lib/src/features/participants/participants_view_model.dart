@@ -4,6 +4,7 @@ import '../../domain/participants/delete_participant_use_case.dart';
 import '../../domain/participants/list_participants_use_case.dart';
 import '../../domain/participants/participant.dart';
 import '../../domain/participants/update_participant_use_case.dart';
+import 'participants_operations.dart';
 
 final class ParticipantsViewModel extends NamedDirectoryViewModel<Participant> {
   ParticipantsViewModel({
@@ -26,6 +27,23 @@ final class ParticipantsViewModel extends NamedDirectoryViewModel<Participant> {
           },
           deleteEntry: deleteParticipantUseCase.execute,
           countReferences: deleteParticipantUseCase.countReferences,
+          loadErrorMessageText: 'Не удалось загрузить участников.',
+          saveErrorMessageText: 'Не удалось сохранить изменения.',
+          deleteErrorMessageText: 'Не удалось удалить участника.',
+        );
+
+  ParticipantsViewModel.fromOperations(ParticipantsOperations operations)
+      : super(
+          loadEntries: operations.list,
+          createEntry: operations.create,
+          updateEntry: ({
+            required String entryId,
+            required String rawName,
+            required String fieldId,
+          }) =>
+              operations.update(entryId, rawName),
+          deleteEntry: operations.delete,
+          countReferences: operations.countReferences,
           loadErrorMessageText: 'Не удалось загрузить участников.',
           saveErrorMessageText: 'Не удалось сохранить изменения.',
           deleteErrorMessageText: 'Не удалось удалить участника.',

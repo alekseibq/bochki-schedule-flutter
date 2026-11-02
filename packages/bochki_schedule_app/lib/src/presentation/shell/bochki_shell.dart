@@ -7,6 +7,7 @@ import 'package:bochki_schedule_infra/bochki_schedule_infra.dart';
 import '../../app_services.dart';
 import '../../data/ui_settings/ui_settings_repository.dart';
 import '../../features/participants/participants_dialog.dart';
+import '../../features/participants/participants_operations.dart';
 import '../../features/participants/participants_view_model.dart';
 import '../../features/print_presets/print_preset_params_dialog.dart';
 import '../../features/print_presets/print_preset_params_view_model.dart';
@@ -307,11 +308,13 @@ class _BochkiShellState extends State<BochkiShell> {
       _participantsDialogOpen = true;
     });
 
-    final viewModel = ParticipantsViewModel(
-      listParticipantsUseCase: widget.services.listParticipantsUseCase,
-      createParticipantUseCase: widget.services.createParticipantUseCase,
-      updateParticipantUseCase: widget.services.updateParticipantUseCase,
-      deleteParticipantUseCase: widget.services.deleteParticipantUseCase,
+    final viewModel = ParticipantsViewModel.fromOperations(
+      UseCaseParticipantsOperations(
+        listParticipantsUseCase: widget.services.listParticipantsUseCase,
+        createParticipantUseCase: widget.services.createParticipantUseCase,
+        updateParticipantUseCase: widget.services.updateParticipantUseCase,
+        deleteParticipantUseCase: widget.services.deleteParticipantUseCase,
+      ),
     );
 
     try {
