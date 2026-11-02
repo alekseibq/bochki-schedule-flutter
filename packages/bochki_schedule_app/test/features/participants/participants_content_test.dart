@@ -50,14 +50,19 @@ void main() {
       onClose: () async {},
     ))));
     Future<void> edit(String name) async {
-      final row = find.byKey(const Key('participant_row_1'));
-      await tester.tap(row);
-      await tester.pump(const Duration(milliseconds: 50));
-      await tester.tap(row);
+      await tester.tap(find.byKey(const Key('participant_edit_1')));
+      await tester.pump(const Duration(milliseconds: 400));
       await tester.pumpAndSettle();
       await tester.enterText(
           find.byKey(const Key('participant_name_field')), name);
     }
+
+    await tester.tap(find.byKey(const Key('participant_delete_1')));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    expect(find.text('Удалить участника?'), findsOneWidget);
+    await tester.tap(find.text('Отмена'));
+    await tester.pumpAndSettle();
 
     await edit('Анна Новая');
     expect(await key.currentState!.requestClose(), isTrue);

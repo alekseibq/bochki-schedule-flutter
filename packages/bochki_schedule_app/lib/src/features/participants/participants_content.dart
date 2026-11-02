@@ -745,6 +745,22 @@ class ParticipantsContentState extends State<ParticipantsContent>
                           isEditing: isEditing,
                           viewModel: viewModel,
                         ),
+                        if (!isEditing) ...[
+                          TextButton(
+                            key: Key('participant_edit_${entry.id}'),
+                            onPressed: viewModel.isSaving
+                                ? null
+                                : () => beginEdit(entry.id),
+                            child: const Text('изм.'),
+                          ),
+                          TextButton(
+                            key: Key('participant_delete_${entry.id}'),
+                            onPressed: viewModel.isSaving
+                                ? null
+                                : () => unawaited(deleteEntry(entry)),
+                            child: const Text('удл.'),
+                          ),
+                        ],
                         if (_rowButtonActions.isNotEmpty)
                           _buildRowButtons(entry),
                       ],
