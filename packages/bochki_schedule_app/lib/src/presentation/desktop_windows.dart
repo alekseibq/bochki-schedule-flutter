@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 
-import 'package:bochki_schedule_domain/bochki_schedule_domain.dart';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -2448,10 +2447,6 @@ Human _humanFromMap(Map<String, dynamic> m) => Human(
     isAssistant: m['isAssistant'] as bool);
 Map<String, dynamic> _assistantMap(Assistant a) =>
     {'id': a.id, 'name': a.name, 'shortName': a.shortName};
-Assistant _assistantFromMap(Map<String, dynamic> m) => Assistant(
-    id: m['id'] as String,
-    name: m['name'] as String,
-    shortName: m['shortName'] as String);
 Map<String, dynamic> _workdayMap(Workday d) =>
     {'id': d.id, 'name': d.name, 'date': _formatCalendarDate(d.calendarDate)};
 Workday _workdayFromMap(Map<String, dynamic> m) => Workday(
