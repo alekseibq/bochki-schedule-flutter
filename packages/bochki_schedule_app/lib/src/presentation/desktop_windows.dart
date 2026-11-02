@@ -2321,9 +2321,7 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
   }
 
   Future<void> _load() async {
-    final operations = IpcProcedureSessionEditorOperations(
-      (method, arguments) => _mainChannel.invokeMethod(method, arguments),
-    );
+    final operations = _createOperations();
     final snapshot = await operations.loadSnapshot();
     if (!mounted) return;
     final editor = ProcedureSessionEditorViewModel.fromSnapshot(
@@ -2344,13 +2342,18 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
       await _load();
       return;
     }
-    final operations = IpcProcedureSessionEditorOperations(
-      (method, arguments) => _mainChannel.invokeMethod(method, arguments),
-    );
+    final operations = _createOperations();
     final snapshot = await operations.loadSnapshot();
     if (!mounted || !identical(editor, _editor)) return;
     editor.replaceSnapshot(snapshot);
   }
+
+  IpcProcedureSessionEditorOperations _createOperations() =>
+      IpcProcedureSessionEditorOperations(
+        (method, arguments) => _mainChannel.invokeMethod(method, arguments),
+        onOpenStatistics: openProcedureStatisticsFromCurrentWindow,
+        onClose: closeCurrentDesktopWindow,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -2371,9 +2374,6 @@ class _ProcedureSessionWindowState extends State<ProcedureSessionWindow> {
                       key: ValueKey(_formVersion),
                       viewModel: editor,
                       initialValue: editor.createDraft(),
-                      onClose: closeCurrentDesktopWindow,
-                      onOpenStatistics:
-                          openProcedureStatisticsFromCurrentWindow,
                       isStatisticsOpeningAllowed:
                           !_openedFromProcedureStatistics,
                     )))));
@@ -2390,12 +2390,6 @@ Map<String, dynamic> _humanMap(Human h) => {
       'isParticipant': h.isParticipant,
       'isAssistant': h.isAssistant
     };
-Human _humanFromMap(Map<String, dynamic> m) => Human(
-    id: m['id'] as String,
-    name: m['name'] as String,
-    shortName: m['shortName'] as String,
-    isParticipant: m['isParticipant'] as bool,
-    isAssistant: m['isAssistant'] as bool);
 Map<String, dynamic> _assistantMap(Assistant a) =>
     {'id': a.id, 'name': a.name, 'shortName': a.shortName};
 Map<String, dynamic> _workdayMap(Workday d) =>

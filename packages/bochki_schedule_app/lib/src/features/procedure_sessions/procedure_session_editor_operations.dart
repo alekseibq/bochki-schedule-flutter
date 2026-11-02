@@ -16,6 +16,10 @@ abstract interface class ProcedureSessionEditorOperations {
   });
 
   Future<void> logRenderedSave(int operationId);
+
+  Future<void> openStatistics();
+
+  Future<void> close();
 }
 
 /// Direct adapter for the main engine. The existing sessions ViewModel owns
@@ -23,9 +27,16 @@ abstract interface class ProcedureSessionEditorOperations {
 /// save semantics while removing that ownership from the editor UI.
 final class DirectProcedureSessionEditorOperations
     implements ProcedureSessionEditorOperations {
-  const DirectProcedureSessionEditorOperations(this._sessions);
+  const DirectProcedureSessionEditorOperations(
+    this._sessions, {
+    required Future<void> Function() onOpenStatistics,
+    required Future<void> Function() onClose,
+  })  : _onOpenStatistics = onOpenStatistics,
+        _onClose = onClose;
 
   final ProcedureSessionsViewModel _sessions;
+  final Future<void> Function() _onOpenStatistics;
+  final Future<void> Function() _onClose;
 
   @override
   Future<ProcedureSessionSubmitResult> submit(
@@ -39,4 +50,10 @@ final class DirectProcedureSessionEditorOperations
     await WidgetsBinding.instance.endOfFrame;
     await _sessions.logRenderedSave(operationId);
   }
+
+  @override
+  Future<void> openStatistics() => _onOpenStatistics();
+
+  @override
+  Future<void> close() => _onClose();
 }

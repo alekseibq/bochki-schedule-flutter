@@ -70,6 +70,10 @@ final class ProcedureSessionEditorViewModel extends ChangeNotifier {
   Future<void> logRenderedSave(int operationId) =>
       _operations.logRenderedSave(operationId);
 
+  Future<void> openStatistics() => _operations.openStatistics();
+
+  Future<void> close() => _operations.close();
+
   @override
   void dispose() {
     _sessions?.removeListener(notifyListeners);

@@ -5,47 +5,50 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('loads and decodes a prefilled editor snapshot', () async {
-    final operations =
-        IpcProcedureSessionEditorOperations((method, arguments) async {
-      expect(method, 'procedureSessionSnapshot');
-      return {
-        'draft': {
-          'id': 'draft',
-          'dayId': '1',
-          'participantId': '2',
-          'startTime': '09:00',
-          'procedureKindId': '3',
-          'assistantId': null
-        },
-        'workdays': [
-          {'id': '1', 'name': 'День', 'date': '2026-01-02'}
-        ],
-        'humans': [
-          {
-            'id': '2',
-            'name': 'Анна',
-            'shortName': 'А.',
-            'isParticipant': true,
-            'isAssistant': false
-          }
-        ],
-        'assistants': [],
-        'procedureKinds': [
-          {
-            'id': '3',
-            'patternId': 'single',
-            'name': 'Процедура',
-            'shortName': 'П',
-            'participantBusyTime': 30
-          }
-        ],
-        'procedureSessions': [],
-        'settings': {
-          'minimumTime': {'hour': 8, 'minute': 0},
-          'maximumTime': {'hour': 20, 'minute': 0}
-        },
-      };
-    });
+    final operations = IpcProcedureSessionEditorOperations(
+      (method, arguments) async {
+        expect(method, 'procedureSessionSnapshot');
+        return {
+          'draft': {
+            'id': 'draft',
+            'dayId': '1',
+            'participantId': '2',
+            'startTime': '09:00',
+            'procedureKindId': '3',
+            'assistantId': null
+          },
+          'workdays': [
+            {'id': '1', 'name': 'День', 'date': '2026-01-02'}
+          ],
+          'humans': [
+            {
+              'id': '2',
+              'name': 'Анна',
+              'shortName': 'А.',
+              'isParticipant': true,
+              'isAssistant': false
+            }
+          ],
+          'assistants': [],
+          'procedureKinds': [
+            {
+              'id': '3',
+              'patternId': 'single',
+              'name': 'Процедура',
+              'shortName': 'П',
+              'participantBusyTime': 30
+            }
+          ],
+          'procedureSessions': [],
+          'settings': {
+            'minimumTime': {'hour': 8, 'minute': 0},
+            'maximumTime': {'hour': 20, 'minute': 0}
+          },
+        };
+      },
+      onOpenStatistics: () async {},
+      onClose: () async {},
+    );
     final snapshot = await operations.loadSnapshot();
     expect(snapshot.draft.participantId, '2');
     expect(snapshot.draft.startTime, '09:00');
@@ -56,19 +59,23 @@ void main() {
   test('maps submit and render commands to the child-window protocol',
       () async {
     final calls = <(String, Object?)>[];
-    final operations =
-        IpcProcedureSessionEditorOperations((method, arguments) async {
-      calls.add((method, arguments));
-      if (method == 'submitProcedureSession') {
-        return {
-          'didSave': true,
-          'operationId': 7,
-          'conflictMessages': const [],
-          'errorMessage': ''
-        };
-      }
-      return null;
-    });
+    final opened = <String>[];
+    final operations = IpcProcedureSessionEditorOperations(
+      (method, arguments) async {
+        calls.add((method, arguments));
+        if (method == 'submitProcedureSession') {
+          return {
+            'didSave': true,
+            'operationId': 7,
+            'conflictMessages': const [],
+            'errorMessage': ''
+          };
+        }
+        return null;
+      },
+      onOpenStatistics: () async => opened.add('statistics'),
+      onClose: () async => opened.add('close'),
+    );
     final result = await operations.submit(
         ProcedureSessionRaw(
           id: 'draft',
@@ -80,6 +87,8 @@ void main() {
         ),
         allowConflicts: false);
     await operations.logRenderedSave(7);
+    await operations.openStatistics();
+    await operations.close();
     expect(result.didSave, isTrue);
     expect(calls[0].$1, 'submitProcedureSession');
     expect(calls[0].$2, {
@@ -94,6 +103,7 @@ void main() {
       'allowConflicts': false,
     });
     expect(calls[1], ('procedureSessionRendered', 7));
+    expect(opened, ['statistics', 'close']);
   });
 
   test('refreshes an IPC snapshot without replacing the editor ViewModel',
@@ -136,6 +146,8 @@ void main() {
           'maximumTime': {'hour': 20, 'minute': 0},
         },
       },
+      onOpenStatistics: () async {},
+      onClose: () async {},
     );
     final initial = await operations.loadSnapshot();
     final viewModel = ProcedureSessionEditorViewModel.fromSnapshot(

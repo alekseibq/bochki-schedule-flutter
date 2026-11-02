@@ -958,8 +958,15 @@ class _BochkiShellState extends State<BochkiShell> {
     }
     final editor = ProcedureSessionEditorViewModel(
       sessions: _procedureSessionsViewModel,
-      operations:
-          DirectProcedureSessionEditorOperations(_procedureSessionsViewModel),
+      operations: DirectProcedureSessionEditorOperations(
+        _procedureSessionsViewModel,
+        onOpenStatistics: () => _openProcedureStatistics(
+          openedFromSession: true,
+        ),
+        onClose: () async {
+          if (mounted) Navigator.of(context, rootNavigator: true).pop();
+        },
+      ),
     );
     try {
       await showDialog<void>(
@@ -969,8 +976,6 @@ class _BochkiShellState extends State<BochkiShell> {
           return ProcedureSessionEditorDialog(
             viewModel: editor,
             initialValue: resolvedInitialValue,
-            onOpenStatistics: () =>
-                _openProcedureStatistics(openedFromSession: true),
             isStatisticsOpeningAllowed: !openedFromStatistics,
           );
         },

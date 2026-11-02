@@ -16,8 +16,15 @@ typedef ProcedureSessionEditorIpcInvoker = Future<Object?> Function(
 
 final class IpcProcedureSessionEditorOperations
     implements ProcedureSessionEditorOperations {
-  const IpcProcedureSessionEditorOperations(this._invoke);
+  const IpcProcedureSessionEditorOperations(
+    this._invoke, {
+    required Future<void> Function() onOpenStatistics,
+    required Future<void> Function() onClose,
+  })  : _onOpenStatistics = onOpenStatistics,
+        _onClose = onClose;
   final ProcedureSessionEditorIpcInvoker _invoke;
+  final Future<void> Function() _onOpenStatistics;
+  final Future<void> Function() _onClose;
 
   Future<ProcedureSessionEditorSnapshot> loadSnapshot() async {
     final value = Map<String, dynamic>.from(
@@ -104,6 +111,12 @@ final class IpcProcedureSessionEditorOperations
   @override
   Future<void> logRenderedSave(int operationId) =>
       _invoke('procedureSessionRendered', operationId);
+
+  @override
+  Future<void> openStatistics() => _onOpenStatistics();
+
+  @override
+  Future<void> close() => _onClose();
 }
 
 Map<String, dynamic> procedureSessionToIpcMap(ProcedureSessionRaw value) => {

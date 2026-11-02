@@ -22,16 +22,12 @@ class ProcedureSessionEditorContent extends StatelessWidget {
   const ProcedureSessionEditorContent({
     required this.viewModel,
     required this.initialValue,
-    this.onClose,
-    this.onOpenStatistics,
     this.isStatisticsOpeningAllowed = true,
     super.key,
   });
 
   final ProcedureSessionEditorViewModel viewModel;
   final ProcedureSessionRaw initialValue;
-  final FutureOr<void> Function()? onClose;
-  final Future<void> Function()? onOpenStatistics;
   final bool isStatisticsOpeningAllowed;
 
   @override
@@ -49,8 +45,8 @@ class ProcedureSessionEditorContent extends StatelessWidget {
               viewModel.submit(value, allowConflicts: allowConflicts),
           onSavedAndRendered: viewModel.logRenderedSave,
           isSaving: viewModel.isSaving,
-          onClose: onClose,
-          onOpenStatistics: onOpenStatistics,
+          onClose: viewModel.close,
+          onOpenStatistics: viewModel.openStatistics,
           isStatisticsOpeningAllowed: isStatisticsOpeningAllowed,
         ),
       );
@@ -60,14 +56,12 @@ class ProcedureSessionEditorDialog extends StatelessWidget {
   const ProcedureSessionEditorDialog({
     required this.viewModel,
     required this.initialValue,
-    this.onOpenStatistics,
     this.isStatisticsOpeningAllowed = true,
     super.key,
   });
 
   final ProcedureSessionEditorViewModel viewModel;
   final ProcedureSessionRaw initialValue;
-  final Future<void> Function()? onOpenStatistics;
   final bool isStatisticsOpeningAllowed;
 
   @override
@@ -83,7 +77,6 @@ class ProcedureSessionEditorDialog extends StatelessWidget {
       content: ProcedureSessionEditorContent(
         viewModel: viewModel,
         initialValue: initialValue,
-        onOpenStatistics: onOpenStatistics,
         isStatisticsOpeningAllowed: isStatisticsOpeningAllowed,
       ),
     );
