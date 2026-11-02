@@ -2255,69 +2255,6 @@ class _QuickReassignmentsWindowState extends State<QuickReassignmentsWindow> {
   }
 }
 
-class FreeTimeResultsTable extends StatefulWidget {
-  const FreeTimeResultsTable({
-    required this.gaps,
-    required this.onOccupy,
-    super.key,
-  });
-
-  final List<Map<String, dynamic>> gaps;
-  final Future<void> Function(Map<String, dynamic> gap) onOccupy;
-
-  @override
-  State<FreeTimeResultsTable> createState() => _FreeTimeResultsTableState();
-}
-
-class _FreeTimeResultsTableState extends State<FreeTimeResultsTable> {
-  final _verticalScrollController = ScrollController();
-
-  @override
-  void dispose() {
-    _verticalScrollController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => Scrollbar(
-        controller: _verticalScrollController,
-        thumbVisibility: true,
-        child: SingleChildScrollView(
-          controller: _verticalScrollController,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columns: const [
-                DataColumn(label: Text('День')),
-                DataColumn(label: Text('Человек')),
-                DataColumn(label: Text('Начало')),
-                DataColumn(label: Text('Конец')),
-                DataColumn(label: Text('Длительность')),
-                DataColumn(label: Text('')),
-              ],
-              rows: widget.gaps.map((gap) {
-                final day = _workdayFromMap(
-                    Map<String, dynamic>.from(gap['day'] as Map));
-                final human = _humanFromMap(
-                    Map<String, dynamic>.from(gap['human'] as Map));
-                return DataRow(cells: [
-                  DataCell(Text(day.name)),
-                  DataCell(Text(human.name)),
-                  DataCell(Text(gap['start'] as String)),
-                  DataCell(Text(gap['end'] as String)),
-                  DataCell(Text(gap['duration'] as String)),
-                  DataCell(FilledButton.tonal(
-                    onPressed: () => widget.onOccupy(gap),
-                    child: const Text('Занять участника'),
-                  )),
-                ]);
-              }).toList(),
-            ),
-          ),
-        ),
-      );
-}
-
 class ProcedureSessionWindow extends StatefulWidget {
   const ProcedureSessionWindow({super.key});
   @override

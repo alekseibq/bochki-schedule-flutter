@@ -637,54 +637,6 @@ void main() {
     );
   });
 
-  testWidgets('free-time results scroll vertically while keeping a scrollbar',
-      (tester) async {
-    final gaps = List<Map<String, dynamic>>.generate(
-      20,
-      (index) => {
-        'day': {'id': 'day', 'name': 'День', 'date': '2026-08-25'},
-        'human': {
-          'id': 'human-$index',
-          'name': 'Человек $index',
-          'shortName': 'Ч.$index',
-          'isParticipant': true,
-          'isAssistant': false,
-        },
-        'start': '08:00',
-        'end': '09:00',
-        'duration': '1 ч',
-      },
-    );
-
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: SizedBox(
-          height: 120,
-          child: FreeTimeResultsTable(
-            gaps: gaps,
-            onOccupy: (_) async {},
-          ),
-        ),
-      ),
-    ));
-
-    final scrollbar = tester.widget<Scrollbar>(find.byType(Scrollbar));
-    final verticalScrollView = tester
-        .widgetList<SingleChildScrollView>(find.byType(SingleChildScrollView))
-        .firstWhere((view) => view.scrollDirection == Axis.vertical);
-
-    expect(scrollbar.thumbVisibility, isTrue);
-    expect(
-      verticalScrollView.controller!.position.maxScrollExtent,
-      greaterThan(0),
-    );
-
-    verticalScrollView.controller!.jumpTo(50);
-    await tester.pump();
-
-    expect(verticalScrollView.controller!.offset, 50);
-  });
-
   testWidgets('directory child content opens a localized date picker',
       (tester) async {
     await tester.pumpWidget(
