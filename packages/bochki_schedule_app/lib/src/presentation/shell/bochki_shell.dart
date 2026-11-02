@@ -608,26 +608,15 @@ class _BochkiShellState extends State<BochkiShell> {
     final coordinator = _desktopWindows;
     if (coordinator != null) return coordinator.openQuickReassignments();
     final viewModel = QuickReassignmentsViewModel(
-      operations: QuickReassignmentsOperationsAdapter(
-        load: () async => QuickReassignmentsSnapshot(
-          workdays: await widget.services.listWorkdaysUseCase.execute(),
-          humans: await widget.services.listHumansUseCase.execute(),
-          assistants: await widget.services.listAssistantsUseCase.execute(),
-          procedureKinds:
-              await widget.services.listProcedureKindsUseCase.execute(),
-          programSettings:
-              await widget.services.getProgramSettingsUseCase.execute(),
-          entries:
-              await widget.services.listRichProcedureSessionsUseCase.execute(),
-        ),
-        mutate: useCase.execute,
-        loadColumnWidths: () async => widget.services.uiSettingsRepository
-            .settings.quickReassignmentsColumnWidths,
-        saveColumnWidths: (widths) =>
-            widget.services.uiSettingsRepository.update(
-          widget.services.uiSettingsRepository.settings
-              .copyWith(quickReassignmentsColumnWidths: widths),
-        ),
+      operations: UseCaseQuickReassignmentsOperations(
+        listWorkdays: widget.services.listWorkdaysUseCase,
+        listHumans: widget.services.listHumansUseCase,
+        listAssistants: widget.services.listAssistantsUseCase,
+        listProcedureKinds: widget.services.listProcedureKindsUseCase,
+        getProgramSettings: widget.services.getProgramSettingsUseCase,
+        listSessions: widget.services.listRichProcedureSessionsUseCase,
+        reassignments: useCase,
+        uiSettings: widget.services.uiSettingsRepository,
       ),
     );
     try {
