@@ -27,6 +27,7 @@ import '../../features/procedure_kinds/procedure_kinds_view_model.dart';
 import '../../features/program_settings/program_settings_dialog.dart';
 import '../../features/program_settings/program_settings_view_model.dart';
 import '../../features/assistants/assistants_dialog.dart';
+import '../../features/assistants/assistants_operations.dart';
 import '../../features/assistants/assistants_view_model.dart';
 import '../../features/workdays/workdays_dialog.dart';
 import '../../features/workdays/workdays_view_model.dart';
@@ -382,11 +383,13 @@ class _BochkiShellState extends State<BochkiShell> {
       _assistantsDialogOpen = true;
     });
 
-    final viewModel = AssistantsViewModel(
-      listAssistantsUseCase: widget.services.listAssistantsUseCase,
-      createAssistantUseCase: widget.services.createAssistantUseCase,
-      updateAssistantUseCase: widget.services.updateAssistantUseCase,
-      deleteAssistantUseCase: widget.services.deleteAssistantUseCase,
+    final viewModel = AssistantsViewModel.fromOperations(
+      UseCaseAssistantsOperations(
+        listAssistantsUseCase: widget.services.listAssistantsUseCase,
+        createAssistantUseCase: widget.services.createAssistantUseCase,
+        updateAssistantUseCase: widget.services.updateAssistantUseCase,
+        deleteAssistantUseCase: widget.services.deleteAssistantUseCase,
+      ),
     );
 
     try {

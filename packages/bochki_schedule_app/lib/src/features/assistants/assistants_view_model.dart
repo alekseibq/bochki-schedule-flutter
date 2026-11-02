@@ -4,6 +4,7 @@ import '../../domain/assistants/list_assistants_use_case.dart';
 import '../../domain/assistants/assistant.dart';
 import '../../domain/assistants/update_assistant_use_case.dart';
 import '../directory/named_directory_view_model.dart';
+import 'assistants_operations.dart';
 
 final class AssistantsViewModel extends NamedDirectoryViewModel<Assistant> {
   AssistantsViewModel({
@@ -26,6 +27,23 @@ final class AssistantsViewModel extends NamedDirectoryViewModel<Assistant> {
           },
           deleteEntry: deleteAssistantUseCase.execute,
           countReferences: deleteAssistantUseCase.countReferences,
+          loadErrorMessageText: 'Не удалось загрузить сопровождающих.',
+          saveErrorMessageText: 'Не удалось сохранить изменения.',
+          deleteErrorMessageText: 'Не удалось удалить сопровождающего.',
+        );
+
+  AssistantsViewModel.fromOperations(AssistantsOperations operations)
+      : super(
+          loadEntries: operations.list,
+          createEntry: operations.create,
+          updateEntry: ({
+            required String entryId,
+            required String rawName,
+            required String fieldId,
+          }) =>
+              operations.update(entryId, rawName),
+          deleteEntry: operations.delete,
+          countReferences: operations.countReferences,
           loadErrorMessageText: 'Не удалось загрузить сопровождающих.',
           saveErrorMessageText: 'Не удалось сохранить изменения.',
           deleteErrorMessageText: 'Не удалось удалить сопровождающего.',
