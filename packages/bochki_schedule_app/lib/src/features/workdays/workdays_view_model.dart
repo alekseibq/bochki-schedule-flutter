@@ -165,7 +165,10 @@ final class WorkdaysViewModel extends ChangeNotifier {
       _formErrorMessage = error.message;
       return null;
     } catch (_) {
-      _actionErrorMessage = 'Не удалось сохранить изменения.';
+      // A list host can surface action errors in a snackbar, but the native
+      // editor is hosted on its own. Keep form-save failures with the form so
+      // both hosts visibly preserve the failed edit.
+      _formErrorMessage = 'Не удалось сохранить изменения.';
       return null;
     } finally {
       _isSaving = false;
