@@ -4,6 +4,24 @@ import 'package:bochki_schedule_app/src/features/workdays/ipc_workdays_operation
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('reads and writes column widths over IPC', () async {
+    final calls = <String>[];
+    final operations = IpcWorkdaysOperations((method, arguments) async {
+      calls.add(method);
+      if (method == 'directorySnapshot') {
+        expect(arguments, 'workdays');
+        return {
+          'workdaysColumnWidths': [260, 160, 116, 100, 90]
+        };
+      }
+      expect(method, 'updateWorkdaysColumnWidths');
+      expect(arguments, [290.0, 130.0, 116.0, 100.0, 90.0]);
+      return null;
+    });
+    expect(await operations.loadColumnWidths(), [260, 160, 116, 100, 90]);
+    await operations.saveColumnWidths([290, 130, 116, 100, 90]);
+    expect(calls, ['directorySnapshot', 'updateWorkdaysColumnWidths']);
+  });
   test('create returns the persisted workday identity and values', () async {
     final operations = IpcWorkdaysOperations((_, __) async => {
           'ok': true,
