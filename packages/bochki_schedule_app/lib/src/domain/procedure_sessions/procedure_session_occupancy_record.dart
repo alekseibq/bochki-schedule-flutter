@@ -12,6 +12,7 @@ final class ProcedureSessionOccupancyRecord {
     required this.capacityAllowed,
     required this.target,
     this.isGroupedLeader = false,
+    this.groupedProcedureKindId,
   });
 
   final ConflictResourceType resourceType;
@@ -23,4 +24,5 @@ final class ProcedureSessionOccupancyRecord {
   final int capacityAllowed;
   final ScheduleConflictTarget target;
   final bool isGroupedLeader;
+  final String? groupedProcedureKindId;
 }
