@@ -53,7 +53,7 @@ class AssistantsDialog extends AssistantsContent {
   static String _nameCellText(Assistant assistant) => assistant.name;
 
   static String _deleteConfirmationMessage(Assistant assistant) {
-    return 'Сопровождающий "${assistant.name}" будет скрыт из списка.';
+    return 'Сопровождающий "${assistant.name}" будет удалён.';
   }
 
   static Future<void> _editAction(

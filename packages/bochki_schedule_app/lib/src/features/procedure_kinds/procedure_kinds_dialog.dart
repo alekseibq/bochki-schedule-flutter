@@ -181,7 +181,7 @@ class _ProcedureKindsContentState extends State<ProcedureKindsContent> {
         return AlertDialog(
           title: const Text('Удалить процедуру?'),
           content: Text(
-            'Процедура "${procedureKind.name}" будет скрыта из списка.',
+            'Процедура "${procedureKind.name}" будет удалена.',
           ),
           actions: [
             TextButton(
