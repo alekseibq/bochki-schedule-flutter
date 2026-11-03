@@ -271,14 +271,6 @@ class _ProcedureSessionFormContentState
     );
   }
 
-  String get _scheduleHint {
-    final minimumHour =
-        widget.programSettings.minimumTime.hour.toString().padLeft(2, '0');
-    final maximumHour =
-        widget.programSettings.maximumTime.hour.toString().padLeft(2, '0');
-    return 'Доступные часы начала: $minimumHour-$maximumHour.';
-  }
-
   List<DropdownMenuItem<String>> _buildWorkdayItems() {
     final items = [
       for (final workday in widget.workdays)
@@ -698,12 +690,6 @@ class _ProcedureSessionFormContentState
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    _scheduleHint,
-                    key: const Key('procedure_session_schedule_hint'),
-                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 12),
                   Row(

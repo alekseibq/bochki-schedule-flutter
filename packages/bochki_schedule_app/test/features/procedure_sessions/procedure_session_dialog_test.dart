@@ -481,12 +481,7 @@ void main() {
       ),
     );
 
-    expect(
-      find.text(
-        'Доступные часы начала: 10-12.',
-      ),
-      findsOneWidget,
-    );
+    expect(find.byKey(const Key('procedure_session_schedule_hint')), findsNothing);
 
     await tester.tap(find.byKey(const Key('procedure_session_hour_field')));
     await tester.pumpAndSettle();
