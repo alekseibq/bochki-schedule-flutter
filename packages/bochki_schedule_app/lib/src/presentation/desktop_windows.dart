@@ -14,6 +14,7 @@ import '../domain/assistants/assistants_validation_exception.dart';
 import '../domain/humans/human.dart';
 import '../domain/participants/participants_validation_exception.dart';
 import '../domain/procedure_kinds/procedure_kind.dart';
+import '../domain/procedure_kinds/procedure_kinds_validation_exception.dart';
 import '../domain/procedure_sessions/procedure_session_raw.dart';
 import '../domain/procedure_statistics/build_procedure_statistics_table_use_case.dart';
 import '../domain/procedure_statistics/procedure_statistics_table.dart';
@@ -1815,6 +1816,8 @@ final class DesktopWindowCoordinator {
       return {'ok': false, 'error': error.message, 'validation': true};
     } on WorkdaysValidationException catch (error) {
       return {'ok': false, 'error': error.message, 'validation': true};
+    } on ProcedureKindsValidationException catch (error) {
+      return {'ok': false, 'error': error.message, 'validation': true};
     } catch (error) {
       return {'ok': false, 'error': error.toString()};
     }
@@ -2028,8 +2031,9 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
         DesktopWindowKind.procedureSession));
   }
 
-  void _updateWindowContext(Map<dynamic, dynamic>? values) {
-    final kinds = values?['ancestorWindowKinds'] as List?;
+  void _updateWindowContext(Object? values) {
+    if (values is! Map) return;
+    final kinds = values['ancestorWindowKinds'] as List?;
     if (kinds == null || !mounted) return;
     setState(() => _openedFromProcedureSession =
         kinds.contains(DesktopWindowKind.procedureSession.name));
@@ -2041,8 +2045,10 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
       switch (call.method) {
         case 'statistics_changed':
         case 'directory_changed':
+          await _load();
+          return null;
         case 'window_reopen':
-          _updateWindowContext(call.arguments as Map?);
+          _updateWindowContext(call.arguments);
           await _load();
           return null;
         case 'child_visibility_changed':

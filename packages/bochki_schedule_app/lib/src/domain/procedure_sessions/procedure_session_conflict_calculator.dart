@@ -180,6 +180,8 @@ final class ProcedureSessionConflictCalculator {
           capacityAllowed: 1,
           target: ScheduleConflictTarget.assistant,
           isGroupedLeader: procedureKind.isGrouped,
+          groupedProcedureKindId:
+              procedureKind.isGrouped ? procedureKind.id : null,
         ),
       );
     }
@@ -252,7 +254,7 @@ final class ProcedureSessionConflictCalculator {
     for (final record in activeRecords) {
       occupancyKeys.add(
         record.isGroupedLeader
-            ? 'grouped|${record.timeStart}'
+            ? 'grouped|${record.timeStart}|${record.groupedProcedureKindId}'
             : 'session|${record.procedureSessionId}',
       );
     }

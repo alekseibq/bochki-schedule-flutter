@@ -52,7 +52,7 @@ class ParticipantsDialog extends ParticipantsContent {
   static String _cellText(Participant participant) => participant.name;
 
   static String _deleteConfirmationMessage(Participant participant) {
-    return 'Участник "${participant.name}" будет скрыт из списка.';
+    return 'Участник "${participant.name}" будет удалён.';
   }
 
   static Future<void> _editAction(

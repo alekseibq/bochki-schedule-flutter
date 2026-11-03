@@ -7,6 +7,7 @@ import '../../domain/assistants/assistant.dart';
 import '../../domain/humans/human.dart';
 import '../../domain/procedure_kinds/procedure_kind.dart';
 import '../../domain/procedure_sessions/procedure_session_raw.dart';
+import '../../domain/procedure_sessions/grouped_procedure_participants.dart';
 import '../../domain/procedure_sessions/procedure_session_schedule_projection.dart';
 import '../../domain/procedure_sessions/procedure_session_tooltip_builder.dart';
 import '../../domain/procedure_sessions/procedure_session_time.dart';
@@ -271,12 +272,22 @@ class _ProcedureSessionFormContentState
     );
   }
 
-  String get _scheduleHint {
-    final minimumHour =
-        widget.programSettings.minimumTime.hour.toString().padLeft(2, '0');
-    final maximumHour =
-        widget.programSettings.maximumTime.hour.toString().padLeft(2, '0');
-    return 'Доступные часы начала: $minimumHour-$maximumHour.';
+  List<GroupedProcedureParticipant> get _groupedParticipants {
+    final kind = _selectedProcedureKind;
+    final assistantId = _assistantId;
+    if (kind == null || !kind.isGrouped || assistantId == null) {
+      return const [];
+    }
+    return groupedProcedureParticipants(
+      key: GroupedProcedureKey(
+        dayId: _dayId,
+        startTime: '$_hour:$_minute',
+        procedureKindId: kind.id,
+        assistantId: assistantId,
+      ),
+      savedSessions: widget.procedureSessions,
+      humans: widget.humans,
+    );
   }
 
   List<DropdownMenuItem<String>> _buildWorkdayItems() {
@@ -700,12 +711,6 @@ class _ProcedureSessionFormContentState
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Text(
-                    _scheduleHint,
-                    key: const Key('procedure_session_schedule_hint'),
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 12),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -846,7 +851,14 @@ class _ProcedureSessionFormContentState
                       border: Border.all(color: const Color(0xFFD0D7DE)),
                       color: const Color(0xFFF8FAFC),
                     ),
-                    child: Text('Время окончания процедуры: $_finishTime'),
+                    child: _ProcedureSummary(
+                      finishTime: _finishTime,
+                      isGrouped: _selectedProcedureKind?.isGrouped ?? false,
+                      participants: _groupedParticipants,
+                      highlightedParticipantId: widget.isEditing
+                          ? widget.initialValue.participantId
+                          : null,
+                    ),
                   ),
                   if (_conflictMessages.isNotEmpty) ...[
                     const SizedBox(height: 12),
@@ -928,4 +940,42 @@ class _DialogRow extends StatelessWidget {
       ],
     );
   }
+}
+
+class _ProcedureSummary extends StatelessWidget {
+  const _ProcedureSummary({
+    required this.finishTime,
+    required this.isGrouped,
+    required this.participants,
+    required this.highlightedParticipantId,
+  });
+
+  final String finishTime;
+  final bool isGrouped;
+  final List<GroupedProcedureParticipant> participants;
+  final String? highlightedParticipantId;
+
+  @override
+  Widget build(BuildContext context) => RichText(
+        text: TextSpan(
+          style: DefaultTextStyle.of(context).style,
+          children: [
+            TextSpan(text: 'Время окончания процедуры: $finishTime'),
+            if (participants.isNotEmpty) ...[
+              const TextSpan(text: '\nТекущие участники ('),
+              TextSpan(text: '${participants.length}): '),
+              for (var index = 0; index < participants.length; index++) ...[
+                if (index > 0) const TextSpan(text: ', '),
+                TextSpan(
+                  text: participants[index].name,
+                  style: participants[index].id == highlightedParticipantId
+                      ? const TextStyle(color: Colors.green)
+                      : null,
+                ),
+              ],
+            ] else if (isGrouped)
+              const TextSpan(text: '\nТекущие участники: НЕТ'),
+          ],
+        ),
+      );
 }

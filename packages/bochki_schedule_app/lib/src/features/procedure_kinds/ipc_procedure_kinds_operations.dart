@@ -1,4 +1,5 @@
 import '../../domain/procedure_kinds/procedure_kind.dart';
+import '../../domain/procedure_kinds/procedure_kinds_validation_exception.dart';
 import 'procedure_kinds_operations.dart';
 
 typedef ProcedureKindsIpcInvoker = Future<Object?> Function(
@@ -66,6 +67,9 @@ final class IpcProcedureKindsOperations implements ProcedureKindsOperations {
       }) as Map,
     );
     if (result['ok'] != true) {
+      if (result['validation'] == true) {
+        throw ProcedureKindsValidationException(result['error'] as String);
+      }
       throw StateError(
           result['error'] as String? ?? 'Не удалось сохранить изменения.');
     }

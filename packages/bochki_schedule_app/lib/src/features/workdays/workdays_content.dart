@@ -100,7 +100,7 @@ class _WorkdaysContentState extends State<WorkdaysContent> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Удалить день?'),
-        content: Text('День "${workday.name}" будет скрыт из списка.'),
+        content: Text('День "${workday.name}" будет удален.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),

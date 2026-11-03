@@ -991,7 +991,7 @@ class _BochkiShellState extends State<BochkiShell> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Удалить запись?'),
-          content: const Text('Назначенная процедура будет удалена из списка.'),
+          content: const Text('Назначенная процедура будет удалена.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),

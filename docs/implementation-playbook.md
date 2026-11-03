@@ -99,6 +99,8 @@ JSON без миграции.
 | Новое дочернее окно или его поведение | Регистрировать kind и протокол в `DesktopWindowCoordinator`/lifecycle, сохранять singleton/reopen/cascade semantics. | `presentation/desktop_windows.dart`, `docs/desktop-window-lifecycle.md` |
 | Подключение новой функции | Собрать зависимости только в `AppBootstrap`, выдать нужный use case через `AppServices`, затем создать ViewModel в presentation. | `app_bootstrap.dart`, `app_services.dart`, `presentation/shell/bochki_shell.dart` |
 
+Для групповых процедур обязательно применяйте [правило объединения](grouped-procedure-rule.md): одна логическая группа определяется днём, временем начала, видом процедуры и ведущим.
+
 ## Тесты и проверка
 
 - Бизнес-правило или use case: unit-тест рядом с feature в `test/domain`.

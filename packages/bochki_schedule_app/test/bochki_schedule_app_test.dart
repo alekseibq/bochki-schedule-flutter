@@ -1511,13 +1511,7 @@ void main() {
 
     expect(
       find.byKey(const Key('procedure_session_schedule_hint')),
-      findsOneWidget,
-    );
-    expect(
-      find.text(
-        'Доступные часы начала: 10-18.',
-      ),
-      findsOneWidget,
+      findsNothing,
     );
 
     await tester.tap(find.byKey(const Key('procedure_session_save_button')));
