@@ -69,5 +69,23 @@ void main() {
       expect(delete['id'], 'kind-1');
       expect(delete['entry'], isEmpty);
     });
+
+    test('preserves a validation error from the main engine', () async {
+      final invalidOperations = IpcProcedureKindsOperations(
+        (_, __) async =>
+            {'ok': false, 'validation': true, 'error': 'Имя пустое.'},
+      );
+
+      await expectLater(
+        invalidOperations.create(ProcedureKind(
+          id: 'new',
+          patternId: 'curated',
+          name: 'Бочка',
+          capacity: 1,
+          participantBusyTime: 30,
+        )),
+        throwsA(isA<ProcedureKindsValidationException>()),
+      );
+    });
   });
 }
