@@ -2028,7 +2028,8 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
         DesktopWindowKind.procedureSession));
   }
 
-  void _updateWindowContext(Map<dynamic, dynamic>? values) {
+  void _updateWindowContext(Object? values) {
+    if (values is! Map) return;
     final kinds = values?['ancestorWindowKinds'] as List?;
     if (kinds == null || !mounted) return;
     setState(() => _openedFromProcedureSession =
@@ -2041,8 +2042,10 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
       switch (call.method) {
         case 'statistics_changed':
         case 'directory_changed':
+          await _load();
+          return null;
         case 'window_reopen':
-          _updateWindowContext(call.arguments as Map?);
+          _updateWindowContext(call.arguments);
           await _load();
           return null;
         case 'child_visibility_changed':
