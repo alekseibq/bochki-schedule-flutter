@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.19.0
+
+Release date: 2026-11-03
+
+### Highlights
+
+- Added a concise summary of participants in grouped procedure assignments.
+- Completed the shared-content architecture for directory and procedure windows,
+  keeping native desktop windows and test dialogs on one UI path.
+- Improved deletion-confirmation wording, directory refresh behavior, and
+  validation feedback in procedure-kind forms.
+
+### Details
+
+- `feat(procedure-sessions): summarize grouped participants (#256)`
+- `fix(desktop-windows): handle directory notifications (#257)`
+- `fix(procedure-kinds): preserve IPC validation errors (#258)`
+- `fix(ui): clarify deletion confirmations (#259)`
+
 ## v0.18.3
 
 Release date: 2026-10-25

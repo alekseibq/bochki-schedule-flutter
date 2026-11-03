@@ -481,7 +481,8 @@ void main() {
       ),
     );
 
-    expect(find.byKey(const Key('procedure_session_schedule_hint')), findsNothing);
+    expect(
+        find.byKey(const Key('procedure_session_schedule_hint')), findsNothing);
 
     await tester.tap(find.byKey(const Key('procedure_session_hour_field')));
     await tester.pumpAndSettle();

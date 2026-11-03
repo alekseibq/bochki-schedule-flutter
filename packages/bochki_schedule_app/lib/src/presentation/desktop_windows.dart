@@ -2033,7 +2033,7 @@ class _ProcedureStatisticsWindowState extends State<ProcedureStatisticsWindow> {
 
   void _updateWindowContext(Object? values) {
     if (values is! Map) return;
-    final kinds = values?['ancestorWindowKinds'] as List?;
+    final kinds = values['ancestorWindowKinds'] as List?;
     if (kinds == null || !mounted) return;
     setState(() => _openedFromProcedureSession =
         kinds.contains(DesktopWindowKind.procedureSession.name));
